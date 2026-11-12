@@ -89,6 +89,12 @@ class TripSessionManager(
     /** 시작 복구 중(계기판 재조회 최대 60초)에는 새 운행을 만들지 않는다. 끝나지 않은 운행이 고아로 남기 때문이다. */
     @Volatile private var recovering = false
 
+    /**
+     * 사람이 [기록 종료]로 끝냈는데 차가 아직 움직이는 중이면 켠다. 켜져 있는 동안은 움직여도 새 운행을 자동으로 시작하지 않고,
+     * 차가 서거나(정차·주차) 사람이 직접 시작하면 끈다 — 끝내자마자 같은 주행이 새 운행으로 다시 시작되지 않게(F-04, 2026-11-12).
+     */
+    @Volatile private var holdAutoStart = false
+
     /** 놓친 운행을 찾은 순간의 계기판 구간. 그 뒤 체크포인트가 lastKnown을 덮어써도 이 값으로 기록한다. */
     private data class MissedSpan(val startKm: Double, val endKm: Double, val endAt: Long)
 
@@ -137,7 +143,10 @@ class TripSessionManager(
         enterStopLocked(s.trip, s.liveKm, StopReason.USER_REQUEST, null)
     }
 
-    override suspend fun finalize() = mutex.withLock { finalizeLocked() }
+    override suspend fun finalize() = mutex.withLock {
+        finalizeLocked()
+        holdAutoStartIfMoving()
+    }
 
     override suspend fun resume() = mutex.withLock {
         (_state.value as? SessionState.StopCandidate)?.let { resumeLocked(it) } ?: Unit
@@ -290,7 +299,10 @@ class TripSessionManager(
         val moved = lastKm?.let { r.km > it } ?: false
         observeKm(r, moved)
         mutex.withLock {
-            (_state.value as? SessionState.StopCandidate)?.let { if (moved) resumeLocked(it) }
+            // 사람이 끝낸 종료 대기([기록 종료])는 움직여도 되돌리지 않는다 — 대기가 끝나면 그대로 끝난다
+            (_state.value as? SessionState.StopCandidate)
+                ?.takeIf { moved && it.reason != StopReason.USER_REQUEST }
+                ?.let { resumeLocked(it) }
             val s = _state.value as? SessionState.Recording ?: return@withLock
             val trip = dao.trip(s.trip.tripId) ?: return@withLock
             var savedAt = s.lastSavedAt
@@ -317,8 +329,9 @@ class TripSessionManager(
         updateMotion()
         if (moving && gear != Gear.PARK) {
             mutex.withLock {
+                // 기어 P 대기와 사람이 끝낸 대기([기록 종료])는 움직여도 되돌리지 않는다
                 (_state.value as? SessionState.StopCandidate)
-                    ?.takeIf { it.reason != StopReason.GEAR_P }
+                    ?.takeIf { it.reason != StopReason.GEAR_P && it.reason != StopReason.USER_REQUEST }
                     ?.let { resumeLocked(it) }
             }
             autoStartIfDriving()
@@ -384,7 +397,10 @@ class TripSessionManager(
         mutex.withLock {
             val now = clock.millis()
             when (val s = _state.value) {
-                is SessionState.StopCandidate -> if (now >= s.deadlineAt) finalizeLocked()
+                is SessionState.StopCandidate -> if (now >= s.deadlineAt) {
+                    finalizeLocked()
+                    if (s.reason == StopReason.USER_REQUEST) holdAutoStartIfMoving()
+                }
                 is SessionState.Recording -> {
                     val stillSince = maxOf(lastMovedAt ?: watchFrom, watchFrom)
                     if (lastKm != null && gear != Gear.PARK && now - stillSince >= DrivingJudge.MOVING_WINDOW_MS) {
@@ -398,6 +414,7 @@ class TripSessionManager(
 
     /** 운행이 없을 때 차가 움직이면 기록을 자동으로 시작한다(F-02). 주행 중에는 화면이 없으므로 묻지 않는다. */
     private suspend fun autoStartIfDriving() {
+        if (holdAutoStart) return
         val s = _state.value
         if (_motion.value == VehicleMotion.MOVING && (s is SessionState.Idle || s is SessionState.PendingReview)) {
             val r = startSession()
@@ -413,6 +430,7 @@ class TripSessionManager(
         if (s is SessionState.Recording || s is SessionState.StopCandidate || s is SessionState.NeedsRecovery) {
             return StartResult.Failed("이미 기록 중입니다")
         }
+        holdAutoStart = false // 사람이 직접 시작했으면 멈춤도 끝
         val now = clock.millis()
         val odo = vehicle.readOdometer()
         odo?.let { observeKm(it, moved = false) }
@@ -553,6 +571,15 @@ class TripSessionManager(
 
     private fun updateMotion() {
         _motion.value = DrivingJudge.judge(gear, lastKm != null, lastMovedAt, clock.millis(), speedKph)
+        // 차가 섰다(정차·주차·판정 불가) — 다음 출발부터는 다시 자동 시작
+        if (_motion.value != VehicleMotion.MOVING) holdAutoStart = false
+    }
+
+    /** 사람이 끝낸 직후 차가 움직이는 중이면 다음 정차·주차까지 자동 시작을 멈춘다([holdAutoStart]). */
+    private fun holdAutoStartIfMoving() {
+        val s = _state.value
+        val ended = s is SessionState.Idle || s is SessionState.PendingReview
+        if (ended && _motion.value == VehicleMotion.MOVING) holdAutoStart = true
     }
 
     private suspend fun save(trip: TripEntity) = dao.upsert(trip.copy(revision = trip.revision + 1))
