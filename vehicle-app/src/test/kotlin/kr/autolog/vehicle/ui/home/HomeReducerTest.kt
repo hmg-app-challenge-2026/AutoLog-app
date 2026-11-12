@@ -50,7 +50,8 @@ class HomeReducerTest {
 
         assertEquals(HomePhase.RECORDING_PARKED, s.phase)
         assertEquals("23.4", s.tripKm)
-        assertEquals(161, s.autoEndInSec) // 주차 중엔 운행 결과 카드가 덮는다
+        assertEquals(null, s.autoEndInSec) // 끝나기 1분 전까지는 "n분 경과" 그대로 — 신호 대기마다 "곧 끝남"으로 읽히지 않게(D-37)
+        assertEquals(58, reduceHome(candidate, null, destination = "판교", now = 105_000).autoEndInSec)
     }
 
     @Test

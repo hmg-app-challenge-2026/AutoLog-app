@@ -8,10 +8,12 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kr.autolog.vehicle.common.AppClock
 import kr.autolog.vehicle.core.ConfirmResult
 import kr.autolog.vehicle.data.repository.FuelDraft
 import kr.autolog.vehicle.data.repository.ReceiptRepository
 import kr.autolog.vehicle.data.repository.SessionRepository
+import kr.autolog.vehicle.data.repository.TripRepository
 import kr.autolog.vehicle.nav.Navigator
 import kr.autolog.vehicle.nav.Route
 
@@ -23,6 +25,9 @@ class FuelEntryViewModel(
     private val receiptId: String?,
     private val receipts: ReceiptRepository,
     private val session: SessionRepository,
+    /** 운행이 없는 대기에서 "방금 끝난 운행"을 찾는다(가장 최근 운행 하나). */
+    private val trips: TripRepository,
+    private val clock: AppClock,
     private val navigator: Navigator,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(FuelEntryUiState(loading = receiptId != null))
@@ -31,9 +36,12 @@ class FuelEntryViewModel(
     init {
         viewModelScope.launch {
             _uiState.value =
-                if (receiptId == null) reduceManualEntry(session.state.first()) else receiptEntry(receiptId)
+                if (receiptId == null) manualEntry() else receiptEntry(receiptId)
         }
     }
+
+    private suspend fun manualEntry(): FuelEntryUiState =
+        reduceManualEntry(session.state.first(), trips.recent(1).first().firstOrNull(), clock.nowMs())
 
     private suspend fun receiptEntry(id: String): FuelEntryUiState {
         val receipt = receipts.receipt(id).first() ?: return FuelEntryUiState(error = FuelEntryError.ReceiptMissing)

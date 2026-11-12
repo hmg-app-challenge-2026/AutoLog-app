@@ -26,7 +26,7 @@ class FuelEntryViewModelTest {
     private fun TestScope.open(receiptId: String?): Pair<TestAppGraph, FuelEntryViewModel> {
         val g = TestAppGraph(backgroundScope, AppClock { testScheduler.currentTime }, start = Route.Home)
         g.navigator.push(Route.FuelEntry(receiptId))
-        return g to FuelEntryViewModel(receiptId, g.receipts, g.session, g.navigator)
+        return g to FuelEntryViewModel(receiptId, g.receipts, g.session, g.trips, g.clock, g.navigator)
     }
 
     @Test

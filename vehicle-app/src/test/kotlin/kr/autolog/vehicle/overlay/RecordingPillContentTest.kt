@@ -25,9 +25,9 @@ class RecordingPillContentTest {
     }
 
     @Test
-    fun `종료 대기·대기 중이면 알약이 없다`() {
-        val stop = SessionState.StopCandidate(trip, 1.0, StopReason.GEAR_P, since = 0L, deadlineAt = 5_000L)
-        assertNull(recordingPillContent(stop, 0L))
+    fun `종료 대기 중에도 알약은 그대로 — 신호 대기마다 사라지지 않게, 대기 중이면 없다`() {
+        val stop = SessionState.StopCandidate(trip, 1.0, StopReason.NO_MOVEMENT, since = 0L, deadlineAt = 180_000L)
+        assertEquals("1.0", recordingPillContent(stop, 0L)!!.km)
         assertNull(recordingPillContent(SessionState.Idle, 0L))
     }
 

@@ -4,6 +4,7 @@ import kr.autolog.shared.OcrStatus
 import kr.autolog.shared.ReceiptFields
 import kr.autolog.shared.ReceiptPayload
 import kr.autolog.vehicle.core.TripCandidate
+import kr.autolog.vehicle.data.repository.HistoryItem
 import kr.autolog.vehicle.data.repository.TripSession
 import kr.autolog.vehicle.ui.design.components.CONFIDENCE_OK
 import kr.autolog.vehicle.ui.design.components.applyKey
@@ -22,14 +23,22 @@ private const val ARITH_TOLERANCE_WON = 1.0
 
 private const val CARD_DIGITS = 4
 
-/** 직접 입력: 지금 운행(기록 중·종료 대기) 또는 방금 끝난 운행이 있으면 그 운행을 고른 채로 연다. */
-internal fun reduceManualEntry(session: TripSession): FuelEntryUiState {
+/** "방금 끝난 운행"으로 볼 시간 — 주유소에 주차하면 결과 카드가 5초 뒤 저장돼 운행이 없는 대기가 되므로, 끝난 지 이만큼은 고를 수 있게. */
+const val JUST_ENDED_WINDOW_MS = 30 * 60_000L
+
+/**
+ * 직접 입력: 지금 운행(기록 중·종료 대기) 또는 방금 끝난 운행이 있으면 그 운행을 고른 채로 연다.
+ * 운행이 없는 대기여도 [lastEnded]가 [now]로부터 [JUST_ENDED_WINDOW_MS] 안에 끝났으면 "방금 끝난 운행"(2026-11-12 점검 — 결과 카드가 저장된 뒤엔 늘 빠졌다).
+ */
+internal fun reduceManualEntry(session: TripSession, lastEnded: HistoryItem? = null, now: Long = 0): FuelEntryUiState {
+    val justEnded = lastEnded?.takeIf { it.endTime != null && now - it.endTime in 0..JUST_ENDED_WINDOW_MS }
     val trips =
         when (session) {
             is TripSession.Recording -> listOf(FuelTripOption(session.trip.tripId, FuelTripLabel.Current))
             is TripSession.AutoEnding -> listOf(FuelTripOption(session.trip.tripId, FuelTripLabel.Current))
             is TripSession.PendingReview -> listOf(FuelTripOption(session.tripId, FuelTripLabel.JustEnded))
-            TripSession.Idle, is TripSession.NeedsRecovery -> emptyList()
+            TripSession.Idle -> listOfNotNull(justEnded?.let { FuelTripOption(it.tripId, FuelTripLabel.JustEnded) })
+            is TripSession.NeedsRecovery -> emptyList()
         }
     return FuelEntryUiState(trips = trips, selectedTripId = trips.firstOrNull()?.tripId)
 }
