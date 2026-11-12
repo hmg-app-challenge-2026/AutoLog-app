@@ -2,6 +2,7 @@ package kr.autolog.vehicle.ui.result
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestScope
@@ -118,6 +119,27 @@ class TripResultViewModelTest {
         acknowledgeSaved(g, vm)
         assertEquals(Route.Home, g.navigator.current)
         assertEquals(PurposeCategory.NON_BUSINESS, purposeOf(g)!!.category)
+    }
+
+    @Test
+    fun `수정하던 중 출발하면 수정을 접고 고른 목적으로 5초 뒤 저장한다 — 누를 수 없는 화면에 멈추지 않게`() = runTest {
+        val g = TestAppGraph(backgroundScope, AppClock { testScheduler.currentTime }, start = Route.Home)
+        g.navigator.push(Route.TripResult("t-s1"))
+        val parked = MutableStateFlow(true)
+        val vm = TripResultViewModel("t-s1", g.tripResults, g.session, g.navigator, g.clock, parked = parked)
+        vm.uiState.first { !it.loading }
+        vm.onAction(TripResultAction.Edit)
+        vm.onAction(TripResultAction.Select(PurposeCategory.COMMUTE))
+
+        parked.value = false
+        runCurrent()
+        val state = vm.uiState.first { !it.editing }
+        assertEquals(5, state.autoCloseSec)
+        advanceTimeBy(5_100)
+
+        acknowledgeSaved(g, vm)
+        assertEquals(Route.Home, g.navigator.current)
+        assertEquals(PurposeCategory.COMMUTE, purposeOf(g)!!.category)
     }
 
     @Test

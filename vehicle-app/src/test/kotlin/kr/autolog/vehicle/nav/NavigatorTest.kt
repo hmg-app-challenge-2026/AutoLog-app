@@ -65,37 +65,36 @@ class NavigatorTest {
     }
 
     @Test
-    fun `정차 중 끝난 운행의 결과는 다음 주차 때 Home 위에 연다`() {
+    fun `운행 결과 카드는 정차·주행 중에도 바로 열고, 이미 맨 위면 두 번 쌓지 않는다`() {
         val nav = Navigator(Route.Home)
-        nav.onTierChanged(UsageTier.PEEK)
+        nav.onTierChanged(UsageTier.BACKGROUND)
 
-        nav.showWhenParked(Route.TripResult("t-1"))
-        assertEquals(listOf(Route.Home), nav.backStack.value)
-        nav.onTierChanged(UsageTier.FULL)
+        nav.showTripResult(Route.TripResult("t-1"))
+        nav.showTripResult(Route.TripResult("t-1"))
 
         assertEquals(listOf(Route.Home, Route.TripResult("t-1")), nav.backStack.value)
     }
 
     @Test
-    fun `주차 전에 기록이 다시 이어지면 기다리던 결과를 열지 않는다`() {
+    fun `주차에서 내려가도 운행 직후 결과 카드는 Home 위에 남는다 — 다른 화면은 닫힌다`() {
         val nav = Navigator(Route.Home)
+        nav.push(Route.Settings)
+        nav.showTripResult(Route.TripResult("t-1"))
+
         nav.onTierChanged(UsageTier.PEEK)
-        nav.showWhenParked(Route.TripResult("t-1"))
+        nav.onTierChanged(UsageTier.BACKGROUND)
 
-        nav.showWhenParked(null)
-        nav.onTierChanged(UsageTier.FULL)
-
-        assertEquals(listOf(Route.Home), nav.backStack.value)
+        assertEquals(listOf(Route.Home, Route.TripResult("t-1")), nav.backStack.value)
     }
 
     @Test
-    fun `주차 중이면 결과를 바로 쌓고, 이미 맨 위면 두 번 쌓지 않는다`() {
+    fun `사후 확인 카드는 주차 전용 — 내려가면 닫힌다`() {
         val nav = Navigator(Route.Home)
-        nav.onTierChanged(UsageTier.FULL)
+        nav.push(Route.History)
+        nav.push(Route.TripResult("t-1", TripResultMode.REVIEW))
 
-        nav.showWhenParked(Route.TripResult("t-1"))
-        nav.showWhenParked(Route.TripResult("t-1"))
+        nav.onTierChanged(UsageTier.PEEK)
 
-        assertEquals(listOf(Route.Home, Route.TripResult("t-1")), nav.backStack.value)
+        assertEquals(listOf(Route.Home), nav.backStack.value)
     }
 }

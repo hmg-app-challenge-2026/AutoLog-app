@@ -7,7 +7,6 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kr.autolog.vehicle.common.AppClock
@@ -28,7 +27,7 @@ class HomeViewModel(
     trips: TripRepository,
     private val navigator: Navigator,
     clock: AppClock,
-    /** 지금 주차인가 — [기록 종료]를 주차 중엔 5초 대기로, 정차·주행 중엔 바로 끝내기로(D-31·F-04). */
+    /** 지금 주차인가 — [기록 종료]를 주차 중엔 5초 대기로, 정차·주행 중엔 바로 끝내기로(D-34). 종료 대기 카드도 주차 중에만(D-35). */
     private val usage: VehicleUsageRepository,
     ticker: Flow<Long> = tickerFlow(clock),
 ) : ViewModel() {
@@ -43,14 +42,13 @@ class HomeViewModel(
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HomeUiState())
 
     init {
-        // 종료 조건이 되면(종료 대기) 또는 운행이 끝나면 바로 운행 결과 카드를 연다(스펙 7.3, D-28).
-        // 같은 운행의 "종료 대기 → 끝남"은 한 번만 연다. [기록 이어가기]로 되돌렸다가 다시 종료 대기가 되면 다시 연다.
+        // 운행이 끝나면 단계와 무관하게 바로 운행 결과 카드를 연다(스펙 7.3, D-28·D-35) — 정차·주행 중엔 버튼 없이 5초 뒤 저절로 저장.
+        // 종료 대기(되돌릴 수 있는 카운트다운)는 주차 중에만 카드로 — 정차 중엔 Home 상태 줄이 남은 시간을 말한다(D-31).
+        // 같은 운행의 "종료 대기 → 끝남"은 한 번만 연다(같은 Route). [기록 이어가기]로 되돌렸다가 다시 종료 대기가 되면 다시 연다
         viewModelScope.launch {
-            session.state
-                .map { it.resultTripId() }
+            combine(session.state, usage.tier) { s, tier -> s.resultRoute(parked = tier == UsageTier.FULL) }
                 .distinctUntilChanged()
-                // 정차·주행 중이면(정차 중 [기록 종료] 등) 다음 주차 때 연다 — 그 전에 기록이 다시 이어지면 지운다(D-31)
-                .collect { id -> navigator.showWhenParked(id?.let { Route.TripResult(it) }) }
+                .collect { route -> route?.let(navigator::showTripResult) }
         }
     }
 
@@ -59,7 +57,8 @@ class HomeViewModel(
             when (action) {
                 HomeAction.StartTrip -> session.startTrip()
                 // 주차 중: 자동 종료와 같은 5초 대기(결과 카드에서 되돌릴 수 있다).
-                // 정차·주행 중: 바로 끝낸다 — 카드를 띄울 수 없고, 앱 A가 달리는 동안 새 운행을 다시 시작하지 않는다(2026-11-12 사용자 결정 ②)
+                // 정차·주행 중: 바로 끝낸다 — 되돌릴 버튼이 없으니 기다릴 이유가 없다. 결과 카드는 버튼 없이 열려 5초 뒤 저장되고(D-35),
+                // 달리는 중이었으면 앱 A가 다음 정차까지 새 운행을 다시 시작하지 않는다(D-34)
                 HomeAction.EndNow ->
                     if (usage.tier.value == UsageTier.FULL) session.requestStop() else session.endNow()
                 HomeAction.AcceptMissedTrip -> session.acceptMissedTrip()
@@ -73,9 +72,9 @@ class HomeViewModel(
     }
 }
 
-/** 운행 결과 카드를 열 운행: 종료 대기 중이거나 방금 끝나 목적을 기다리는 운행. */
-private fun TripSession.resultTripId(): String? = when (this) {
-    is TripSession.AutoEnding -> trip.tripId
-    is TripSession.PendingReview -> tripId
+/** 운행 결과 카드: 방금 끝나 목적을 기다리는 운행(단계 무관), 또는 종료 대기 중인 운행(주차 중에만). */
+private fun TripSession.resultRoute(parked: Boolean): Route.TripResult? = when (this) {
+    is TripSession.AutoEnding -> if (parked) Route.TripResult(trip.tripId) else null
+    is TripSession.PendingReview -> Route.TripResult(tripId)
     else -> null
 }

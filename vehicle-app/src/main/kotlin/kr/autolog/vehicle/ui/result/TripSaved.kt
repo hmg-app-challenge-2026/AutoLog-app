@@ -21,6 +21,7 @@ import androidx.compose.ui.text.style.TextAlign
 import kotlinx.coroutines.delay
 import kr.autolog.vehicle.R
 import kr.autolog.vehicle.ui.design.AutoLogTheme
+import kr.autolog.vehicle.ui.design.LocalDrivingLocked
 import kr.autolog.vehicle.ui.design.LocalWindowLayout
 import kr.autolog.vehicle.ui.design.Size
 import kr.autolog.vehicle.ui.design.Space
@@ -33,7 +34,7 @@ import kr.autolog.vehicle.ui.design.twoColumns
  * 저장 완료(스펙 7.3 — 5초가 다 되거나 [저장하기]로 저장을 마친 뒤). 가운데 체크(`SuccessCheck`가 그려지며 등장) →
  * 그 아래 "운행 기록을 저장했어요" → 맨 아래 [확인](운행 결과의 [저장하기]와 같은 자리·폭).
  * 체크를 **다 그린 뒤** 1초([SAVED_HOLD_MS])가 지나면 저절로 들어온 화면으로 — 시간은 ViewModel이 센다([TripResultAction.CheckDrawn]).
- * [확인]은 기다리지 않고 바로 닫는다.
+ * [확인]은 기다리지 않고 바로 닫는다. 정차·주행 중엔 [확인]을 빼고 그 높이만 비워 둔다 — 체크·문구가 주차 때와 같은 자리(D-35).
  */
 @Composable
 internal fun TripSaved(onAction: (TripResultAction) -> Unit, modifier: Modifier = Modifier) {
@@ -49,12 +50,16 @@ internal fun TripSaved(onAction: (TripResultAction) -> Unit, modifier: Modifier 
         Spacer(Modifier.height(Space.s7))
         SavedMessage()
         Spacer(Modifier.weight(1f))
-        PrimaryButton(
-            stringResource(R.string.action_confirm),
-            onClick = { onAction(TripResultAction.Close) },
-            modifier = Modifier.widthIn(max = Size.actionButtonMaxWidth).fillMaxWidth(),
-            height = Size.buttonMd,
-        )
+        if (LocalDrivingLocked.current) {
+            Spacer(Modifier.height(Size.buttonMd))
+        } else {
+            PrimaryButton(
+                stringResource(R.string.action_confirm),
+                onClick = { onAction(TripResultAction.Close) },
+                modifier = Modifier.widthIn(max = Size.actionButtonMaxWidth).fillMaxWidth(),
+                height = Size.buttonMd,
+            )
+        }
     }
 }
 

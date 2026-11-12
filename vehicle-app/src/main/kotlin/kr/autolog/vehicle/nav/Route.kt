@@ -1,6 +1,9 @@
 package kr.autolog.vehicle.nav
 
-/** 백스택의 모든 화면은 주차(FULL) 전용이다(스펙 6.10). 정차·주행 중엔 Home만 남아 읽기 전용으로 보인다(D-31). */
+/**
+ * 백스택의 화면은 주차(FULL) 전용이다(스펙 6.10). 정차·주행 중엔 Home만 남아 읽기 전용으로 보인다(D-31).
+ * 예외는 [shownWhileDriving] 하나 — 운행이 막 끝난 운행 결과 카드는 단계와 무관하게 열리고, 주차가 아니면 버튼 없이 보인다(D-35).
+ */
 sealed interface Route {
     data object ProfilePicker : Route
 
@@ -39,3 +42,9 @@ enum class TripResultMode {
      */
     REVIEW,
 }
+
+/**
+ * 정차·주행 중에도 열려 있을 수 있는 화면인가 — 운행 직후 결과 카드([TripResultMode.AFTER_TRIP])뿐(D-35).
+ * 사람이 고를 것이 없는 화면(5초 뒤 저절로 저장 → 체크 → Home)이라 운전 중에도 끝까지 흘러가게 둔다. 사후 확인([TripResultMode.REVIEW])은 주차 전용.
+ */
+val Route.shownWhileDriving: Boolean get() = this is Route.TripResult && mode == TripResultMode.AFTER_TRIP

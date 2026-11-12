@@ -9,6 +9,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -32,6 +34,9 @@ import kr.autolog.vehicle.nav.TripResultMode
  * 지금 선택으로 저장하고 돌아간다 — 시간이 다 됐을 때 저절로 일어나는 일과 같다.
  * 저장하지 않고 화면이 닫히면(주행 시작 등) 그 운행은 "목적 미입력"으로 남는다.
  *
+ * [parked] = 지금 주차인가(D-35). 정차·주행 중엔 화면에 버튼이 없다 — [수정하기] 중에 출발하면 수정을 접고 지금 선택으로
+ * 다시 5초 자동 저장으로 돌아간다(누를 수 없는 화면에 멈춰 있지 않게).
+ *
  * [mode] = REVIEW(운행 기록 조회에서 연 사후 확인, D-29): 카운트다운도 자동 저장도 없다. 목적 미입력 운행은 수정 모드로 열리고,
  * [저장]을 눌러야만 저장한 뒤 목록으로 돌아간다. [닫기]는 저장하지 않고 돌아간다.
  */
@@ -42,6 +47,7 @@ class TripResultViewModel(
     private val navigator: Navigator,
     private val clock: AppClock,
     private val mode: TripResultMode = TripResultMode.AFTER_TRIP,
+    parked: Flow<Boolean> = flowOf(true),
     ticker: Flow<Long> = tickerFlow(clock),
 ) : ViewModel() {
     private val review = mode == TripResultMode.REVIEW
@@ -79,6 +85,11 @@ class TripResultViewModel(
                 }
             }
         }
+        if (!review) {
+            viewModelScope.launch {
+                parked.distinctUntilChanged().collect { if (!it) stopEditing() }
+            }
+        }
     }
 
     fun onAction(action: TripResultAction) {
@@ -114,6 +125,13 @@ class TripResultViewModel(
             results.classify(tripId, selectedNow())
             if (finishing || !interaction.value.editing) showSaved()
         }
+    }
+
+    /** 정차·주행이 됐다 — 고르던 목적은 지금 선택 그대로 두고, 끝난 운행이면 5초 자동 저장을 다시 건다(종료 대기면 앱 A 종료 시각이 마감). */
+    private fun stopEditing() {
+        if (!interaction.value.editing || finishing) return
+        interaction.update { it.copy(editing = false) }
+        if (current?.endsAt == null) startCountdown()
     }
 
     private fun startCountdown() {

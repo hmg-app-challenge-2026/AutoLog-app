@@ -89,7 +89,7 @@ class HomeViewModelTest {
     }
 
     @Test
-    fun `주행 중 기록 종료는 바로 끝나고, 계속 달려도 새 운행을 시작하지 않고, 결과는 다음 주차 때 연다`() = runTest {
+    fun `주행 중 기록 종료는 바로 끝나 결과 카드가 열리고, 계속 달려도 새 운행을 시작하지 않는다`() = runTest {
         val g = graph()
         val vm = HomeViewModel(g.session, g.context, g.trips, g.navigator, g.clock, g.usage)
         g.trip.startSession()
@@ -104,10 +104,27 @@ class HomeViewModelTest {
         advanceTimeBy(1_100) // 세션 값은 1초 스로틀
 
         assertEquals(ended, (g.trip.state.value as SessionState.PendingReview).trip.tripId) // 새 운행 없음
-        assertEquals(listOf(Route.Home), g.navigator.backStack.value) // 주행 중엔 카드를 띄우지 않는다
-        g.trip.setMotion(VehicleMotion.PARKED)
+        // 주차를 기다리지 않고 바로 — 정차·주행 중엔 버튼 없이 5초 뒤 저장(D-35)
+        assertEquals(listOf(Route.Home, Route.TripResult(ended)), g.navigator.backStack.value)
+    }
+
+    @Test
+    fun `정차 중 종료 대기는 카드 없이 Home 상태 줄로, 끝나면 그때 결과 카드를 연다`() = runTest {
+        val g = graph()
+        HomeViewModel(g.session, g.context, g.trips, g.navigator, g.clock, g.usage)
+        g.trip.startSession()
+        g.trip.setMotion(VehicleMotion.STOPPED)
         runCurrent()
-        g.navigator.onTierChanged(UsageTier.FULL)
+        g.navigator.onTierChanged(UsageTier.PEEK)
+
+        g.trip.requestStop() // 움직임 없음 자동 종료와 같은 종료 대기
+        advanceTimeBy(1_100)
+        assertTrue(g.trip.state.value is SessionState.StopCandidate)
+        assertEquals(listOf(Route.Home), g.navigator.backStack.value) // 되돌릴 버튼이 없으니 대기 카드는 주차 중에만
+
+        advanceTimeBy(5_000)
+        runCurrent()
+        val ended = (g.trip.state.value as SessionState.PendingReview).trip.tripId
         assertEquals(Route.TripResult(ended), g.navigator.current)
     }
 
