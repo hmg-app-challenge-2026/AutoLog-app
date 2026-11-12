@@ -8,13 +8,14 @@
      export JAVA_HOME=$HOME/opt/jdk17 ANDROID_HOME=$HOME/Android/Sdk
      export PATH=$JAVA_HOME/bin:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$PATH
      ```
-2. `git submodule update --init --recursive`
+2. (2026-11-11 리포 통합 뒤 submodule 없음 — 받기만 하면 된다. 예전 AutoLog-Frontend 시절엔 `git submodule update --init --recursive`)
 3. `echo "sdk.dir=$ANDROID_HOME" > local.properties`
 4. Gradle은 메모리 상한을 걸고 실행한다(WSL 메모리 부족 시 세션 전체가 죽는다):
    ```bash
    G() { systemd-run --user --scope -q -p MemoryMax=10G ./gradlew "$@"; }
    G :vehicle-app:testDemoDebugUnitTest
    G :vehicle-app:recordRoborazziDemoDebug   # 스크린샷 기록 → vehicle-app/src/test/screenshots
+   G :shared:test :vehicle-core:test :relay:test   # 로직·서버 테스트(같은 빌드)
    ```
 5. WSL에서는 Pleos 에뮬레이터를 돌리지 않는다(외장 GPU 필요).
 
@@ -22,6 +23,6 @@
 
 1. Android Studio 최신, JDK 17
 2. Pleos 에뮬레이터: 스펙 5.5 "맥 에뮬레이터 준비" 1~5 (SDK Update Site `crp-arm64-sys-img.xml`, API 34, **Cold boot**, RAM 4 GB)
-3. `git clone --recurse-submodules …` 후 Android Studio로 루트 열기 → Build Variant `demoDebug`
+3. `git clone https://github.com/hmg-app-challenge-2026/AutoLog-app` 후 Android Studio로 루트 열기 → Build Variant `demoDebug`
 4. 설치: `./gradlew :vehicle-app:installDemoDebug`
 5. 스크린샷은 맥에서 기록해도 커밋하지 않는다(기준 플랫폼은 Linux)

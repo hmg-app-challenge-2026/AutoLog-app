@@ -3,7 +3,7 @@
 | 항목 | 내용 |
 |---|---|
 | 문서 목적 | AutoLog의 **모든 화면**(Pleos 차량 앱, 운영 웹, 폰 카메라 페이지)을 이 리포에서 어떻게 만들지 확정한다. 이 문서만 읽고도 다른 사람이 같은 결과물을 만들 수 있어야 한다 |
-| 상태 | 확정 v1.0 (2026-11-09) |
+| 상태 | 확정 v1.0 (2026-11-09) · **2026-11-11 AutoLog-Frontend·AutoLog-Backend를 한 리포(AutoLog-app)로 합침**(D-33) — 아래 "이 리포"는 화면 쪽(`vehicle-app/`·`web/`)을 뜻한다 |
 | 함께 읽을 문서 | [`docs/design-language.md`](../../design-language.md)(디자인 철학·토큰·모션·컴포넌트) · [`CONVENTIONS.md`](../../../CONVENTIONS.md)(브랜치·커밋·코드 규칙) |
 | 규범 용어 | **반드시** = 어기면 리뷰에서 반려 · **하지 않는다** = 금지 · **권장** = 이유가 있으면 벗어나도 됨(PR에 이유를 적음) · **[검증 필요]** = 근거가 아직 없음, 13장 목록에서 추적 |
 
@@ -23,7 +23,7 @@
 
 AutoLog는 "운전만 하세요. 기록은 차가 합니다."를 약속하는 법인차량 운행·지출 장부 앱이다(2026 현대자동차그룹 차량용 앱 개발 공모전, Pleos App Market). 운행 기록의 원본은 차량에 있고, 차가 계기판(Odometer)을 직접 읽어 국세청 양식 운행기록부를 만든다.
 
-**이 리포(AutoLog-Frontend)가 만드는 것**
+**화면 쪽이 만드는 것**(예전 AutoLog-Frontend 리포, 2026-11-11부터 AutoLog-app 안)
 
 | 산출물 | 경로 | 실행 위치 |
 |---|---|---|
@@ -31,7 +31,7 @@ AutoLog는 "운전만 하세요. 기록은 차가 합니다."를 약속하는 �
 | 운영 웹 (관리자) | `web/admin/` | nginx 정적 (`/admin/`) |
 | 폰 영수증 카메라 페이지 | `web/camera/index.html` | nginx 정적 (`/r/{code}`) |
 
-**이 리포가 만들지 않는 것** — 차량 로직(SDK 게이트웨이, 운행 세션, Room, 엑셀, 메일)과 중계 서버(relay)는 [AutoLog-Backend](https://github.com/hmg-app-challenge-2026/AutoLog-Backend)가 만든다. 이 리포는 Backend를 git submodule(`backend/`)로 가져와 `vehicle-core` 모듈의 공개 계약(`core/Contracts.kt`)만 쓴다.
+**화면 쪽이 만들지 않는 것** — 차량 로직(SDK 게이트웨이, 운행 세션, Room, 엑셀, 메일)과 중계 서버(relay)는 앱 A·B가 같은 리포의 `vehicle-core/`·`shared/`·`relay/`에 만든다(예전 [AutoLog-Backend](https://github.com/hmg-app-challenge-2026/AutoLog-Backend)). 화면은 `vehicle-core` 모듈의 공개 계약(`core/Contracts.kt`)만 쓴다. 예전엔 Backend를 git submodule(`backend/`)로 가져왔다(D-01 → D-33).
 
 ### 1.1 사용 모델 — 주행·정차·주차 (가장 중요한 전제)
 
@@ -106,7 +106,7 @@ AutoLog는 **운전하는 동안 쓰는 앱이 아니다.** 기록은 차가 백
 | 0 | **Pleos 공식 가이드** (UI Design Guide, 주행 규제 정책, 앱 심사 가이드) | 외부 제약. 어기면 앱 심사에서 거부된다. 다른 모든 문서보다 우선한다 |
 | 1 | **기능명세** (팀 문서 "앱 사용 시나리오 및 주요 기능") | 무엇을 할지의 최상위 기준 |
 | 2 | **계획서** (팀 문서 "AutoLog 기술 명세서", Java·FastAPI판) | 기능명세가 말하지 않은 부분의 기준 |
-| 3 | **AutoLog-Backend 리포의 `docs/`·코드** (기능명세 v0.3, 기술명세, CONVENTIONS, `Contracts.kt`) | 현재 구현 현황. 계약 타입·API 형태는 이 코드가 사실이다 |
+| 3 | **로직 쪽 `docs/`·코드**(예전 AutoLog-Backend — 기능명세 v0.3, 기술명세, CONVENTIONS, `Contracts.kt`) | 현재 구현 현황. 계약 타입·API 형태는 이 코드가 사실이다 |
 | 4 | 이 문서 | 위 문서들을 프론트 구현으로 옮긴 결과 |
 
 **서열을 적용한 결과 (요약)**
@@ -117,14 +117,14 @@ AutoLog는 **운전하는 동안 쓰는 앱이 아니다.** 기록은 차가 백
 
 ---
 
-## 3. 현황 (2026-11-09 기준)
+## 3. 현황 (2026-11-09 기준 — 작성 당시 기록. 리포 통합 뒤 구조는 5장)
 
 | 대상 | 상태 |
 |---|---|
 | AutoLog-Frontend | 빈 리포(커밋 0). 이 문서가 첫 커밋 |
 | Backend `app/` | placeholder `MainActivity` 1개뿐. 이 리포의 `vehicle-app/`이 대체한다 |
 | Backend `web/` | `web/admin` 빈 골격(React 18.3.1 · TS 5.6 · Vite 6), `web/camera` 빈 파일. 이 리포의 `web/`이 대체한다 |
-| 앱 B 계약 (구현·Fake 있음) | `ContextApi` · `PurposeEngine` · `VoiceApi` · `ReceiptApi` · `MailApi` · `SettingsApi` — `backend/vehicle-core/src/main/kotlin/kr/autolog/vehicle/core/Contracts.kt` |
+| 앱 B 계약 (구현·Fake 있음) | `ContextApi` · `PurposeEngine` · `VoiceApi` · `ReceiptApi` · `MailApi` · `SettingsApi` — `vehicle-core/src/main/kotlin/kr/autolog/vehicle/core/Contracts.kt`(당시 `backend/` submodule 안) |
 | 앱 A 계약 | `TripSessionApi` · `LocalStore` · `ReportApi` · `DeviceApi` — 2026-11-09엔 `TODO(A)`만 있어 interim 초안으로 개발, **2026-11-10 `c3883db`로 실구현 머지·연결 완료**(6.6) |
 | relay API | 차량 `/v1/devices`·`/v1/inbox`·`/v1/inbox/{id}/ack`·`/v1/qr-tokens`, 카메라 `POST /r/{code}/receipt?t=`(multipart `image`), 관리자 `/admin/vehicles|users|places|schedules|recipients`(CRUD + CSV import), 인증 `X-Admin-Token` 헤더 |
 | 일정 | 11.14 3인 통합 → 11.15 1차 제출 → 12.03–04 시연 |
@@ -137,10 +137,10 @@ AutoLog는 **운전하는 동안 쓰는 앱이 아니다.** 기록은 차가 백
 
 | ID | 결정 | 이유 | 기각한 대안 (이유) |
 |---|---|---|---|
-| D-01 | 화면은 **AutoLog-Frontend 리포**에 두고, Backend를 **git submodule + Gradle composite build**로 가져온다 | 프론트 소유 영역을 리포 단위로 분리. `vehicle-core` 변경이 바로 반영됨 | Backend 모노레포 `app/`(사용자가 별도 리포를 결정) · AAR 배포(로직이 바뀔 때마다 배포해야 해서 통합 직전에 느림) |
+| D-01 | ~~화면은 **AutoLog-Frontend 리포**에 두고, Backend를 **git submodule + Gradle composite build**로 가져온다~~ → **D-33**(2026-11-11 한 리포·한 빌드) | 프론트 소유 영역을 리포 단위로 분리. `vehicle-core` 변경이 바로 반영됨 | Backend 모노레포 `app/`(사용자가 별도 리포를 결정) · AAR 배포(로직이 바뀔 때마다 배포해야 해서 통합 직전에 느림) |
 | D-02 | **Kotlin 2.0.21 + Jetpack Compose(BOM 2024.12.01) + Material 3** | `vehicle-core` 계약을 그대로 호출. Backend와 버전 카탈로그 공유 | Java + XML(계약 호출에 Kotlin 브리지가 필요) · Kotlin + XML(Backend 골격과 불일치, 가변 레이아웃 비용 큼) |
 | D-03 | **MVVM**: Compose → ViewModel(`StateFlow<UiState>`) → **Repository** → `vehicle-core` Contracts | 화면은 SDK·계약을 모른다. ViewModel은 가짜 Repository로 JVM 테스트 | 화면이 Contracts를 직접 호출(교체·테스트 어려움) · MVI 라이브러리 도입(규모 대비 과함) |
-| D-04 | Gradle은 **Kotlin DSL**, 버전은 **Backend의 `gradle/libs.versions.toml`을 그대로 읽는다**. 프론트 전용 라이브러리만 `gradle/fe.versions.toml` | composite build는 AGP·Kotlin 버전이 어긋나면 깨진다. 같은 파일을 읽으면 구조적으로 어긋날 수 없다 | 버전 복사(드리프트) · Groovy DSL(계획서 원안이나 Backend와 불일치) |
+| D-04 | Gradle은 **Kotlin DSL**, 버전은 **Backend의 `gradle/libs.versions.toml`을 그대로 읽는다**(D-33 이후엔 같은 리포의 `gradle/libs.versions.toml` — Gradle 기본 `libs`). 프론트 전용 라이브러리만 `gradle/fe.versions.toml` | composite build는 AGP·Kotlin 버전이 어긋나면 깨진다. 같은 파일을 읽으면 구조적으로 어긋날 수 없다 | 버전 복사(드리프트) · Groovy DSL(계획서 원안이나 Backend와 불일치) |
 | D-05 | **수동 DI**(`AppGraph`) + product flavor **`demo` / `vehicle`** | 화면 10개 규모에 Hilt는 과함. `demo`는 전부 Fake라 일반 에뮬레이터·Preview·스크린샷 테스트에서 돈다 | Hilt(빌드 시간·학습 비용) · Koin(런타임 오류) |
 | D-06 | 자체 **`Navigator`**(sealed `Route` 백스택) | 주행 시작 시 모든 보조 화면을 닫는 규칙(F-13)을 한 곳에서 처리하고 JVM 테스트 가능. 의존성 0 | navigation-compose(주행 규칙을 화면마다 흩어 처리하게 됨) |
 | D-07 | 사용 단계(`UsageTier`) = **앱 A 차량 상태(기어·움직임)와 AAOS `CarUxRestrictions` 중 더 제한적인 쪽**, 판정 불가면 `BACKGROUND` | Pleos 가이드는 DO 앱도 `CarUxRestrictions`를 따르라고 요구. 보수적 판정은 Backend 명세와 동일 | 한쪽만 사용(규제 누락 또는 Odometer 지연) |
@@ -160,6 +160,7 @@ AutoLog는 **운전하는 동안 쓰는 앱이 아니다.** 기록은 차가 백
 | D-30 | **운전자 배지(네모 아바타 + "○○님")는 Home "대기 중"에만**(기록 중 Home·정차 중에도 없다 — 2026-11-10 사용자 결정 "완전히 메인 화면일 때만"). 보조 화면(주유·운행 기록·운행기록부·설정)은 왼쪽 위 뒤로(<), 팝업만 오른쪽 위 X.** 운행 결과 카드는 원래대로 배지 없음(D-27). 배지가 빠진 자리만큼 보조 화면의 머리 줄은 모든 창 크기에서 맨 위 한 줄(좁은·세로 창에서 배지 아래로 내리던 76 dp를 내용에 돌려줌). ~~정차 중 Peek은 표시만 하는 배지를 그대로 둔다~~ → 기록 중 Home·Peek에서도 뺀다(같은 날 추가 결정 — 운행 중엔 운전자를 바꿀 일이 없고 그 자리를 운행 정보에 쓴다) | 사용자 결정(2026-11-10). 운전자는 Home에서 보고 바꾸는 것이고, 보조 화면은 한 가지 일에 집중한다. 뒤로가 왼쪽 위에 있으면 화면을 나가는 방법이 하나로 읽히고, X는 팝업을 닫는 뜻으로만 남는다 | 모든 화면에 배지(공간을 먹고 긴 제목과 겹침) · 보조 화면도 X로 닫기(팝업과 구분이 안 됨) |
 | D-31 | **단계가 바뀌어도 화면은 하나**: 주차·정차·주행 모두 같은 Home·같은 배치. 정차·주행은 읽기 전용 — 타일은 같은 자리에 흐리게, **[기록 종료]만 눌린다**. 주행은 같은 화면을 그린 채 물러난다. 정차 중 운행이 없으면 대기 Home 읽기 전용. 결정 팝업·운전자 배지·운행 결과 카드는 주차에서만(운행 결과는 다음 주차 때) | 사용자 결정(2026-11-11 에뮬레이터 QA: "주행 시작하면 UI가 확 바뀌어 괴리감이 심하다"). 단계마다 다른 화면이면 같은 운행이 다른 앱처럼 보인다. 정차 중 [기록 종료]는 기록을 끝낼 수단이 늘 있어야 해서 예외 | 정차 전용 Peek 패널 유지(괴리감) · 타일 숨김/안내 한 줄(배치가 바뀜) · 주행 중에도 화면 유지(Pleos 정책 위험) |
 | D-32 | **경로 화살표 흐름은 주행 중에만**: 기록 중 Home의 출발지 → 목적지 사이 갈매기 3개는 차가 달릴 때(tier = BACKGROUND)만 위→아래로 흐르고, 주차·정차 중엔 위→아래로 짙어지는 정지 그림 | 사용자 결정(2026-11-11). 흐름은 "지금 움직이는 중"이라는 뜻이라 서 있을 때 흐르면 틀린 말이 된다 | 기록 중이면 늘 흐름(예전, 정차 중 예외 허용 — V-17) |
+| D-33 | **한 리포·한 빌드(AutoLog-app)**: AutoLog-Frontend·AutoLog-Backend를 합쳤다. 두 리포의 커밋 기록·브랜치 이름은 그대로(해시도 같음). Gradle 빌드 하나(`:shared`·`:vehicle-core`·`:relay`·`:vehicle-app`), submodule·composite build 없음. 예전 Backend `app/`은 지움, 웹은 같은 리포 `web/`(프론트 소유). 문서는 루트 CONVENTIONS 하나(화면 규칙은 11장) | 사용자 결정(2026-11-11). 화면과 로직을 같이 고치는 일이 늘었고(예: 주행 중 [기록 종료]), submodule 포인터 갱신·두 리포 PR이 번거로웠다 | 리포 두 개 유지 · 하위 폴더 `frontend/`·`backend/` 두 개(빌드만 연결) · 히스토리 경로 다시 쓰기(해시가 바뀌어 문서의 커밋 번호가 안 맞음) |
 | D-29 | **운행 기록 조회에서 연 운행 결과 카드는 사후 확인 — 카운트다운·자동 저장 없음.** `Route.TripResult(tripId, TripResultMode.REVIEW)`. 제목은 운행 시각("11월 7일 19:34 운행"), 버튼 [수정하기]/[저장하기] · [닫기]. [닫기]는 저장하지 않고 목록으로, [저장하기]는 저장 후 목록으로. 목적 미입력 운행은 수정 모드로 열린다. 운행 직후·알림 탭으로 열 때(`AFTER_TRIP`)는 그대로 5초 카운트다운 | 사용자 결정(2026-11-10). 정차·주차 중에 지난 운행을 천천히 확인하는 것이라 저절로 닫히거나 기본값으로 저장되면 안 된다 | 운행 직후 카드와 같은 5초 카운트다운(보는 중에 닫히고, 열어 보기만 해도 미입력 운행이 일반 업무로 저장됨) |
 | D-28 | **"기록을 마칠까요?" 팝업 없음 — 종료 조건이 되면 운행 결과 카드가 바로.** 기어 P 등으로(또는 [기록 종료] — `requestStop`, 2026-11-11) 앱 A가 종료 대기(`StopCandidate`)가 되면 Home이 운행 결과 카드를 연다. 카드의 남은 시간 = 앱 A 종료 시각(분류 문구 뒤 "3초 후 자동 저장돼요." + 맨 위 가장자리 가는 막대), 버튼은 [기록 이어가기] · [수정하기] · [저장하기] 순서. 시간이 다 되면 운행이 끝나고 지금 선택으로 저장·Home | 사용자 결정(2026-11-09). 종료 확인과 결과·목적 확인을 두 화면으로 나누면 같은 순간에 두 번 묻게 된다. 앱 A 계약(StopCandidate · resume · finalize)은 그대로 쓴다 | 확인 팝업 유지(D-17 원안) · 종료 즉시 저장 후 [기록 이어가기]로 되살리기(앱 A에 "끝난 운행 재개" 계약이 새로 필요) |
 | D-27 | **목적 확인 화면 대신 "운행 결과" 카드.** 운행이 끝나면 게임 결과처럼 결과를 한 번 보여 준다: 맨 위 "운행 기록을 완료했어요" · 주행 거리 · 운행 시간 · 경로선 · **운행 목적 라디오 3개(일반 업무 · 출퇴근 · 개인 용무, 기본 일반 업무)** · "일반 업무용 거리 48.2 km로 분류돼요". 처음엔 보기 전용 + **5초 뒤 지금 선택으로 저장하고 메인 화면으로**. [수정하기] = 카운트다운을 멈추고 라디오를 바꿀 수 있게, [저장하기] = 보기·수정 어느 쪽에서든 지금 선택으로 저장하고 이동(시간이 다 됐을 때 저절로 눌리는 버튼 — 2026-11-10 사용자 결정으로 예전 [저장]·[메인 화면으로 · n초] 둘을 하나로). 화면은 큰 분류만 고르고 **세부 목적은 저장소가 정한다**(같은 분류의 기존 값 → 엔진 추천 → 대표값: 외근 · 정오 전 출근/이후 퇴근 · 개인 이동). 기본 분류는 `DefaultPurposePolicy` 하나에서 — 지금은 항상 일반 업무, 캘린더·일정 서비스 연동은 이 구현만 바꿔 나중에 | 사용자 결정(2026-11-09). 운행이 끝날 때마다 질문 화면을 여는 것보다 결과를 보여 주고 아무것도 안 하면 끝나는 편이 조작 최소화(1.2)에 맞다. 운행기록부가 실제로 나누는 것은 업무용 · 출퇴근용 · 비업무용 세 가지다 | 목적 확인 화면(확신 추천 1탭 · 세부 목적 8개 · 말로 입력 · 도착지 칩 · 거래처 등록 팝업 — 구현했다가 걷어냄. 음성(F-09)·거래처 등록(F-17)은 결과 카드 확장 때 다시 검토) · 라디오를 처음부터 누를 수 있게(사용자가 [수정하기] 모드 선택) · 저장 전에 카운트다운 팝업에서 함께 묻기(5초에 두 결정) |
@@ -173,77 +174,61 @@ AutoLog는 **운전하는 동안 쓰는 앱이 아니다.** 기록은 차가 백
 
 ## 5. 리포 구조와 빌드
 
-### 5.1 디렉터리
+### 5.1 디렉터리 (2026-11-11 리포 통합 뒤 — D-33)
 
 ```
-AutoLog-Frontend/
-├── backend/                      # git submodule → AutoLog-Backend (main에 머지된 커밋만 고정)
-├── settings.gradle.kts           # includeBuild("backend") + 카탈로그 2개
-├── build.gradle.kts              # 플러그인 apply false, ktlint
-├── gradle.properties             # Backend와 동일 값
+AutoLog-app/
+├── settings.gradle.kts           # include :shared :vehicle-core :relay :vehicle-app + fe 카탈로그
+├── build.gradle.kts              # 플러그인 apply false(로직·서버·화면 전부), ktlint
+├── gradle.properties
 ├── gradle/
-│   ├── wrapper/                  # Gradle 8.12 (Backend와 동일)
-│   └── fe.versions.toml          # 프론트 전용 라이브러리
-├── .editorconfig                 # Backend 파일과 동일 내용
-├── vehicle-app/                  # :vehicle-app — Pleos 차량 앱
+│   ├── wrapper/                  # Gradle 8.12
+│   ├── libs.versions.toml        # 공통 버전(Gradle 기본 libs)
+│   └── fe.versions.toml          # 화면 전용 라이브러리(Roborazzi·Coil·ZXing 등)
+├── .editorconfig
+├── shared/ · vehicle-core/ · relay/   # 앱 A·B 소유(CONVENTIONS 1.2)
+├── vehicle-app/                  # :vehicle-app — Pleos 차량 앱(프론트)
 │   ├── build.gradle.kts
 │   ├── src/main/                 # 공용 코드 (6장 패키지)
-│   ├── src/demo/                 # DemoAppGraph, 데모 컨트롤 패널
-│   ├── src/vehicle/              # VehicleAppGraph
+│   ├── src/demo/                 # 데모 그래프·데모 컨트롤 패널
+│   ├── src/vehicle/              # 실제 앱 그래프(AutoLog.create)·운행 기록 알약
 │   ├── src/main/res/font/        # asta_sans.ttf (가변) + OFL.txt
 │   ├── src/test/                 # ViewModel·Navigator·토큰 테스트, Roborazzi
 │   └── src/test/screenshots/     # Roborazzi 출력(로컬 검토용, .gitignore — 2026-11-09 사용자 결정)
 ├── web/
 │   ├── admin/                    # 운영 웹
 │   └── camera/index.html         # 폰 카메라 페이지
-├── ops/compose.frontend.yml      # Backend compose에 웹 산출물을 얹는 override (9.3)
+├── ops/ · scripts/               # 서버 compose·nginx · 에뮬레이터 도우미(emu.sh)
 ├── docs/
+│   ├── AutoLog_기획서·기능명세·기술명세·DB스키마.md
 │   ├── design-language.md
-│   ├── superpowers/specs/        # 설계 스펙(이 문서)
-│   ├── superpowers/plans/        # 구현 계획
-│   └── verification.md           # [검증 필요] 결과 기록(맥 에뮬레이터)
+│   ├── superpowers/specs/        # 화면 설계 스펙(이 문서)
+│   ├── superpowers/plans/        # 구현 계획(당시 기록)
+│   └── integration/              # 화면 ↔ 로직 연결 기록·남은 문제
 ├── .github/workflows/ci.yml
 ├── CONVENTIONS.md · CLAUDE.md · README.md
 ```
 
-### 5.2 submodule
+### 5.2 예전 submodule 방식 (~2026-11-11, 끝남)
 
-```bash
-git submodule add https://github.com/hmg-app-challenge-2026/AutoLog-Backend backend
-git clone --recurse-submodules <AutoLog-Frontend URL>      # 새로 받을 때
-git submodule update --init --recursive                    # 이미 받은 리포
-```
+리포를 합치기 전에는 AutoLog-Frontend가 AutoLog-Backend를 `backend/` submodule로 가져와 Gradle composite build(`includeBuild("backend")` + `kr.autolog:vehicle-core` 치환)로 썼다. 포인터는 Backend `origin/main` 커밋으로만 올렸고 커밋 메시지는 `build(backend): submodule을 <해시>로 갱신`. 그 시절 프론트 커밋들에는 `backend` submodule 링크가 그대로 남아 있다(해당 시점을 꺼내면 `git submodule update --init`으로 받는다). 지금은 같은 빌드 안의 `project(":vehicle-core")`다.
 
-- **반드시** submodule 포인터는 Backend `origin/main`에 머지된 커밋으로만 올린다. 커밋 메시지: `build(backend): submodule을 <짧은 해시>로 갱신 (<무엇이 들어왔나>)`.
-- 앱 A·B의 브랜치를 미리 써 보려면 로컬에서 `cd backend && git checkout <branch>` 하고 **포인터 변경은 커밋하지 않는다**.
-- `backend/` 안의 파일을 이 리포에서 고치지 않는다. 고칠 일이 있으면 Backend에 PR을 올린다.
-
-### 5.3 Gradle 설정 (그대로 옮겨 쓴다)
+### 5.3 Gradle 설정
 
 ```kotlin
-// settings.gradle.kts
-pluginManagement {
-    repositories { google(); mavenCentral(); gradlePluginPortal() }
-}
+// settings.gradle.kts (요지)
 dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
     repositories {
         google(); mavenCentral()
-        maven("https://nexus-playground.pleos.ai/repository/maven-releases/") // Pleos SDK (vehicle-core 전이 의존)
+        maven("https://nexus-playground.pleos.ai/repository/maven-releases/")   // Pleos SDK
     }
     versionCatalogs {
-        create("libs") { from(files("backend/gradle/libs.versions.toml")) } // Backend와 같은 버전 (D-04)
-        create("fe") { from(files("gradle/fe.versions.toml")) }             // 프론트 전용
+        create("fe") { from(files("gradle/fe.versions.toml")) }   // libs는 gradle/libs.versions.toml(Gradle 기본)
     }
 }
-rootProject.name = "AutoLog-Frontend"
-
-includeBuild("backend") {
-    dependencySubstitution {
-        substitute(module("kr.autolog:vehicle-core")).using(project(":vehicle-core"))
-    }
-}
-include(":vehicle-app")
+rootProject.name = "AutoLog"
+include(":shared", ":vehicle-core", ":relay", ":vehicle-app")
 ```
 
 ```kotlin
@@ -274,15 +259,15 @@ android {
     testOptions { unitTests { isIncludeAndroidResources = true } }   // Robolectric·Roborazzi
     buildTypes {
         release {
-            isMinifyEnabled = true; isShrinkResources = true          // Backend app/과 동일
+            isMinifyEnabled = true; isShrinkResources = true          // 예전 Backend app/과 동일
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
     }
     packaging { resources.excludes += setOf("META-INF/LICENSE*", "META-INF/NOTICE*", "META-INF/*.kotlin_module") }
 }
 dependencies {
-    implementation("kr.autolog:vehicle-core")     // composite build가 backend 프로젝트로 치환
-    // Compose — Backend app/build.gradle.kts와 동일 목록
+    implementation(project(":vehicle-core"))
+    // Compose — 예전 Backend app/build.gradle.kts와 동일 목록
     implementation(platform(libs.compose.bom))
     implementation(libs.compose.ui); implementation(libs.compose.m3)
     implementation(libs.compose.tooling.preview); debugImplementation(libs.compose.tooling)
@@ -299,7 +284,7 @@ dependencies {
 }
 ```
 
-> composite build의 `module("kr.autolog:vehicle-core")` 치환은 Backend가 `group`을 정하지 않아도 동작한다(치환 규칙이 프로젝트 경로로 연결). 첫 스파이크에서 `./gradlew :vehicle-app:assembleDemoDebug`로 확인한다. 실패하면 대안은 `settings.gradle.kts`에서 `include(":vehicle-core"); project(":vehicle-core").projectDir = file("backend/vehicle-core")`와 `:shared` 동일 처리다(이 경우 Backend의 `libs` 카탈로그 이름이 같아서 그대로 빌드된다). 어느 쪽을 썼는지 `docs/verification.md`에 남긴다.
+> 예전(composite build)엔 `module("kr.autolog:vehicle-core")`를 Backend 프로젝트로 치환했다(V-02). 리포 통합(D-33) 뒤엔 같은 빌드의 `project(":vehicle-core")`라 치환이 없다.
 
 ```toml
 # gradle/fe.versions.toml
@@ -360,7 +345,7 @@ roborazzi = { id = "io.github.takahirom.roborazzi", version.ref = "roborazzi" }
 ```
 
 - **DO 선언 이유**: 정차(PEEK) 중에도 읽기 전용 Home을 보여 주려면, 플랫폼이 정차 상태에서 DO 미선언 앱을 막을 경우에 대비해 DO가 필요하다. DO를 선언하면 주행 중에도 플랫폼이 앱을 막아 주지 않으므로 **주행 시 숨기는 일은 앱이 스스로 한다**(6.9). **결정 규칙**: V-11에서 "Pleos는 정차(IDLING) 중 DO 미선언 앱을 막지 않는다"가 확인되면 DO 선언을 지운다. 그러면 주행 중 차단을 플랫폼이 보장해 주므로 더 안전하고 심사에도 유리하다. 6.9의 자체 숨김은 그대로 둔다(이중 안전).
-- 권한·서비스(Foreground Service, Pleos 권한)는 `vehicle-core` 매니페스트가 병합한다. 이 리포에서 Pleos 권한을 선언하지 않는다.
+- 권한·서비스(Foreground Service, Pleos 권한)는 `vehicle-core` 매니페스트가 병합한다. `vehicle-app`에서 Pleos 권한을 선언하지 않는다(런타임 요청만 — 6.7).
 - `uiMode`를 `configChanges`에 넣는 이유: 주간·야간 전환 때 Activity를 재생성하지 않고 테마만 바꾼다(부드러운 전환).
 - 단일 Activity다. 화면 전환은 Compose 안에서 `Navigator`가 한다.
 
@@ -392,11 +377,12 @@ Pleos 에뮬레이터는 외장 GPU가 필요하고, 맥용 시스템 이미지�
 
 ```yaml
 # .github/workflows/ci.yml (요지)
-- uses: actions/checkout@v4
-  with: { submodules: recursive }
+- uses: actions/checkout@v4   # 리포 통합(D-33) 뒤 submodule 없음
 - uses: actions/setup-java@v4  # temurin 17
 - uses: gradle/actions/setup-gradle@v4
-- run: ./gradlew ktlintCheck :vehicle-app:testDemoDebugUnitTest :vehicle-app:recordRoborazziDemoDebug :vehicle-app:assembleDemoDebug
+- run: ./gradlew ktlintCheck :shared:test :vehicle-core:test :relay:test
+- run: ./gradlew :vehicle-app:testDemoDebugUnitTest :vehicle-app:recordRoborazziDemoDebug
+- run: ./gradlew :vehicle-app:assembleDemoDebug :vehicle-app:assembleVehicleDebug :relay:bootJar
 - uses: actions/upload-artifact@v4  # 찍은 스크린샷을 결과물 screenshots로(기준 이미지를 커밋하지 않으므로 verify 대신 record — CONVENTIONS 4장)
 - uses: actions/setup-node@v4  # node 20
 - run: cd web/admin && npm ci && npm run lint && npm test -- --run && npm run build
@@ -411,7 +397,7 @@ Pleos 에뮬레이터는 외장 GPU가 필요하고, 맥용 시스템 이미지�
 ### 6.1 계층과 의존 규칙
 
 ```
-┌────────────── vehicle-app (이 리포) ──────────────┐
+┌────────────── vehicle-app (프론트) ──────────────┐
 │  ui/<화면>/XxxScreen      Compose. UiState를 그리고 Action을 올린다
 │        │  (UiState, onAction)
 │  ui/<화면>/XxxViewModel   StateFlow<UiState> 하나를 내보낸다
@@ -420,7 +406,7 @@ Pleos 에뮬레이터는 외장 GPU가 필요하고, 맥용 시스템 이미지�
 │        │
 └────────┼──────────────────────────────────────────┘
          ▼
-  backend/vehicle-core  core/Contracts.kt  (+ fake/)      ← 앱 A·B 소유
+  vehicle-core  core/Contracts.kt  (+ fake/)      ← 앱 A·B 소유
          ▼
   Gateway (vehicle/ navi/ location/ speech/) → Pleos SDK
 ```
@@ -428,7 +414,7 @@ Pleos 에뮬레이터는 외장 GPU가 필요하고, 맥용 시스템 이미지�
 **반드시 지킬 규칙**
 
 1. `ui/` 패키지는 `data/repository`의 **인터페이스**와 자기 UiState만 안다. `kr.autolog.vehicle.core.*`의 서비스 인터페이스(`ContextApi` 등)를 import하지 않는다. (값 타입인 `PurposeDetail`, `PurposeCategory` 같은 enum은 표시용으로 import해도 된다.)
-2. `ai.pleos.*` import는 이 리포 어디에도 없어야 한다. SDK는 Backend Gateway 안에만 있다(Backend CONVENTIONS 7.2).
+2. `ai.pleos.*` import는 `vehicle-app` 어디에도 없어야 한다. SDK는 `vehicle-core` Gateway 안에만 있다(CONVENTIONS 7.2).
 3. `data/repository`는 `kr.autolog.vehicle.core`·`kr.autolog.vehicle.fake`·`kr.autolog.shared`와 Android 플랫폼 API(`android.car.*`)만 쓴다. Backend의 `session`·`data`·`domain` 같은 내부 패키지를 import하지 않는다.
 4. ViewModel은 Android `Context`를 받지 않는다(테스트를 위해). 필요하면 Repository가 받는다.
 5. Composable은 ViewModel을 파라미터로 받지 않는다. `XxxRoute`(ViewModel을 얻어 상태를 수집하는 얇은 함수)와 `XxxScreen`(순수 UI)을 나눈다. Preview·스크린샷은 `XxxScreen`만 쓴다.
@@ -499,14 +485,14 @@ class HomeViewModel(
 }
 ```
 
-- **상태는 `StateFlow<XxxUiState>` 하나**, 입력은 **`onAction(XxxAction)` 하나**, 한 번만 일어나는 일(화면 이동, 토스트)은 `SharedFlow<XxxEffect>` 또는 `Navigator` 호출. (Backend CONVENTIONS 7.3)
+- **상태는 `StateFlow<XxxUiState>` 하나**, 입력은 **`onAction(XxxAction)` 하나**, 한 번만 일어나는 일(화면 이동, 토스트)은 `SharedFlow<XxxEffect>` 또는 `Navigator` 호출. (CONVENTIONS 7.3)
 - 표시용 변환(숫자 포맷, 시각 `Asia/Seoul` 변환, 라벨)은 ViewModel의 `reduce`에서 끝낸다. 화면은 문자열을 그대로 그린다. 포맷 함수는 `ui/design/Format.kt` 한 곳에 둔다(거리 소수 1자리, 금액 `68,000원`, 시각 `09:12`).
 - 현재 시각은 `Clock`을 주입받는다. `System.currentTimeMillis()`를 직접 부르지 않는다.
 - ViewModel 생성: `viewModel { HomeViewModel(graph.session, graph.context, graph.restriction, graph.navigator) }` (lifecycle-viewmodel-compose의 `viewModelFactory`/`initializer`). DI 프레임워크 없이 `AppGraph`에서 꺼낸다.
 
 ### 6.4 오류 처리
 
-- Contracts는 예외를 던지지 않고 결과 값(`null`, `*Result` sealed)을 돌려준다(Backend CONVENTIONS 7.5). Repository는 그 값을 화면 친화적 sealed 타입으로 옮긴다. 예: `QrResult.Failed` → `QrUi.Error("연결을 확인해 주세요")`.
+- Contracts는 예외를 던지지 않고 결과 값(`null`, `*Result` sealed)을 돌려준다(CONVENTIONS 7.5). Repository는 그 값을 화면 친화적 sealed 타입으로 옮긴다. 예: `QrResult.Failed` → `QrUi.Error("연결을 확인해 주세요")`.
 - 예외 가능성이 있는 플랫폼 호출(`CarUxRestrictionsManager` 연결 등)은 Repository 안에서 `runCatching`으로 잡고 **보수적 기본값**(잠금)으로 바꾼 뒤 `Log.w("AutoLog/ui", …)`를 남긴다. 빈 `catch {}` 금지.
 - 사용자에게 보이는 오류 문구는 **무엇이 안 됐고, 무엇을 하면 되는지** 한 줄로 쓴다(`design-language.md` 9장).
 
@@ -890,25 +876,14 @@ D-12에 따라 11.15 이후. API가 오기 전에는 `data/fake/FakeUploadApi`(�
 
 ### 9.3 배포 연결
 
-Backend `ops/docker-compose.yml`의 nginx는 지금 `../web/dist`와 `../web/camera`를 마운트한다. 이 리포로 옮긴 뒤에는 Frontend 산출물 경로를 마운트하도록 Backend에 PR을 올린다(R-5).
-
-그 전까지는 **`backend/`를 건드리지 않고** compose override 파일로 nginx 마운트만 바꾼다.
-
-```yaml
-# ops/compose.frontend.yml — 상대 경로는 첫 번째 compose 파일 위치(backend/ops) 기준
-services:
-  nginx:
-    volumes:
-      - ../../web/admin/dist:/usr/share/nginx/html/web/admin:ro
-      - ../../web/camera:/usr/share/nginx/html/camera:ro
-```
+리포 통합(D-33) 뒤엔 웹이 같은 리포 `web/`에 있고, `ops/docker-compose.yml`의 nginx가 `../web/dist`(→ `/usr/share/nginx/html/web`, 운영 웹 빌드 `web/dist/admin`)와 `../web/camera`(→ `/usr/share/nginx/html/camera`)를 그대로 마운트한다. 따로 맞출 것이 없다(R-5 해결).
 
 ```bash
-(cd web/admin && npm run build)
-docker compose -f backend/ops/docker-compose.yml -f ops/compose.frontend.yml --env-file backend/ops/.env up -d
+(cd web/admin && npm ci && npm run build)       # → web/dist/admin
+cd ops && cp .env.example .env && docker compose up -d
 ```
 
-Compose는 같은 컨테이너 경로의 볼륨을 override 쪽으로 바꾼다. 동작 여부는 V-10으로 확인한다.
+> 예전(리포 두 개)엔 웹이 Backend 리포에 있어 Frontend 쪽 산출물을 마운트하려고 compose override(`ops/compose.frontend.yml`)를 계획했다(V-10). 통합으로 필요 없어졌다.
 
 ---
 
@@ -979,8 +954,8 @@ cd web/admin && npm run lint && npm test -- --run && npm run build
 | R-2 | ✅ 2026-11-10 머지(초안과 차이 `destinationLabel` 하나). 앱 A 계약(`TripSessionApi`, `LocalStore`, `ReportApi`, `DeviceApi`) — 이 리포 6.6 초안을 출발점으로 | A | 화면 개발 기준. 다르면 프론트가 Repository만 고친다 | 11.12 |
 | R-3 | ✅ 2026-11-10 `core.DeepLink`. 알림 딥링크 키 상수(`autolog.route`, `autolog.tripId`)를 `core`에 정의 | A | A의 알림과 프론트 Navigator가 같은 키를 써야 함 | 11.14 |
 | R-4 | 사내 서버 취합: `UploadApi` 계약, `POST /v1/trips`, 서버 주소 런타임 설정, 운영 웹 조회 API(trips·expenses·summary·엑셀) | A·B | 기능명세 ② (8장) | 계약 11.20, API 11.27 |
-| R-5 | Backend `ops/` nginx 마운트를 Frontend 산출물로 변경 | 공동 | 9.3 | 11.27 |
-| R-6 | Backend `app/`·`web/` 삭제, CI `:app:assembleDebug` 제거, CONVENTIONS 1.2·기술명세 7·8장에 "화면은 AutoLog-Frontend" 반영 | 공동 | 같은 applicationId 앱이 두 곳에 있으면 혼란 | 11.30 |
+| R-5 | ✅ 2026-11-11 리포 통합(D-33)으로 해결 — 웹이 같은 리포 `web/`, `ops/` nginx가 그대로 마운트(9.3). ~~Backend `ops/` nginx 마운트를 Frontend 산출물로 변경~~ | 공동 | 9.3 | 11.27 |
+| R-6 | ✅ 2026-11-11 리포 통합(D-33): Backend `app/` 삭제, CI의 `:app:assembleDebug` → `:vehicle-app` 빌드, CONVENTIONS 1.2(`vehicle-app/` 프론트 소유) 반영. 웹은 지우지 않고 같은 리포 `web/`을 프론트가 소유. ~~Backend `app/`·`web/` 삭제, CONVENTIONS 1.2·기술명세 7·8장에 "화면은 AutoLog-Frontend" 반영~~ | 공동 | 같은 applicationId 앱이 두 곳에 있으면 혼란 | 11.30 |
 | R-7 | ✅ 2026-11-10 `TripSessionManager`. 사용 3단계·자동 종료 지원: ① `TripSessionApi.motion`(PARKED·STOPPED·MOVING, 판정 불가 null) ② `StopCandidate(reason, deadlineAt)` ③ 기어 P 즉시 StopCandidate(`deadlineAt` = P 시각 + **5초**) + Odometer 저장. 기어·시동 판정은 1.1.1 우선순위(Pleos Gear → AAOS `GEAR_SELECTION`/`CURRENT_GEAR` → `PARKING_BRAKE_ON` → `IGNITION_STATE` → 최후 규칙: 다음 시동 때 자동 확정, 거리 불변 60초 = 주차). `CAR_POWERTRAIN` 권한은 vehicle-core 매니페스트에 선언 ④ `TripRecordingService` 헤즈업 알림: 제목 "기록을 마칠까요?", 본문 거리, 카운트다운(`setUsesChronometer(true)`·`setChronometerCountDown(true)`·`setWhen(deadlineAt)`), 액션 [계속 기록]=`resume()` · [기록 종료]=`finalize()` ⑤ 주행 중 지속 알림 "기록 중 · 12.3 km · 목적지"(F-03 대체) | A | 1.1·7.2.1. 주행 중 앱 화면이 없으므로 P 순간에 사람이 보는 것은 알림이다 | 계약 11.12, 알림 11.14 |
 | R-8 | 직접 입력 주유 기록에 상호·유종 저장: `ReceiptApi.saveFuel`이 `VoiceFuel`(금액·리터·단가)만 받는다. 직접 입력 창(7.5)이 영수증 창과 같은 필드를 받으려면 상호(`station`)·유종(`fuelType`)·일시를 선택 인자로 추가 | B | 7.5, D-20. 없어도 동작한다(공통 필드만) | 11.13 |
 | R-9 | ✅ 2026-11-10 `LiveTrip.originLabel`. 운행 출발지 이름: `LiveTrip.originLabel`(등록 장소와 가까우면 그 이름, 아니면 동 단위 주소, 모르면 null). 지금은 interim에 프론트가 추가해 둠 | A | Home 운행 경로(출발지 → 목적지) | 11.13 |
@@ -997,7 +972,7 @@ cd web/admin && npm run lint && npm test -- --run && npm run build
 | ID | 항목 | 영향 | 확인 방법 | 상태 |
 |---|---|---|---|---|
 | V-01 | FormFactorConsole 프리셋별 앱 창 dp·DPI·px | 6.8 임계값, 10.2 스크린샷 크기, 글자 mm 환산 | 맥 에뮬레이터 + Host Display Bridge | 일부 — 기본 디스플레이(앱 영역 2560×1268 dp, 밀도 1.0) 확인. 스크린샷은 실제 크기 둘만: 넓은 화면 2560×1268 · 1:1 분할 한 칸 1280×1268(Window Policy 기본 1:1을 적용한 값, 경계 폭은 미측정)(2026-11-10). 프리셋·2:1 분할·분할 경계는 대기 |
-| V-02 | composite build `dependencySubstitution` 동작 | 5.3 | `assembleDemoDebug` | 대기 |
+| V-02 | composite build `dependencySubstitution` 동작 | 5.3 | `assembleDemoDebug` | 해당 없음(2026-11-11 리포 통합으로 composite build를 쓰지 않음, D-33). 그 전까진 동작했다 |
 | V-03 | DO 선언 방식(`distractionOptimized` meta-data)이 Pleos에서 유효한지 | 5.4 | VHAL로 기어 D·속도 주입 후 앱 상태 | 대기 |
 | V-04 | `CarUxRestrictionsManager`를 일반 앱에서 얻을 수 있는지(권한), Pleos 에뮬레이터에서 값이 바뀌는지 | 6.9 | 로그 | 대기 |
 | V-05 | Asta Sans의 고정폭 숫자(`tnum`) 지원 여부 | 거리 숫자 흔들림 | Roborazzi로 `fontFeatureSettings="tnum"` 비교 | 대기 |
@@ -1005,7 +980,7 @@ cd web/admin && npm run lint && npm test -- --run && npm run build
 | V-07 | 헤드유닛 햅틱 지원 여부(`HapticFeedbackConstants.CONFIRM`) | 눌림 피드백 | 실차(불가 시 생략) | 대기 |
 | V-08 | 시스템 야간 모드 전환 시 `uiMode` configChange로 재생성 없이 테마가 바뀌는지 | 5.4 | 에뮬레이터 차량 설정 | 대기 |
 | V-09 | Roborazzi + Robolectric 4.14가 Compose BOM 2024.12.01·SDK 35에서 Asta Sans를 정상 렌더링하는지 | D-13 | `recordRoborazziDemoDebug` | 대기 |
-| V-10 | compose override(`ops/compose.frontend.yml`)가 nginx 마운트를 바꾸는지 | 9.3 | `docker compose … config`로 병합 결과 확인 후 `/admin/` 접속 | 대기 |
+| V-10 | compose override(`ops/compose.frontend.yml`)가 nginx 마운트를 바꾸는지 | 9.3 | `docker compose … config` | 해당 없음(2026-11-11 리포 통합으로 override가 필요 없음, 9.3) |
 | V-11 | Pleos가 **정차(IDLING, 기어 ≠ P·속도 0)** 중 DO 미선언 앱을 막는지 | 5.4 DO 결정 규칙, 정차 중 Home(7.0) | DO 선언 뺀 빌드로 기어 D·속도 0 주입 | 대기 |
 | V-12 | Pleos 멀티 윈도우에서 `moveTaskToBack(true)` 후 그 창을 다른 앱(내비)이 채우는지 | 6.9 BACKGROUND | 1:1 분할 상태에서 주행 주입 | 대기 |
 | V-13 | 헤즈업 알림의 카운트다운(`setChronometerCountDown`)과 액션 버튼이 Pleos 알림 UI에 보이는지 | 7.2.1, R-7 | 앱 A 알림으로 확인 | 대기 |
@@ -1031,7 +1006,7 @@ cd web/admin && npm run lint && npm test -- --run && npm run build
 
 | 용어 | 뜻 |
 |---|---|
-| 계약(Contracts) | `backend/vehicle-core/.../core/Contracts.kt`의 인터페이스. 화면과 로직의 경계 |
+| 계약(Contracts) | `vehicle-core/.../core/Contracts.kt`의 인터페이스. 화면과 로직의 경계 |
 | interim | 앱 A 계약이 오기 전 이 리포가 임시로 정한 인터페이스와 Fake(2026-11-10 실계약 연결로 삭제 — 가짜는 `data/fake`) |
 | 주행 / 정차 / 주차 | 움직이는 중 / 기어 P가 아니고 멈춤(신호 대기 등) / 기어 P (1.1) |
 | `UsageTier` | `BACKGROUND`(주행, 앱이 물러남) · `PEEK`(정차, 같은 Home 읽기 전용 — 이름은 예전 패널에서 남음) · `FULL`(주차, 전체 앱) |
@@ -1050,7 +1025,7 @@ cd web/admin && npm run lint && npm test -- --run && npm run build
 
 - Pleos: [에뮬레이터 설치](https://document.pleos.ai/docs/connect/guide/getting-started/application-development/setup-connect-sdk-emulator) · [에뮬레이터 설정](https://document.pleos.ai/docs/connect/guide/getting-started/application-development/configure-pleos-connect-emulator) · [폼팩터 테스트](https://document.pleos.ai/docs/pleos-only/app-test-guide/form-factor-test-guide) · [디스플레이 레이아웃](https://document.pleos.ai/docs/connect/guide/docs-design/getting-started/layout) · [Window Policy](https://document.pleos.ai/docs/connect/guide/docs-design/getting-started/window) · [앱 구조·화면 모델](https://document.pleos.ai/docs/pleos-only/vehicle-app-planning-guide/app-structure-screen-model) · [주행 규제 정책](https://document.pleos.ai/docs/pleos-only/vehicle-app-planning-guide/driving-restiction-policy) · [주행 규제 개발 가이드](https://document.pleos.ai/docs/pleos-only/vehicle-app-developer-guide/driving-restriction-development-guide) · [운전자 주의 분산 가이드](https://document.pleos.ai/docs/pleos-only/vehicle-app-planning-guide/driver-distraction-guideline) · [UI Design Guide](https://document.pleos.ai/docs/connect/guide/docs-design/Introduction/intro) · [타이포그래피](https://document.pleos.ai/docs/connect/guide/docs-design/foundations/typography) · [앱 심사 가이드](https://document.pleos.ai/docs/pleos-only/distribute/app-review-guide)
 - 서체: [Asta Sans 메타데이터(google/fonts, OFL, 42dot)](https://raw.githubusercontent.com/google/fonts/main/ofl/astasans/METADATA.pb) · [42dot/Asta-Sans](https://github.com/42dot/Asta-Sans)
-- Backend: `backend/docs/AutoLog_기능명세.md`, `AutoLog_기술명세.md`, `CONVENTIONS.md`, `vehicle-core/.../core/Contracts.kt`, `ContractTypes.kt`, `vehicle-core/docs/sdk-findings.md`
+- 로직 쪽(예전 Backend): `docs/AutoLog_기능명세.md`, `AutoLog_기술명세.md`, `CONVENTIONS.md`, `vehicle-core/.../core/Contracts.kt`, `ContractTypes.kt`, `vehicle-core/docs/sdk-findings.md`
 
 ---
 
@@ -1080,3 +1055,4 @@ cd web/admin && npm run lint && npm test -- --run && npm run build
 | 1.19 | 2026-11-11 | 백엔드 `aedb43e`(PR #34 차속 판단) 반영: 1.1.1 차속 보조, 6.7 런타임 권한에 `CAR_SPEED` |
 | 1.20 | 2026-11-11 | **D-31 단계 이어짐**: 정차·주행도 같은 Home 읽기 전용(Peek 패널 삭제, 7.0 다시 씀), [기록 종료]만 정차 중에도 눌림(`tappable(whileDriving)`), 주행은 같은 화면을 그린 채 물러남, 정차 중 끝난 운행의 결과는 다음 주차 때(`Navigator.showWhenParked`). 1.1·6.2·6.9·6.10·7.2.1·테스트 표 반영 |
 | 1.21 | 2026-11-11 | D-32 경로 화살표 흐름은 주행 중에만(주차·정차 중엔 정지 그림), V-17을 주행 중 노출 기준으로 고침 |
+| 1.22 | 2026-11-11 | **D-33 리포 통합(AutoLog-app)**: 1장 범위, 3장 표기, 5.1·5.2·5.3(디렉터리·예전 submodule·Gradle), 5.6 CI, 6.1, 9.3, R-5·R-6 ✅, V-02·V-10 해당 없음, 15장 출처 |

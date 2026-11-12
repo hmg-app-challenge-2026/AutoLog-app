@@ -89,5 +89,5 @@ data class Unreachable(val vehicleId: String, val vehicleLabel: String, val serv
 
 ## 프론트 영향
 `RealAppGraph.vehicleId()` 한 줄만 바뀝니다. 화면 변경 없음.
-상세: AutoLog-Frontend `docs/integration/requests/R-10-vehicle-id.md`
+상세: AutoLog-app `docs/integration/requests/R-10-vehicle-id.md`(예전 AutoLog-Frontend)
 ```

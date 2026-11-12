@@ -1,6 +1,7 @@
 # 프론트 ↔ 백엔드 연결 기록
 
 > 기준: Backend `aedb43e`(2026-11-11 갱신 — 처음 연결은 `c3883db`, 브랜치 `feat/front-back-connect`). 갱신분은 3.1·3.2.
+> **2026-11-11 리포 통합(AutoLog-app, 스펙 D-33):** 아래의 `backend/…` 경로·"submodule 갱신"·"백엔드 코드는 고치지 않는다"는 리포가 두 개이던 때의 기록이다. 지금 백엔드 코드는 같은 리포의 `vehicle-core/`·`shared/`·`relay/`(앱 A·B 소유 — CONVENTIONS 1.2).
 > **지금 남아 있는 미연결·불일치·정책 논의는 [`open-issues.md`](open-issues.md)에 모았다**(I-01~I-17). 이 문서는 연결 기록과 결정 이력.
 > 원칙(사용자 지시 2026-11-10): **백엔드 코드는 고치지 않는다.** 연결할 수 있는 것만 목업 없이 연결하고, 조금이라도 애매하거나
 > 정책이 어긋나는 것은 고치지 않고 아래 4장에 기록만 한다. DB에 프론트 목업 데이터를 넣는 방법은 5장 계획.
@@ -145,7 +146,7 @@
 - 이후 프론트 가짜도 이 파일을 읽게 하면 데모·시연 DB·스크린샷의 숫자가 갈라지지 않는다(2단계, 선택).
 
 ### 5.3 A. 서버 기준 정보 — 관리자 API (추천, 백엔드 변경 없음)
-- 로컬 relay를 띄운다: `backend/ops/docker-compose.yml`(relay·postgres·minio). **실험은 WSL 로컬에서만** — 외부로 나가지 않게 docker 내부 네트워크, `ADMIN_TOKEN`은 로컬 값.
+- 로컬 relay를 띄운다: `ops/docker-compose.yml`(relay·postgres·minio — 리포 통합 전엔 `backend/ops/`). **실험은 WSL 로컬에서만** — 외부로 나가지 않게 docker 내부 네트워크, `ADMIN_TOKEN`은 로컬 값.
 - `tools/seed/seed-relay.sh`(curl, 헤더 `X-Admin-Token`): `POST /admin/vehicles`(번호판 12가3456) → `POST /admin/users`·`/admin/places`(좌표 직접)·`/admin/recipients`·`/admin/schedules`(오늘 ±1h, 김영업) → `POST /admin/vehicles/{id}/connect-code`로 연결 코드 출력.
 - 차에서: 설정 → 차량 연결(서버 주소 + 코드) → 등록 직후 inbox 1회 수신으로 직원·장소·배차·수신자가 Room에 `origin=SERVER`로 들어온다. G-01(연결 코드 글자)은 해결됐다(2026-11-10).
 - 장점: 실제 경로 그대로라 F-01·F-11·F-15·F-24가 같이 검증된다. 반복 실행 가능(같은 이름이 있으면 건너뛰기 — 스크립트가 `GET`으로 확인).

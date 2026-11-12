@@ -1,5 +1,7 @@
 # 차량 앱 나머지 화면 Implementation Plan
 
+> **당시 기록(리포가 둘이던 때).** 2026-11-11 AutoLog-app 한 리포로 합친 뒤엔 `backend/` submodule·composite build가 없다 — 지금 구조·빌드는 스펙 5장(D-33).
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans. 이 계획은 작성자가 직접 실행하므로 코드 전문 대신 **파일·인터페이스·테스트·수용 기준**을 적는다. 화면 동작의 상세는 스펙 7장이 기준이고, 구현 패턴은 첫 계획(`2026-11-09-vehicle-app-foundation.md`)의 코드를 그대로 따른다.
 
 **Goal:** Pleos 차량 앱의 나머지 주차(FULL) 전용 화면 — ReviewTrip, 영수증(QR·OCR 확인·주유), 운행기록부·보내기, 이력, 설정 — 을 만들고 Home의 보조 동작을 연결한다.

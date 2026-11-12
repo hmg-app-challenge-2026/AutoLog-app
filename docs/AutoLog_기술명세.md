@@ -93,8 +93,9 @@ dependencyResolutionManagement {
 rootProject.name = "AutoLog"
 
 // 저장소에 있는 Gradle 모듈 목록일 뿐, APK 포함 여부와는 무관하다.
-// APK에 무엇이 들어가는지는 app/build.gradle.kts 의 dependencies 가 결정한다.
-include(":shared", ":vehicle-core", ":app", ":relay")
+// APK에 무엇이 들어가는지는 vehicle-app/build.gradle.kts 의 dependencies 가 결정한다.
+// 2026-11-11 AutoLog-Frontend와 합치며 화면 모듈이 :app → :vehicle-app (프론트 스펙 D-33·5.3)
+include(":shared", ":vehicle-core", ":relay", ":vehicle-app")
 ```
 
 ```toml
@@ -229,7 +230,8 @@ dependencies {
 ```
 
 ```kotlin
-// app/build.gradle.kts — 차량 앱 화면 (Compose). 로직은 :vehicle-core 가 담당한다.
+// (예전) app/build.gradle.kts — 차량 앱 화면 (Compose). 로직은 :vehicle-core 가 담당한다.
+// 지금 화면 모듈은 vehicle-app/build.gradle.kts(데모·실차 flavor, Roborazzi) — 프론트 스펙 5.3
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -1062,14 +1064,14 @@ services:
 
 ## 7. 저장소 구조 (모노레포)
 
-차량 쪽은 **로직(`vehicle-core/`)과 화면(`app/`)을 별도 Gradle 모듈**로 나눈다. 로직 담당(앱 A·B)과 프론트가 서로의 폴더를 건드리지 않게 하고, 로직을 화면·에뮬레이터 없이 단위 테스트하기 위해서다. 패키지 이름은 두 모듈 모두 `kr.autolog.vehicle.*`이다.
+차량 쪽은 **로직(`vehicle-core/`)과 화면(`vehicle-app/`)을 별도 Gradle 모듈**로 나눈다(2026-11-11 AutoLog-Frontend와 한 리포로 합치며 예전 `app/`을 `vehicle-app/`이 대체). 로직 담당(앱 A·B)과 프론트가 서로의 폴더를 건드리지 않게 하고, 로직을 화면·에뮬레이터 없이 단위 테스트하기 위해서다. 패키지 이름은 두 모듈 모두 `kr.autolog.vehicle.*`이다.
 
 ```
-AutoLog-Backend/
-├── settings.gradle.kts           include(":shared", ":vehicle-core", ":app", ":relay")
+AutoLog-app/                      # 2026-11-11 AutoLog-Backend + AutoLog-Frontend 통합
+├── settings.gradle.kts           include(":shared", ":vehicle-core", ":relay", ":vehicle-app")
 ├── build.gradle.kts · gradle/libs.versions.toml · gradle.properties
 ├── README.md · CONVENTIONS.md(분업·브랜치·커밋 규칙) · CLAUDE.md · .editorconfig
-├── .github/workflows/            # CI: ktlintCheck · test
+├── .github/workflows/            # CI: ktlintCheck · 모듈별 test · 화면 스크린샷 기록 · 빌드
 │
 ├── shared/                       # inbox payload DTO (Kotlin JVM, kotlinx.serialization만)   [B, A 리뷰]
 │   └── src/{main,test}/kotlin/kr/autolog/shared/{InboxPayload.kt, Json.kt}
@@ -1091,10 +1093,8 @@ AutoLog-Backend/
 │   ├── src/test/kotlin/...       # 단위 테스트 (화면·에뮬레이터 없이)
 │   └── docs/sdk-findings.md      # 1단계 SDK 검증 결과
 │
-├── app/                          # 차량 화면 — Compose (application). vehicle-core 의 core·fake 만 import   [프론트]
-│   └── src/main/kotlin/kr/autolog/vehicle/
-│       ├── MainActivity.kt
-│       └── ui/                   # ProfilePicker, Home 3상태, ReviewTrip, Receipts, Report·보내기, History, Settings + ViewModel (나중에 합침)
+├── vehicle-app/                  # 차량 화면 — Compose (application). vehicle-core 의 core·fake 만 import   [프론트]
+│   └── src/{main,demo,vehicle,test}/  # 구조는 프론트 스펙 5.1·6.2 (예전 app/ 뼈대를 대체)
 │
 ├── relay/                        # 중계 서버 — Kotlin, Spring Boot                          [B]
 │   ├── src/main/kotlin/kr/autolog/relay/{device, inbox, receipt(Gemini), admin, common}/
@@ -1104,30 +1104,30 @@ AutoLog-Backend/
 │   ├── admin/                    # 운영 웹 (React + TS + Vite)
 │   └── camera/index.html         # 폰 영수증 카메라 페이지
 ├── ops/                          # docker-compose.yml, nginx/, .env.example
-└── docs/                         # 기획서·기능명세·기술명세 (로컬 전용, 저장소 비공개 문서)
+└── docs/                         # 기획서·기능명세·기술명세·DB 스키마 + 화면 설계(design-language, superpowers/, integration/)
 ```
 
 **의존 방향**
 
 ```
-app (화면) ──► vehicle-core (로직) ──► shared ◄── relay (서버)
+vehicle-app (화면) ──► vehicle-core (로직) ──► shared ◄── relay (서버)
 ```
 
-- `app`은 `vehicle-core`의 `core`·`fake` 패키지만 import한다. `session`·`data` 같은 내부 패키지를 직접 쓰지 않는다.
+- `vehicle-app`은 `vehicle-core`의 `core`·`fake` 패키지만 import한다. `session`·`data` 같은 내부 패키지를 직접 쓰지 않는다.
 - 앱 A·B도 상대방 패키지를 직접 import하지 않고 `core/Contracts.kt`를 거친다.
-- `shared`에는 kotlinx-serialization 외 의존성을 넣지 않는다(APK에 들어간다). `app`·`vehicle-core`는 `relay`에 의존하지 않는다.
+- `shared`에는 kotlinx-serialization 외 의존성을 넣지 않는다(APK에 들어간다). `vehicle-app`·`vehicle-core`는 `relay`에 의존하지 않는다.
 
 | 모듈 | 무엇 | 실행 위치 | 차량 APK 포함 |
 |---|---|---|---|
 | `shared` | inbox payload DTO | — | ✅ (vehicle-core 경유) |
-| `vehicle-core` | SDK·운행 기록·Room·inbox·엑셀·메일 | Pleos 에뮬레이터·헤드유닛 | ✅ (app 경유) |
-| `app` | 차량 화면 | Pleos 에뮬레이터·헤드유닛 | ✅ |
+| `vehicle-core` | SDK·운행 기록·Room·inbox·엑셀·메일 | Pleos 에뮬레이터·헤드유닛 | ✅ (vehicle-app 경유) |
+| `vehicle-app` | 차량 화면 | Pleos 에뮬레이터·헤드유닛 | ✅ |
 | `relay` | 중계 서버 | 서버 VM | ❌ |
 | `web/admin`, `web/camera` | 운영 웹, 카메라 페이지 | nginx 정적 | ❌ |
 
 ```bash
 ./gradlew :vehicle-core:test      # 차량 로직 단위 테스트 (화면·에뮬레이터 없이)
-./gradlew :app:assembleDebug      # 차량 APK (vehicle-core·shared 포함)
+./gradlew :vehicle-app:assembleVehicleDebug   # 차량 APK (vehicle-core·shared 포함, 실구현) — 데모는 assembleDemoDebug
 ./gradlew :relay:bootJar          # 서버 jar
 ```
 
@@ -1135,7 +1135,7 @@ app (화면) ──► vehicle-core (로직) ──► shared ◄── relay (�
 
 ## 8. 분업 — 로직 2인(앱 A·B) + 프론트
 
-**모든 화면은 프론트 담당이 따로 만든다**(차량 앱 Compose, 운영 웹, 카메라 페이지). 앱 A·B는 화면 없는 로직(`vehicle-core/` 모듈)과 서버(`relay/`)를 맡고, 화면이 부를 인터페이스 `vehicle-core/.../core/Contracts.kt`까지만 책임진다. 화면 코드는 `app/ui`·`web/`에 둔다(7장).
+**모든 화면은 프론트 담당이 따로 만든다**(차량 앱 Compose, 운영 웹, 카메라 페이지). 앱 A·B는 화면 없는 로직(`vehicle-core/` 모듈)과 서버(`relay/`)를 맡고, 화면이 부를 인터페이스 `vehicle-core/.../core/Contracts.kt`까지만 책임진다. 화면 코드는 `vehicle-app/`·`web/`에 둔다(7장).
 
 로직은 SDK 기준으로 나눈다. 차량 데이터(Vehicle SDK)와 맥락(NaviHelper·Fused Location·Gleo AI)은 서로 의존이 없다.
 

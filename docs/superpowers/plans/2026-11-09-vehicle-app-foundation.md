@@ -1,5 +1,7 @@
 # 차량 앱 기반 + 디자인 게이트 Implementation Plan
 
+> **당시 기록(리포가 둘이던 때).** 2026-11-11 AutoLog-app 한 리포로 합친 뒤엔 `backend/` submodule·composite build가 없다 — 지금 구조·빌드는 스펙 5장(D-33).
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** AutoLog-Frontend에 Pleos 차량 앱의 뼈대(빌드·디자인 시스템·사용 3단계·Navigator)와 첫 화면 3종(ProfilePicker·Home+자동 종료 안내·Peek)을 만들고, 스크린샷으로 디자인 게이트를 통과할 수 있는 상태로 만든다.
