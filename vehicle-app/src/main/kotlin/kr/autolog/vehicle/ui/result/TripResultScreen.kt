@@ -84,7 +84,7 @@ fun TripResultRoute(tripId: String, mode: TripResultMode = TripResultMode.AFTER_
  * - 두 칸 아래 가운데 = "일반 업무용 거리 48.2 km로 분류돼요. 3초 후 자동 저장돼요."(선택의 결과 + 남은 시간), 버튼과 40 dp 위.
  * - 아래 행동 줄: [기록 이어가기](종료 대기 중에만) · [수정하기](보기 모드에서만) · [저장하기](주)를 같은 폭으로 가운데에.
  *   남은 시간은 분류 문구 뒤 한 문장 + 맨 위 가장자리 막대 — 막대가 다 사라지는 순간 [저장하기]가 저절로 눌린다.
- * - 정차·주행 중(D-35): 버튼 줄 대신 같은 자리 가운데에 "주차하면 운행 기록을 수정할 수 있어요" — 누를 것 없이 5초 뒤 저절로 저장된다.
+ * - 정차·주행 중(D-35): 아래는 "3초 후 자동 저장돼요." + "주차하면 운행 기록을 수정할 수 있어요" 두 줄(버튼·분류 문구·막대 없음) — 누를 것 없이 5초 뒤 저절로 저장된다.
  * - 저장을 마치면 저장 완료 화면([TripSaved]: 체크 애니메이션 + "운행 기록을 저장했어요" + [확인])으로 바뀐다.
  * 넓은 창과 Pleos 1:1 분할 한 칸(≈1280×1268)은 같은 두 칸 배치·같은 글자. 세로로 긴 창(TALL)만 세로 한 칸(넘치면 그 칸만 스크롤) + 분류 문구 + 버튼 두 줄.
  */
@@ -98,8 +98,8 @@ fun TripResultScreen(state: TripResultUiState, onAction: (TripResultAction) -> U
         } else {
             Box(Modifier.fillMaxSize()) {
                 ResultBody(shown, onAction, layout)
-                // 맨 위 가장자리에 붙는 남은 시간 막대 — 오른쪽 끝이 왼쪽으로 줄어든다(수정 중엔 없다)
-                shown.autoCloseRemainingMs?.let {
+                // 맨 위 가장자리에 붙는 남은 시간 막대 — 오른쪽 끝이 왼쪽으로 줄어든다(수정 중엔 없다). 정차·주행 중엔 없다(D-35)
+                shown.autoCloseRemainingMs?.takeUnless { LocalDrivingLocked.current }?.let {
                     EdgeCountdownBar(it, shown.autoCloseTotalMs, Modifier.align(Alignment.TopStart))
                 }
             }
@@ -199,7 +199,7 @@ private fun ResultBody(state: TripResultUiState, onAction: (TripResultAction) ->
 }
 
 /**
- * 정차·주행 중 버튼 줄 자리(D-35): 버튼을 모두 빼고 같은 높이 칸 가운데에 안내 한 줄 — 위 분류 문구·두 칸이 주차 때와 같은 자리에 있게.
+ * 정차·주행 중 버튼 줄 자리(D-35): 버튼을 모두 빼고 같은 높이 칸 가운데에 안내 한 줄 — 위 두 칸이 주차 때와 같은 자리에 있게.
  * 고칠 곳은 주차 뒤 운행 기록 조회(D-26).
  */
 @Composable
@@ -311,17 +311,21 @@ private fun ClassificationText(state: TripResultUiState) {
     val c = AutoLogTheme.colors
     val style = AutoLogTheme.windowType.resultClassification
     val kind = stringResource(classLabel(state.selected))
+    // 정차·주행 중엔 분류 문구를 빼고 남은 시간만 — 아래 문구를 줄인다(D-35, 2026-11-12 사용자 지시 "설명 문구가 너무 많다")
+    val driving = LocalDrivingLocked.current
     // 분류 결과 + (남은 시간이 돌 때) "3초 후 자동 저장돼요" — 넓은 화면은 한 줄, 폭이 모자라면 문장 단위로 다음 줄에
     FlowRow(
         Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(Space.s3, Alignment.CenterHorizontally),
     ) {
-        Text(
-            state.km?.let { stringResource(R.string.result_classified, kind, stringResource(R.string.trip_km, it)) }
-                ?: stringResource(R.string.result_classified_no_km, kind),
-            style = style,
-            color = c.textPrimary,
-        )
+        if (!driving) {
+            Text(
+                state.km?.let { stringResource(R.string.result_classified, kind, stringResource(R.string.trip_km, it)) }
+                    ?: stringResource(R.string.result_classified_no_km, kind),
+                style = style,
+                color = c.textPrimary,
+            )
+        }
         state.autoCloseSec?.let {
             Text(stringResource(R.string.result_auto_save, durationText(it)), style = style, color = c.textSecondary)
         }

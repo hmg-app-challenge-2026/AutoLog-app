@@ -91,13 +91,14 @@ class TripResultScreenTest {
     }
 
     @Test
-    fun `정차·주행 중 — 버튼 없이 안내 한 줄, 남은 시간 안내는 그대로`() {
+    fun `정차·주행 중 — 아래는 남은 시간과 안내 두 줄, 버튼·분류 문구 없음`() {
         compose.setContent {
             AutoLogTheme { WindowLayoutHost { Driving { TripResultScreen(ended, onAction = {}) } } }
         }
 
         compose.onNodeWithText("주차하면 운행 기록을 수정할 수 있어요").assertIsDisplayed()
         compose.onNodeWithText("3초 후 자동 저장돼요.").assertIsDisplayed()
+        compose.onNodeWithText("일반 업무용 거리 48.2 km로 분류돼요.").assertDoesNotExist()
         compose.onNodeWithText("수정하기").assertDoesNotExist()
         compose.onNodeWithText("저장하기").assertDoesNotExist()
         compose.onNodeWithText("기록 이어가기").assertDoesNotExist()
@@ -147,7 +148,7 @@ class TripResultScreenshotTest {
     @Test
     fun ended() = captureAll("trip_result_ended") { TripResultScreen(ended, onAction = {}) }
 
-    /** 정차·주행 중 [기록 종료]·자동 종료로 끝난 운행(D-35): 버튼 줄 자리에 안내 한 줄, 막대·남은 시간은 그대로. */
+    /** 정차·주행 중 [기록 종료]·자동 종료로 끝난 운행(D-35): 아래는 남은 시간 + 안내 두 줄 — 막대·분류 문구·버튼 없음. */
     @Test
     fun driving() = captureAll("trip_result_driving") { Driving { TripResultScreen(ended, onAction = {}) } }
 
