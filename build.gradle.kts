@@ -11,6 +11,7 @@ plugins {
     alias(libs.plugins.spring.boot) apply false
     alias(libs.plugins.spring.dependency) apply false
     alias(libs.plugins.ktlint) apply false
+    alias(fe.plugins.roborazzi) apply false
 }
 
 // 모든 Kotlin 모듈에 ktlint 적용 (CONVENTIONS.md 6.1)

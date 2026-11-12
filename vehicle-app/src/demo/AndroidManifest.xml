@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  데모 flavor는 가짜 데이터로만 돈다(스펙 6.7). 백엔드 vehicle-core가 병합해 넣는 실제 기록 서비스·부팅 수신기를 뺀다 —
+  남겨 두면 부팅 때 BootReceiver가 실제 AutoLog를 조립해(Room·SDK·포그라운드 알림) 데모와 별개로 돈다.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+    <application>
+        <service android:name="kr.autolog.vehicle.session.TripRecordingService" tools:node="remove" />
+        <receiver android:name="kr.autolog.vehicle.session.BootReceiver" tools:node="remove" />
+    </application>
+</manifest>

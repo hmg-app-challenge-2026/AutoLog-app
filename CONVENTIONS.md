@@ -2,8 +2,11 @@
 
 > 로직 2명(앱 A·B)과 프론트 1명이 한 저장소에서 같이 개발하기 위한 규칙이다.
 > 근거 문서는 기술명세 8장(분업)과 기능명세 3장(담당 열)이다. 이 문서와 명세가 다르면 **명세를 따르고 이 문서를 고친다.**
+> 화면(`vehicle-app/`·`web/`)의 설계 기준은 [프론트 설계 스펙](docs/superpowers/specs/2026-11-09-autolog-frontend-design.md)과 [디자인 언어](docs/design-language.md)이고, 화면에만 해당하는 규칙은 [11장](#11-화면vehicle-app--web-규칙)에 있다.
 >
-> 체크리스트만 보려면 [맨 아래 10장](#10-pr-올리기-전-체크리스트)으로 가면 된다.
+> **2026-11-11 AutoLog-Frontend와 AutoLog-Backend를 이 리포(AutoLog-app) 하나로 합쳤다.** 두 리포의 커밋 기록과 브랜치는 그대로 들어 있다. 예전 프론트 리포의 CONVENTIONS는 11장으로 옮겼다(내용은 그대로, submodule 관련 문장만 고침).
+>
+> 체크리스트만 보려면 [10장](#10-pr-올리기-전-체크리스트)으로 가면 된다.
 
 ---
 
@@ -34,24 +37,26 @@
 | `vehicle-core/.../mail/` | B | Mailer(SMTP), SmtpCredentialStore |
 | `shared/` | B (A 리뷰 필수) | inbox payload DTO. 서버·앱이 함께 쓰므로 바꿀 때 A가 꼭 리뷰한다 |
 | `relay/` | B | 중계 서버 전체 |
-| `app/` | 프론트 | Compose 화면 + ViewModel |
+| `vehicle-app/` | 프론트 | Compose 화면 + ViewModel + Repository(차량 앱). 화면 규칙은 11장 |
 | `web/` | 프론트 (API 계약은 B) | 운영 웹, 카메라 페이지 |
+| `docs/design-language.md` · `docs/superpowers/` · `docs/integration/` | 프론트 | 화면 설계 스펙·디자인 언어·백엔드 연결 기록 |
 | `ops/` · 루트 Gradle 설정 · 이 문서 | 공동 | 바꿀 때 상대방 리뷰 |
 
 > 명세 7장 트리에는 로직이 `app/` 아래로 그려져 있지만, 실제 저장소는 로직을 `vehicle-core/`로 분리했다. 패키지 이름(`kr.autolog.vehicle.*`)은 명세와 같다.
+> 화면 앱은 `vehicle-app/`(Gradle `:vehicle-app`)이다. 예전 백엔드 리포의 `app/`(화면 뼈대)은 리포를 합치면서 지웠다(프론트 스펙 R-6).
 
 ### 1.3 의존 방향
 
 ```
-app (화면) ──► vehicle-core ──► shared ◄── relay
+vehicle-app (화면) ──► vehicle-core ──► shared ◄── relay
                  │
                  └─ 화면은 core/Contracts.kt 의 인터페이스만 쓴다
 ```
 
-- `app`은 `vehicle-core`의 `core`·`fake` 패키지만 import한다. `session`, `data` 같은 내부 패키지를 직접 쓰지 않는다.
+- `vehicle-app`은 `vehicle-core`의 `core`·`fake` 패키지만 import한다. `session`, `data` 같은 내부 패키지를 직접 쓰지 않는다.
 - A·B도 상대방 패키지를 직접 import하지 않고 `Contracts.kt`를 거친다. 예를 들어 A의 `session`이 B의 `domain.PurposeRules`를 직접 부르지 않고 `PurposeEngine` 인터페이스로 받는다.
 - `shared`에는 `kotlinx-serialization` 외의 의존성을 추가하지 않는다 (APK에 들어간다).
-- `app`과 `vehicle-core`는 `relay`에 의존하지 않는다.
+- `vehicle-app`과 `vehicle-core`는 `relay`에 의존하지 않는다.
 
 ---
 
@@ -62,7 +67,7 @@ app (화면) ──► vehicle-core ──► shared ◄── relay
 | `main` | 항상 빌드되는 상태. **직접 push 금지**, PR로만 합친다 |
 | `a/<기능ID>-<요약>` | 앱 A 작업. 예: `a/F-05-odometer-distance` |
 | `b/<기능ID>-<요약>` | 앱 B 작업. 예: `b/F-41-gemini-ocr` |
-| `fe/<요약>` | 프론트 작업. 예: `fe/review-trip-screen` |
+| `feat/<요약>` · `fix/<요약>` · `docs/<요약>` | 프론트 작업(기능 · 버그만 · 화면 설계 문서만). 예: `feat/main-screen`, `fix/emulator-qa`, `docs/front-back-issues`. 2026-11-09 프론트 결정으로 `fe/` 대신 이 이름을 쓴다(11.2) |
 | `contract/<요약>` | `Contracts.kt`·`shared` 변경 전용. 예: `contract/receipt-api-edits` |
 
 - 요약은 영어 소문자와 `-`로 쓴다.
@@ -99,6 +104,7 @@ docs(sdk): Odometer 소수점·갱신 주기 측정 결과
 | `chore` | 그 외 (설정 파일 등) |
 
 **scope**는 패키지나 모듈 이름을 쓴다: `core` `fake` `vehicle` `session` `data` `report` `navi` `location` `speech` `domain` `mail` `shared` `relay` `app` `web` `ops` `sdk` `build`
+(화면 작업의 scope는 11.2: `app` `design` `nav` `repo` `home` … — `app`은 차량 앱 공통이다)
 
 - 요약은 50자 안팎, 마침표 없이 쓴다.
 - 기능 ID가 있으면 끝에 붙인다. 명세와 추적이 된다.
@@ -131,7 +137,7 @@ F-05, F-10 … (명세 3장)
 - [ ] 검증한 SDK 동작은 `sdk-findings.md`에 적었다 — 못 지킨 항목은 비워 두고 이유를 적는다
 ```
 
-- **머지 조건:** 리뷰어 1명 승인 + CI 통과(`./gradlew ktlintCheck test`) + 충돌 없음.
+- **머지 조건:** 리뷰어 1명 승인 + CI 통과(`.github/workflows/ci.yml` — ktlint · 모듈별 테스트 · 화면 스크린샷 기록 · 빌드) + 충돌 없음.
 - 머지 방식은 **Squash merge**다. PR 제목이 커밋 메시지가 되므로 3장 형식으로 쓴다.
 - 리뷰어는 기본적으로 상대방(A↔B)이다. 프론트가 쓰는 인터페이스가 바뀌면 프론트도 리뷰어로 넣는다.
 - 리뷰는 **24시간 안에** 한다. 급하면 메신저로 알린다.
@@ -270,9 +276,10 @@ F-05, F-10 … (명세 3장)
 
 ```bash
 ./gradlew ktlintFormat
-./gradlew ktlintCheck test
-./gradlew :app:assembleDebug
+./gradlew ktlintCheck :shared:test :vehicle-core:test :relay:test
+./gradlew :vehicle-app:testDemoDebugUnitTest :vehicle-app:assembleDemoDebug :vehicle-app:assembleVehicleDebug
 ```
+화면을 바꿨으면 11.5의 스크린샷·웹 명령도 돌린다.
 
 - [ ] 내 소유 폴더만 고쳤다 (아니면 소유자를 리뷰어로 넣었다)
 - [ ] `Contracts.kt`·`shared`를 바꿨다면 `contract/` 브랜치이고, Fake도 같이 고쳤다
@@ -288,3 +295,80 @@ F-05, F-10 … (명세 3장)
 ## 부록: 명세 문서 고치기
 
 `docs/`(기획서·기능명세·기술명세)도 코드처럼 PR로 고친다. 커밋은 `docs(spec): <바뀐 장> 요약` 형식이고, 담당·인터페이스·일정이 바뀌면 상대방 리뷰를 받는다. 공개 저장소이므로 실명·연락처·계정·키는 적지 않는다.
+
+---
+
+## 11. 화면(`vehicle-app` · `web`) 규칙
+
+> 예전 AutoLog-Frontend 리포의 CONVENTIONS다(2026-11-11 리포를 합치며 이 장으로 옮김). 화면 코드를 쓰거나 고치는 모든 사람(과 AI 도구)이 따른다.
+> 설계는 [설계 스펙](docs/superpowers/specs/2026-11-09-autolog-frontend-design.md), 디자인은 [디자인 언어](docs/design-language.md)가 기준이다. 이 장과 스펙이 다르면 **스펙을 따르고 이 장을 고친다.**
+> 1~10장(공통 규칙)은 그대로 따르고, 화면에서 다른 점만 여기 적는다.
+
+### 11.1 소유와 경계
+
+| 경로 | 소유 | 규칙 |
+|---|---|---|
+| `vehicle-app/` · `web/` · 화면 문서(`docs/design-language.md`·`docs/superpowers/`·`docs/integration/`) | 프론트 | 자유롭게 고친다 |
+| `shared/` · `vehicle-core/` · `relay/` | 앱 A·B | **1.2 소유 규칙을 따른다** — 프론트가 고쳐야 하면 소유자를 리뷰어로 넣는다(예전엔 submodule이라 이 리포에서 아예 고치지 않았다) |
+| `vehicle-app/.../data/fake/` | 프론트 | 데모·테스트용 앱 A 가짜(데모 조작 — 거리 늘리기·놓친 운행·복구 — 포함). 실제 앱(vehicle flavor)은 쓰지 않는다 |
+| `vehicle-app/.../data/upload/` | 프론트(임시) | 사내 서버 업로드 자리표시 계약. 백엔드 계약(R-4)이 오면 삭제한다 |
+| `vehicle-app/.../overlay/` · `src/vehicle/.../overlay/` | 프론트 | 운행 기록 알약(스펙 6.12). 경계·표시 규칙은 main, Android 창 구현(`RecordingPill`)은 vehicle flavor에만. 설정 화면은 `data/repository/OverlayPermissionRepository`로만 권한을 본다 |
+
+- `ai.pleos.*` import 금지(스펙 6.1).
+- `ui/` 패키지는 `data/repository`의 인터페이스만 쓴다. `kr.autolog.vehicle.core`의 서비스 인터페이스를 import하지 않는다(값 enum은 가능).
+- Backend 내부 패키지(`session`, `data`, `domain`, `navi` …) import 금지. `core`·`fake`·`shared`만.
+
+### 11.2 브랜치·커밋·PR
+
+- 브랜치: **작업(계획의 Task) 하나 = 브랜치 하나**, `feat/<요약>`(영어 소문자 + `-`). 예: `feat/foundation`, `feat/main-screen`, `feat/review-trip`. 앞 작업 브랜치에서 갈라져 나와 이어 쌓는다. 버그만 고치면 `fix/<요약>`, 설계 문서만 바꾸면 `docs/<요약>`(2026-11-09 사용자 결정 — 예전 `fe/` 접두어는 쓰지 않는다).
+- `main`에 직접 push하지 않는다. PR + 리뷰 1명 + CI 통과 → **Squash merge**.
+- 커밋: `<type>(<scope>): <한국어 요약> (<기능ID>)`. type은 Backend와 같다(feat·fix·test·refactor·docs·build·chore).
+- scope: `app`(차량 앱 공통) `design` `nav` `repo` `profile` `home` `review` `receipt` `report` `history` `settings` `admin` `camera` `build` `spec`
+- 예: `feat(profile): 넷플릭스식 운전자 선택 화면 (F-15)` · `fix(home): 기록 종료도 자동 종료와 같은 5초 종료 대기로 (F-04)`. 예전 `build(backend): submodule을 …로 갱신`은 리포를 합친 뒤로 없다
+- PR 설명 형식과 400줄 목표는 4장과 같다. 화면 PR에는 **스크린샷(WIDE·NARROW·TALL × 다크·라이트)**을 첨부한다(Roborazzi 출력).
+
+### 11.3 코드 스타일
+
+- Kotlin: 6장(ktlint, 이름, 단위 접미어)을 그대로 따른다. 커밋 전 `./gradlew ktlintFormat`.
+- Compose 파일 구성: 화면 하나 = `XxxRoute.kt`(ViewModel 연결) · `XxxScreen.kt`(순수 UI + Preview) · `XxxViewModel.kt` · `XxxUiState.kt`(UiState·Action·Effect).
+- Composable 이름은 PascalCase 명사, 파라미터 순서: 필수 데이터 → `onXxx` 콜백 → `modifier: Modifier = Modifier` (마지막).
+- **누를 수 있는 요소는 모두 `Modifier.tappable`**(`ui/design/components/Press.kt`)로 만든다. 입력 잠금(스펙 6.9)·누름 피드백·햅틱이 한곳에 있다 — `clickable`을 직접 쓰지 않는다. 정차·주행 중엔 화면이 그대로 남고 잠금만 걸린다(D-31) — 그때도 눌려야 하는 동작(지금은 [기록 종료] 하나)만 `whileDriving = true`.
+- 화면 바깥 여백은 `screenMargin()`(창 크기별 하나). 화면마다 `Space.s7`/`tallMargin`을 따로 고르지 않는다.
+- 창 크기에 따라 달라지는 글자는 `AutoLogTheme.windowType.<역할>`(`ui/design/WindowType.kt`). 화면·컴포넌트에서 `if (LocalWindowLayout.current == NARROW) type.a else type.b`로 글자를 고르지 않는다 — 새 역할이 필요하면 그 표에 한 줄 더한다.
+- 입력 칸이 여러 개인 화면은 칸 정의(이름·단위·입력 방법·계약 키)를 enum 하나에 모은다(예: `ui/receipt/FuelField.kt`). 칸마다 `when`을 여러 곳에 두지 않는다.
+- ViewModel·Reducer는 화면 문구를 모른다. 사람에게 보일 이름·오류는 sealed 타입(예: `FuelTripLabel`, `FuelEntryError`)으로 내보내고 화면이 `strings.xml`로 바꾼다.
+- 화면 하나의 상태 계산은 `XxxReducer.kt`의 순수 함수(`reduceXxx`)로 두고 Repository 값 타입만 입력으로 받는다. `data/fake`·`data/upload` 타입은 `ui/`에 들어오지 않는다(스펙 6.6).
+- 색·글자·간격·모양·모션은 **반드시 `AutoLogTheme` 토큰**. 리터럴 `Color(0xFF…)`, `16.dp`, `24.sp`를 화면 코드에 쓰지 않는다(토큰 정의 파일 제외).
+- 모션은 `ui/design/motion/`의 도우미로만(디자인 언어 8.2): 팝업은 `ModalHost`로 감싸고(닫힘 모션), 같은 자리 교체 `FadeThrough`, 달 이동 `DirectionalContent`, 생겼다 사라지는 것 `ExpandVisibility`·`ExpandSwap`, 선택 `animateSelectColor`. 화면 코드에 `AnimatedContent`·`animate*AsState`·`spring(...)`·`tween(...)`을 직접 쓰지 않는다. 화면 전환 모양은 `FullApp`이 스택 변화로 정한다 — 화면은 Navigator만 부른다.
+- **버튼 바로 위 설명글은 가운데** — 화면은 `ButtonNote`, 팝업 안은 `ModalText`(2026-11-10 사용자 지시). `Text`를 버튼 위에 왼쪽 정렬로 두지 않는다.
+- 문자열은 `strings.xml`. 화면 코드에 한국어 리터럴을 쓰지 않는다(Preview·테스트 제외).
+- TypeScript(web/admin): ESLint 기본 + `strict: true`. 컴포넌트 PascalCase, 훅 `useXxx`, API 함수 동사형.
+
+### 11.4 테스트
+
+| 대상 | 규칙 |
+|---|---|
+| ViewModel | 화면마다 1개 이상. 정상·오류·잠금 상태 각 1개 이상 |
+| 디자인 토큰 | 토큰을 바꾸면 `ContrastTest` 통과 필수 |
+| 스크린샷 | 화면을 추가·변경하면 `./gradlew :vehicle-app:recordRoborazziDemoDebug`로 로컬에 기록해 검토한다. 파일은 창 크기별 폴더 `src/test/screenshots/{wide,narrow}/<이름>_<dark|light>.png`(`captureAll`이 정한다). **실제 Pleos 화면 두 크기만** 찍는다(2026-11-10 사용자 지시 — 근거 없는 비율은 지움): `wide/` = 앱 하나가 앱 영역 전체(Pleos Connect v2.1.0 에뮬레이터 2560×1268 dp), `narrow/` = 1:1 분할 한 칸(1280×1268 dp, Pleos Window Policy 기본 1:1). 둘 다 밀도 1.0이라 에뮬레이터와 같은 픽셀이다. **현재는 리포에 커밋하지 않는다**(`.gitignore`, 2026-11-09 사용자 결정 — 로컬 검토용). 그래서 CI는 `verifyRoborazzi`(기준 이미지와 비교 — 기준이 없으면 모든 스크린샷 테스트가 "original file was not found"로 실패)가 아니라 `recordRoborazzi`로 찍기만 하고, 캡처는 Actions 결과물 `screenshots`로 올린다(리뷰어가 내려받아 본다). 화면이 그려지다 죽는 문제는 잡지만 픽셀 회귀는 잡지 못한다. 기준 이미지를 커밋하기로 바꾸면 `.gitignore`에서 빼고 CI를 `verifyRoborazzi`로 되돌린 뒤 이 행을 고친다 |
+| 컴포넌트 갤러리 | `ui/design/components/` 컴포넌트를 추가·변경하면 `GalleryScreenshotTest`(components·components_tiles·components_forms·components_keypads·components_modal)도 같이 고친다. 갤러리는 지금 컴포넌트 목록과 같아야 한다. UI를 바꾸면 `src/test/screenshots/`를 지우고 전부 다시 기록한다(옛 캡처를 남기지 않는다) |
+| 웹 | 폼·API 오류 문구 테스트 |
+
+테스트 이름은 백틱 문장: ``fun `주행이 시작되면 보조 화면을 모두 닫는다`()``.
+
+### 11.5 PR 전 체크리스트(화면)
+
+```bash
+./gradlew ktlintFormat
+./gradlew ktlintCheck :vehicle-app:testDemoDebugUnitTest :vehicle-app:recordRoborazziDemoDebug :vehicle-app:assembleDemoDebug
+(cd web/admin && npm ci && npm run build)   # web을 바꿨을 때 — lint·test 스크립트는 아직 없다(스펙 9.1 목표: ESLint·Vitest)
+```
+
+- [ ] 소유 경계를 지켰다(1.2 — 앱 A·B 폴더를 고쳤으면 소유자 리뷰, 금지 import 없음)
+- [ ] 리터럴 색·크기 없이 토큰만 썼다
+- [ ] 스크린샷 4장(넓은 화면·분할 화면 × 2테마)을 로컬에 기록해 확인했다(커밋하지 않음)
+- [ ] 사용 3단계를 지켰다: 주차(FULL) 전용 화면이고, 정차·주행이면 닫히고 Home만 읽기 전용으로 남는다 — 정차·주행 중에도 써야 하는 동작만 `tappable(whileDriving = true)` (스펙 1.1·D-31)
+- [ ] 조작 예산 안이다. 자동 진행에는 남은 시간과 1탭 취소가 있다 (스펙 1.2)
+- [ ] [디자인 언어 13장 체크리스트](docs/design-language.md#13-리뷰-체크리스트-화면-pr마다)를 통과했다
+- [ ] 맥 에뮬레이터 확인 여부를 PR에 적었다
+- [ ] 비밀값·카드번호·정밀 좌표가 코드·로그에 없다

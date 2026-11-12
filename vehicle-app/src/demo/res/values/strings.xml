@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="demo_title">데모 컨트롤</string>
+    <string name="demo_play_drive">주행 시나리오 재생</string>
+    <string name="demo_stop">정차(신호 대기)</string>
+    <string name="demo_park">주차(P)</string>
+    <string name="demo_add_km">+1 km</string>
+    <string name="demo_missed">놓친 운행 15 km</string>
+    <string name="demo_recovery">강제 종료 후 복구</string>
+</resources>
