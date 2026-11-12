@@ -17,7 +17,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -42,13 +41,14 @@ import kr.autolog.vehicle.ui.design.LocalWindowLayout
 import kr.autolog.vehicle.ui.design.Size
 import kr.autolog.vehicle.ui.design.Space
 import kr.autolog.vehicle.ui.design.WindowLayout
+import kr.autolog.vehicle.ui.design.components.ActionBar
+import kr.autolog.vehicle.ui.design.components.BarAction
 import kr.autolog.vehicle.ui.design.components.ButtonNote
 import kr.autolog.vehicle.ui.design.components.ChoiceRow
 import kr.autolog.vehicle.ui.design.components.EdgeCountdownBar
 import kr.autolog.vehicle.ui.design.components.PrimaryButton
 import kr.autolog.vehicle.ui.design.components.RouteFlow
 import kr.autolog.vehicle.ui.design.components.ScrollColumn
-import kr.autolog.vehicle.ui.design.components.SecondaryButton
 import kr.autolog.vehicle.ui.design.components.Section
 import kr.autolog.vehicle.ui.design.components.TopLine
 import kr.autolog.vehicle.ui.design.durationText
@@ -169,7 +169,7 @@ private fun ResultBody(state: TripResultUiState, onAction: (TripResultAction) ->
                         FadeThrough(state, contentAlignment = Alignment.Center, contentKey = {
                             resultButtons(it)
                         }, label = "actions") {
-                            WideActions(it, onAction)
+                            ActionBar(resultActions(it, onAction))
                         }
                     }
                 }
@@ -190,7 +190,7 @@ private fun ResultBody(state: TripResultUiState, onAction: (TripResultAction) ->
                     DrivingNote()
                 } else {
                     FadeThrough(state, Modifier.fillMaxWidth(), contentKey = { resultButtons(it) }, label = "actions") {
-                        CompactActions(it, onAction)
+                        ActionBar(resultActions(it, onAction))
                     }
                 }
             }
@@ -353,57 +353,17 @@ private fun resultButtons(state: TripResultUiState): List<ResultButton> = buildL
     }
 }
 
-/** 버튼 하나 — 주 버튼은 저장 중이면 진행 표시. */
+/** 행동 줄([ActionBar]) — 주 버튼은 저장 중이면 진행 표시. 배치(두 칸·세로 창)는 ActionBar가 정한다. */
 @Composable
-private fun ResultButtonView(
-    button: ResultButton,
-    state: TripResultUiState,
-    onAction: (TripResultAction) -> Unit,
-    modifier: Modifier,
-) {
-    val label = stringResource(button.label)
-    if (button.primary) {
-        PrimaryButton(
-            label,
+private fun resultActions(state: TripResultUiState, onAction: (TripResultAction) -> Unit): List<BarAction> =
+    resultButtons(state).map { button ->
+        BarAction(
+            stringResource(button.label),
             onClick = { onAction(button.action) },
-            modifier = modifier,
-            height = Size.buttonMd,
-            loading = state.saving,
+            primary = button.primary,
+            loading = button.primary && state.saving,
         )
-    } else {
-        SecondaryButton(label, onClick = { onAction(button.action) }, modifier = modifier)
     }
-}
-
-/**
- * 두 칸 배치(넓은 창·분할 화면) 행동 버튼: 같은 폭(하나당 최대 480 dp)을 한 줄에, 줄 전체를 가운데에 모은다 —
- * 넓은 화면 끝에서 끝까지 늘어나지 않게. 분할 화면 한 칸(1280 dp)은 이 폭보다 좁아 콘텐츠 폭을 그대로 나눠 쓴다.
- */
-@Composable
-private fun WideActions(state: TripResultUiState, onAction: (TripResultAction) -> Unit) {
-    val buttons = resultButtons(state)
-    val gap = Space.s4
-    Row(
-        Modifier.widthIn(max = Size.actionButtonMaxWidth * buttons.size + gap * (buttons.size - 1)).fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(gap),
-    ) {
-        buttons.forEach { ResultButtonView(it, state, onAction, Modifier.weight(1f)) }
-    }
-}
-
-/** 세로로 긴 창 행동 버튼: 셋이면 앞 둘을 한 줄 + 주 버튼 전체 폭, 둘 이하면 한 줄. */
-@Composable
-private fun CompactActions(state: TripResultUiState, onAction: (TripResultAction) -> Unit) {
-    val buttons = resultButtons(state)
-    val rows = if (buttons.size > 2) listOf(buttons.dropLast(1), buttons.takeLast(1)) else listOf(buttons)
-    Column(verticalArrangement = Arrangement.spacedBy(Space.s3)) {
-        rows.forEach { row ->
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Space.s4)) {
-                row.forEach { ResultButtonView(it, state, onAction, Modifier.weight(1f)) }
-            }
-        }
-    }
-}
 
 /** "운행 기록을 완료했어요", 사후 확인이면 "11월 7일 19:34 운행"(D-29). */
 @Composable

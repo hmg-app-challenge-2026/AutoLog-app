@@ -114,4 +114,57 @@ class FuelEntryReducerTest {
         assertEquals("11/2 09:20", formatFuelValue(FuelField.DATETIME, "2026-11-02T09:20:00+09:00"))
         assertNull(formatFuelValue(FuelField.MERCHANT, " "))
     }
+
+    @Test
+    fun `봐야 할 칸은 신뢰도가 확인 필요·다시 확인인 칸뿐 — 고치면 빠지고, 빈 칸은 경고가 아니다`() {
+        val state = reduceReceiptEntry(receipt, oneCandidate)
+
+        assertEquals(listOf(FuelField.LITERS, FuelField.UNIT_PRICE), state.needsCheck)
+        assertEquals(listOf(FuelField.UNIT_PRICE), state.copy(edited = setOf(FuelField.LITERS)).needsCheck)
+        assertTrue(reduceManualEntry(TripSession.Idle).needsCheck.isEmpty())
+    }
+
+    @Test
+    fun `칸 목록은 처음 확인 필요였던 칸이 먼저 — 고친 뒤에도 자리를 지킨다`() {
+        val state = reduceReceiptEntry(receipt, oneCandidate).copy(edited = setOf(FuelField.LITERS))
+
+        assertEquals(
+            listOf(
+                FuelField.LITERS,
+                FuelField.UNIT_PRICE,
+                FuelField.MERCHANT,
+                FuelField.DATETIME,
+                FuelField.FUEL_TYPE,
+                FuelField.AMOUNT,
+                FuelField.DISCOUNT,
+                FuelField.CARD_LAST4,
+            ),
+            state.listedFields,
+        )
+    }
+
+    @Test
+    fun `영수증은 요약으로 열리고 수정하기를 누르면 칸 목록 — 직접 입력과 금액을 못 읽은 영수증은 처음부터 칸 목록`() {
+        val ocr = reduceReceiptEntry(receipt, oneCandidate)
+
+        assertTrue(ocr.showsSummary)
+        assertFalse(ocr.copy(detailsOpen = true).showsSummary)
+        assertFalse(reduceManualEntry(TripSession.Idle).showsSummary)
+        assertFalse(reduceReceiptEntry(FakeReceiptApi.SAMPLE_FAILED, oneCandidate).showsSummary)
+    }
+
+    @Test
+    fun `상태 한 줄 — 검산 실패가 먼저, 금액이 없으면 입력 안내, 봐야 할 칸, 다 되면 검산 통과`() {
+        assertEquals(FuelNotice.ArithFailed, reduceReceiptEntry(FakeReceiptApi.SAMPLE_UNSURE, oneCandidate).notice)
+        assertEquals(FuelNotice.OcrFailed, reduceReceiptEntry(FakeReceiptApi.SAMPLE_FAILED, oneCandidate).notice)
+        assertEquals(FuelNotice.AmountMissing, reduceManualEntry(TripSession.Idle).notice)
+        assertEquals(
+            FuelNotice.NeedsCheck(listOf(FuelField.LITERS, FuelField.UNIT_PRICE)),
+            reduceReceiptEntry(receipt, oneCandidate).notice,
+        )
+        val sure = receipt.copy(confidence = receipt.confidence.mapValues { 0.99 })
+        assertEquals(FuelNotice.ArithOk, reduceReceiptEntry(sure, oneCandidate).notice)
+        val filled = reduceManualEntry(TripSession.Idle).copy(values = mapOf(FuelField.AMOUNT to "50000"))
+        assertNull(filled.notice) // 직접 입력은 검산이 없다 — 금액만 있으면 할 일 없음
+    }
 }

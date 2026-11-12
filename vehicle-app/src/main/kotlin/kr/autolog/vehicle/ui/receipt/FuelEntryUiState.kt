@@ -1,6 +1,9 @@
 package kr.autolog.vehicle.ui.receipt
 
+import kr.autolog.shared.OcrStatus
 import kr.autolog.shared.ReceiptPayload
+import kr.autolog.vehicle.ui.design.components.confidenceLevelOf
+import kr.autolog.vehicle.ui.design.components.needsCheck
 
 /**
  * 주유 기록 입력 창 상태(스펙 7.5). 칸 값은 사람이 보고 고치는 글자 그대로 [values]에 두고,
@@ -16,6 +19,8 @@ data class FuelEntryUiState(
     val selectedTripId: String? = null,
     /** 지금 팝업으로 고치고 있는 칸. */
     val editing: FuelField? = null,
+    /** 영수증 요약을 접고 칸 목록을 펼쳤다([수정하기], D-38). 직접 입력·금액을 못 읽은 영수증은 처음부터 칸 목록. */
+    val detailsOpen: Boolean = false,
     /** 사람이 고친 칸 — OCR 신뢰도 대신 확인됨으로 본다. */
     val edited: Set<FuelField> = emptySet(),
     val saving: Boolean = false,
@@ -35,6 +40,59 @@ data class FuelEntryUiState(
     /** 칸의 OCR 신뢰도. 사람이 고친 칸은 1.0, 직접 입력이면 null. */
     fun confidence(field: FuelField): Double? =
         if (field in edited) 1.0 else receipt?.confidence?.get(field.confidenceKey)
+
+    /** 사람이 봐야 할 칸 — 지금 신뢰도가 "확인 필요"·"다시 확인"(고친 칸은 빠진다). 선언 순서. */
+    val needsCheck: List<FuelField> get() = fields.filter { levelOf(it, confidence(it)).needsCheck }
+
+    /** 영수증 요약(금액을 주인공으로, D-38)을 보이는가 — 영수증이고, 금액을 읽었고, 아직 [수정하기]를 누르지 않았다. */
+    val showsSummary: Boolean get() = receipt != null && !detailsOpen && this[FuelField.AMOUNT].isNotBlank()
+
+    /**
+     * 칸 목록 순서: 영수증이 처음 "확인 필요"로 준 칸이 먼저, 나머지는 선언 순서.
+     * 고친 뒤에도 자리를 지킨다(처음 신뢰도로 정렬 — 고치는 중에 칸이 아래로 달아나지 않게).
+     */
+    val listedFields: List<FuelField>
+        get() {
+            val first = fields.filter { levelOf(it, receipt?.confidence?.get(it.confidenceKey)).needsCheck }
+            return first + (fields - first.toSet())
+        }
+
+    /** 버튼 위 상태 한 줄(D-38). 무엇을 해야 [추가하기]가 되는지, 또는 다 됐는지. 우선순위 순. */
+    val notice: FuelNotice?
+        get() = when {
+            loading -> null
+            arithOk == false -> FuelNotice.ArithFailed
+            (this[FuelField.AMOUNT].toIntOrNull() ?: 0) <= 0 ->
+                if (receipt?.ocrStatus == OcrStatus.FAILED) FuelNotice.OcrFailed else FuelNotice.AmountMissing
+            needsCheck.isNotEmpty() -> FuelNotice.NeedsCheck(needsCheck)
+            arithOk == true -> FuelNotice.ArithOk
+            else -> null
+        }
+
+    private fun levelOf(field: FuelField, confidence: Double?) = confidenceLevelOf(
+        this[field].ifBlank {
+            null
+        },
+        confidence,
+    )
+}
+
+/** 주유 입력 창 버튼 위 상태 한 줄(D-38). 문구는 화면이 strings.xml로 만든다. */
+sealed interface FuelNotice {
+    /** 리터 × 단가 − 할인 ≠ 금액 — [추가하기] 비활성. */
+    data object ArithFailed : FuelNotice
+
+    /** 영수증을 읽지 못했다 — 금액만 넣어도 저장할 수 있다. */
+    data object OcrFailed : FuelNotice
+
+    /** 금액이 없다 — [추가하기] 비활성. */
+    data object AmountMissing : FuelNotice
+
+    /** 영수증 값 중 사람이 봐야 할 칸이 있다(추가는 된다). */
+    data class NeedsCheck(val fields: List<FuelField>) : FuelNotice
+
+    /** 영수증 값이 다 믿을 만하고 검산도 맞다. */
+    data object ArithOk : FuelNotice
 }
 
 /** 연결할 운행 선택지 한 줄. */
@@ -74,6 +132,9 @@ sealed interface FuelEntryAction {
     data object CloseEditor : FuelEntryAction
 
     data class SelectTrip(val tripId: String?) : FuelEntryAction
+
+    /** 영수증 요약의 [수정하기] — 칸 목록을 펼친다(D-38). */
+    data object OpenDetails : FuelEntryAction
 
     data object Add : FuelEntryAction
 
