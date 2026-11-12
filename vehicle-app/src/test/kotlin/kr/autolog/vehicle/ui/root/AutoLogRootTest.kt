@@ -34,7 +34,7 @@ class AutoLogRootTest {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
     @Test
-    fun `정차 중엔 주차 때와 같은 Home을 읽기 전용으로 보인다 — 눌리는 것도 운전자 배지도 없다`() {
+    fun `정차 중엔 주차 때와 같은 Home을 읽기 전용으로 보인다 — 기록 시작만 눌리고 운전자 배지는 없다`() {
         val graph = TestAppGraph(scope, start = Route.Home)
         runBlocking { graph.session.selectDriver("u-1") }
         graph.trip.setMotion(VehicleMotion.STOPPED)
@@ -45,7 +45,23 @@ class AutoLogRootTest {
         compose.onNodeWithText("대기 중").assertIsDisplayed() // 예전 정차 패널이 아니라 같은 Home(D-31)
         compose.onNodeWithText("주유 기록 추가").assertIsDisplayed() // 타일은 같은 자리에 흐리게
         compose.onNodeWithText("김영업님").assertDoesNotExist() // 배지는 주차한 대기 Home에만(D-30)
-        assertEquals(0, compose.onAllNodes(hasClickAction() and isEnabled()).fetchSemanticsNodes().size)
+        assertEquals(1, compose.onAllNodes(hasClickAction() and isEnabled()).fetchSemanticsNodes().size)
+    }
+
+    @Test
+    fun `기록 종료 뒤 자동 시작이 멈춰 있어도 정차·주행 중 기록 시작으로 다시 기록한다`() {
+        val graph = TestAppGraph(scope, start = Route.Home)
+        runBlocking { graph.trip.startSession() }
+        graph.trip.setMotion(VehicleMotion.MOVING)
+        runBlocking { graph.trip.finalize() } // 달리는 중 [기록 종료] — 다음 주차까지 자동 시작 멈춤(D-34)
+        compose.setContent { AutoLogRoot(graph, onRequestBackground = {}) }
+        compose.idleMain(AUTO_CLOSE_MS + SAVED_HOLD_MS + 1_100) // 버튼 없는 결과 카드가 저절로 저장·닫힘
+        assertTrue(graph.trip.state.value is SessionState.Idle)
+
+        compose.onNodeWithText("기록 시작").performClick()
+        compose.idleMain(1_100)
+
+        assertTrue(graph.trip.state.value is SessionState.Recording)
     }
 
     @Test

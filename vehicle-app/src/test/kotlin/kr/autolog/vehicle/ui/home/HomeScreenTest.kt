@@ -179,13 +179,13 @@ class HomeScreenshotTest {
     @Test
     fun recovery() = captureAll("home_recovery") { HomeScreen(recovery, onAction = {}) }
 
-    /** 정차 중(D-31): 같은 Home 읽기 전용 — 타일은 흐리게, [기록 종료]만 그대로. 상태 줄은 자동 종료까지 남은 시간. */
+    /** 정차 중(D-31): 같은 Home 읽기 전용 — 타일은 흐리게, 첫 칸 [기록 종료]만 그대로. 상태 줄은 자동 종료까지 남은 시간. */
     @Test
     fun recordingStopped() = captureAll("home_recording_stopped") {
         Stopped { HomeScreen(recording.copy(autoEndInSec = 161), onAction = {}) }
     }
 
-    /** 정차 중 운행이 없을 때(D-31): 대기 Home 읽기 전용 — 놓친 운행 팝업도 주차할 때까지 띄우지 않는다. */
+    /** 정차 중 운행이 없을 때(D-31): 대기 Home 읽기 전용, 첫 칸 [기록 시작]만 눌림(D-36) — 놓친 운행 팝업도 주차할 때까지 띄우지 않는다. */
     @Test
     fun readyStopped() = captureAll("home_ready_stopped") { Stopped { HomeScreen(readyMissed, onAction = {}) } }
 
