@@ -90,6 +90,8 @@
     <string name="result_classified">%1$s 거리 %2$s로 분류돼요.</string>
     <string name="result_classified_no_km">%1$s으로 분류돼요.</string>
     <string name="result_auto_save">%1$s 후 자동 저장돼요.</string>
+    <!-- 정차·주행 중 운행 결과 카드의 버튼 줄 자리(D-35) -->
+    <string name="result_driving_note">주차하면 운행 기록을 수정할 수 있어요</string>
     <string name="result_continue">기록 이어가기</string>
     <string name="result_edit">수정하기</string>
     <string name="result_save">저장하기</string>

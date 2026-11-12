@@ -3,6 +3,7 @@ package kr.autolog.vehicle.ui.root
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.isEnabled
+import androidx.compose.ui.test.junit4.ComposeContentTestRule
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -15,12 +16,16 @@ import kr.autolog.vehicle.TestAppGraph
 import kr.autolog.vehicle.core.SessionState
 import kr.autolog.vehicle.core.VehicleMotion
 import kr.autolog.vehicle.nav.Route
+import kr.autolog.vehicle.ui.result.AUTO_CLOSE_MS
+import kr.autolog.vehicle.ui.result.SAVED_HOLD_MS
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.annotation.Config
+import org.robolectric.shadows.ShadowLooper
+import java.util.concurrent.TimeUnit
 
 @RunWith(AndroidJUnit4::class)
 @Config(sdk = [34])
@@ -29,7 +34,7 @@ class AutoLogRootTest {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
     @Test
-    fun `정차 중엔 주차 때와 같은 Home을 읽기 전용으로 보인다 — 눌리는 것도 운전자 배지도 없다`() {
+    fun `정차 중엔 주차 때와 같은 Home을 읽기 전용으로 보인다 — 기록 시작만 눌리고 운전자 배지는 없다`() {
         val graph = TestAppGraph(scope, start = Route.Home)
         runBlocking { graph.session.selectDriver("u-1") }
         graph.trip.setMotion(VehicleMotion.STOPPED)
@@ -40,11 +45,27 @@ class AutoLogRootTest {
         compose.onNodeWithText("대기 중").assertIsDisplayed() // 예전 정차 패널이 아니라 같은 Home(D-31)
         compose.onNodeWithText("주유 기록 추가").assertIsDisplayed() // 타일은 같은 자리에 흐리게
         compose.onNodeWithText("김영업님").assertDoesNotExist() // 배지는 주차한 대기 Home에만(D-30)
-        assertEquals(0, compose.onAllNodes(hasClickAction() and isEnabled()).fetchSemanticsNodes().size)
+        assertEquals(1, compose.onAllNodes(hasClickAction() and isEnabled()).fetchSemanticsNodes().size)
     }
 
     @Test
-    fun `정차 중 기록 중이면 기록 종료만 눌리고, 누르면 종료 대기에 들어간다`() {
+    fun `기록 종료 뒤 자동 시작이 멈춰 있어도 정차·주행 중 기록 시작으로 다시 기록한다`() {
+        val graph = TestAppGraph(scope, start = Route.Home)
+        runBlocking { graph.trip.startSession() }
+        graph.trip.setMotion(VehicleMotion.MOVING)
+        runBlocking { graph.trip.finalize() } // 달리는 중 [기록 종료] — 다음 주차까지 자동 시작 멈춤(D-34)
+        compose.setContent { AutoLogRoot(graph, onRequestBackground = {}) }
+        compose.idleMain(AUTO_CLOSE_MS + SAVED_HOLD_MS + 1_100) // 버튼 없는 결과 카드가 저절로 저장·닫힘
+        assertTrue(graph.trip.state.value is SessionState.Idle)
+
+        compose.onNodeWithText("기록 시작").performClick()
+        compose.idleMain(1_100)
+
+        assertTrue(graph.trip.state.value is SessionState.Recording)
+    }
+
+    @Test
+    fun `정차 중 기록 중이면 기록 종료만 눌리고, 누르면 바로 끝나 버튼 없는 결과 카드가 뜬다`() {
         val graph = TestAppGraph(scope, start = Route.Home)
         runBlocking { graph.trip.startSession() }
         graph.trip.setMotion(VehicleMotion.STOPPED)
@@ -56,8 +77,37 @@ class AutoLogRootTest {
         compose.onNodeWithText("기록 종료").performClick()
         compose.waitForIdle()
 
-        assertTrue(graph.trip.state.value is SessionState.StopCandidate)
-        assertEquals(listOf(Route.Home), graph.navigator.backStack.value) // 결과 카드는 다음 주차 때
+        assertTrue(graph.trip.state.value is SessionState.PendingReview) // 되돌릴 버튼이 없으니 기다리지 않는다
+        compose.idleMain(1_100) // 세션 값은 1초 스로틀(ViewModel 쪽 시간은 메인 루퍼가 센다)
+        assertTrue(graph.navigator.current is Route.TripResult) // 결과 카드는 바로(D-35)
+        compose.onNodeWithText("주차하면 운행 기록을 수정할 수 있어요").assertIsDisplayed()
+        assertEquals(0, compose.onAllNodes(hasClickAction() and isEnabled()).fetchSemanticsNodes().size)
+    }
+
+    @Test
+    fun `주행 중에도 기록 종료만 눌리고, 누르면 기다리지 않고 바로 끝난다`() {
+        val graph = TestAppGraph(scope, start = Route.Home)
+        runBlocking { graph.trip.startSession() }
+        graph.trip.setMotion(VehicleMotion.MOVING)
+
+        compose.setContent { AutoLogRoot(graph, onRequestBackground = {}) }
+        compose.mainClock.advanceTimeBy(1_100)
+
+        assertEquals(1, compose.onAllNodes(hasClickAction() and isEnabled()).fetchSemanticsNodes().size)
+        compose.onNodeWithText("기록 종료").performClick()
+        compose.waitForIdle()
+
+        assertTrue(graph.trip.state.value is SessionState.PendingReview)
+        compose.idleMain(1_100)
+        assertTrue(graph.navigator.current is Route.TripResult)
+        compose.onNodeWithText("주차하면 운행 기록을 수정할 수 있어요").assertIsDisplayed()
+
+        compose.idleMain(AUTO_CLOSE_MS + 100) // 5초 뒤 저절로 저장 → 체크(정지형이라 바로 다 그려짐)
+        compose.onNodeWithText("운행 기록을 저장했어요").assertIsDisplayed()
+        compose.onNodeWithText("확인").assertDoesNotExist()
+        compose.idleMain(SAVED_HOLD_MS + 100) // 1초 뒤 Home
+        compose.onNodeWithText("운행 기록을 저장했어요").assertDoesNotExist()
+        assertEquals(listOf(Route.Home), graph.navigator.backStack.value)
     }
 
     @Test
@@ -127,4 +177,10 @@ class AutoLogRootTest {
 
         assertEquals(listOf(Route.Home), graph.navigator.backStack.value)
     }
+}
+
+/** ViewModel(메인 루퍼)의 delay를 [ms]만큼 흘리고 화면을 맞춘다 — compose mainClock은 화면 쪽 시간만 센다. */
+private fun ComposeContentTestRule.idleMain(ms: Long) {
+    ShadowLooper.idleMainLooper(ms, TimeUnit.MILLISECONDS)
+    waitForIdle()
 }

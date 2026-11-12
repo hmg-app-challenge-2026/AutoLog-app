@@ -44,7 +44,8 @@ import kr.autolog.vehicle.ui.result.TripResultRoute
 import kr.autolog.vehicle.ui.settings.SettingsRoute
 
 /**
- * 전체 앱(주차·정차·주행 모두 — D-31): 백스택 맨 위 화면. 정차·주행 중엔 Navigator가 Home만 남긴다. 전환 모양은 스택 변화가 정한다([navTransitionOf] — 앞으로·뒤로·띄우기·내리기·같은 자리, 디자인 언어 8.2).
+ * 전체 앱(주차·정차·주행 모두 — D-31): 백스택 맨 위 화면. 정차·주행 중엔 Navigator가 Home만 남긴다
+ * (운행 직후 결과 카드는 예외 — 버튼 없이, D-35). 전환 모양은 스택 변화가 정한다([navTransitionOf] — 앞으로·뒤로·띄우기·내리기·같은 자리, 디자인 언어 8.2).
  * 프로필 → 오른쪽 위 배지는 hero. 화면마다 불투명 바탕을 깔아 겹쳐 움직일 때 뒤 화면 글자가 비치지 않게 한다.
  */
 @OptIn(ExperimentalSharedTransitionApi::class, ExperimentalAnimationApi::class)

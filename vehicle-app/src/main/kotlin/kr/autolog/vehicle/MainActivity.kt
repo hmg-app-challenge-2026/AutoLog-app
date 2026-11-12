@@ -44,8 +44,8 @@ class MainActivity : ComponentActivity() {
         pendingIntent = null
         val appGraph = graph
         setContent { AutoLogRoot(graph = appGraph, onRequestBackground = { moveTaskToBack(true) }) }
-        // 운행 기록 알약(스펙 6.11): 이 화면이 보이는 동안은 숨기고, 창이 놓인 앱 영역 가운데를 알려 준다
-        appGraph.overlay.setAppVisible(true)
+        // 이 화면이 보이는 동안은 알약을 숨기고 앱 A 알림을 조용히(스펙 6.11·D-37), 창이 놓인 앱 영역 가운데를 알려 준다
+        appGraph.setAppVisible(true)
         window.decorView.addOnLayoutChangeListener { view, _, _, _, _, _, _, _, _ -> reportAppArea(view) }
         window.decorView.post { reportAppArea(window.decorView) }
         appGraph.overlay.askPermissionOnce()
@@ -54,12 +54,12 @@ class MainActivity : ComponentActivity() {
     // 그래프를 만들기 전(권한을 묻는 중)에는 건드리지 않는다 — 꺼내는 순간 백엔드가 조립된다
     override fun onStart() {
         super.onStart()
-        if (started) graph.overlay.setAppVisible(true)
+        if (started) graph.setAppVisible(true)
     }
 
     override fun onStop() {
         super.onStop()
-        if (started) graph.overlay.setAppVisible(false)
+        if (started) graph.setAppVisible(false)
     }
 
     private fun reportAppArea(view: View) {

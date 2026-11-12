@@ -1,6 +1,7 @@
 package kr.autolog.vehicle.ui.receipt
 
 import kr.autolog.vehicle.data.repository.ActiveTrip
+import kr.autolog.vehicle.data.repository.HistoryItem
 import kr.autolog.vehicle.data.repository.TripSession
 import kr.autolog.vehicle.fake.FakeReceiptApi
 import org.junit.Assert.assertEquals
@@ -47,6 +48,18 @@ class FuelEntryReducerTest {
         assertEquals(listOf(FuelTripOption("t-now", FuelTripLabel.Current)), state.trips)
         assertEquals("t-now", state.selectedTripId)
         assertEquals(listOf(FuelField.AMOUNT, FuelField.LITERS, FuelField.UNIT_PRICE), state.fields)
+    }
+
+    @Test
+    fun `주유소에 주차해 결과가 저장된 뒤에도 30분 안에 끝난 운행은 방금 끝난 운행으로 고른 채 열린다`() {
+        val last = HistoryItem("t-last", 0, endTime = 1_000_000, null, false, "본사", "주유소", 12.0, null, null)
+
+        val soon = reduceManualEntry(TripSession.Idle, last, now = 1_000_000 + JUST_ENDED_WINDOW_MS)
+        val late = reduceManualEntry(TripSession.Idle, last, now = 1_000_001 + JUST_ENDED_WINDOW_MS)
+
+        assertEquals(listOf(FuelTripOption("t-last", FuelTripLabel.JustEnded)), soon.trips)
+        assertEquals("t-last", soon.selectedTripId)
+        assertTrue(late.trips.isEmpty())
     }
 
     @Test

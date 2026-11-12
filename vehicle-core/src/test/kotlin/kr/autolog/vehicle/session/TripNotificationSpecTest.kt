@@ -46,4 +46,27 @@ class TripNotificationSpecTest {
         assertEquals("거리 확인 필요", spec.text)
         assertNull(spec.countdownTo)
     }
+
+    @Test
+    fun `신호 대기·내비 도착 대기는 묻지 않고 기록 중 알림 그대로 — 소리·헤즈업 없음`() {
+        for (reason in listOf(StopReason.NO_MOVEMENT, StopReason.NAVI_ARRIVED)) {
+            val spec = TripNotificationSpec.from(SessionState.StopCandidate(trip, 12.34, reason, 1_000, 181_000))
+
+            assertEquals(Channel.LOW, spec.channel)
+            assertEquals("기록 중", spec.title)
+            assertEquals("12.3 km · 판교 테크노밸리 거래처", spec.text)
+            assertNull(spec.countdownTo)
+        }
+    }
+
+    @Test
+    fun `AutoLog 화면이 보이는 동안엔 같은 내용을 조용히 — 결과 카드와 겹치지 않게`() {
+        val stop = SessionState.StopCandidate(trip, 23.4, StopReason.GEAR_P, 1_000, 6_000)
+        val ended = SessionState.PendingReview(trip, 23.4, null)
+
+        assertEquals(Channel.LOW, TripNotificationSpec.from(stop, appVisible = true).channel)
+        assertEquals("기록을 마칠까요?", TripNotificationSpec.from(stop, appVisible = true).title)
+        assertEquals(Channel.LOW, TripNotificationSpec.from(ended, appVisible = true).channel)
+        assertEquals(Channel.ALERT, TripNotificationSpec.from(ended, appVisible = false).channel)
+    }
 }

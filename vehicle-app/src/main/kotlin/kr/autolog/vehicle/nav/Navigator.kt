@@ -17,9 +17,6 @@ class Navigator(start: Route = Route.ProfilePicker) {
     /** 주차가 아닐 때 들어온 딥링크 — 다음에 주차(FULL)가 되면 연다. */
     private var pendingDeepLink: Route? = null
 
-    /** 주차가 아닐 때 열려던 운행 결과 — 다음에 주차가 되면 연다([showWhenParked]). */
-    private var pendingParked: Route? = null
-
     val current: Route get() = _backStack.value.last()
 
     fun push(route: Route): Boolean {
@@ -60,33 +57,46 @@ class Navigator(start: Route = Route.ProfilePicker) {
     }
 
     /**
-     * "지금 주차면 바로, 아니면 다음 주차 때" 열 화면(운행 결과 — 정차 중 [기록 종료]·자동 종료로 끝난 운행, D-31).
-     * 주차면 맨 위에 쌓는다(이미 맨 위면 그대로). [route]가 null이면 기다리던 것을 지운다(그 운행이 다시 기록 중이 됐다 등).
+     * 운행 결과 카드를 연다(D-35) — 단계와 무관하게 바로. 이미 맨 위면 그대로.
+     * 정차·주행 중이면 카드가 버튼 없이 보이고 5초 뒤 저절로 저장된다(화면이 정한다). 다른 화면은 이 길로 열지 않는다.
      */
-    fun showWhenParked(route: Route?) {
-        pendingParked = null
-        if (route == null) return
-        if (tier == UsageTier.FULL) {
-            if (current != route) push(route)
-        } else {
-            pendingParked = route
-        }
+    fun showTripResult(route: Route.TripResult) {
+        if (current == route) return
+        // 운행 직후 카드는 한 장만 — 다른 운행의 카드가 뒤에 남아 있으면 같이 치운다
+        _backStack.value = _backStack.value.filterNot { it.shownWhileDriving } + route
     }
 
     /**
-     * FULL에서 내려가면 [Home]만 남긴다(스펙 6.9 3번). 올라올 때는 화면을 되살리지 않는다 —
-     * 단, 그사이 들어온 딥링크(사용자가 알림을 눌러 요청한 화면)는 연다. 딥링크가 없으면 기다리던 운행 결과([showWhenParked])를 연다.
+     * 운행 직후 결과 카드를 모두 닫는다(D-35) — 새 운행이 시작됐거나 같은 운행이 다시 기록 중이 됐다.
+     * 카드는 단계가 내려가도 남으므로, 앱이 뒤에 있는 동안 열린 카드가 다음 주차 때 엉뚱하게 뜨지 않게 여기서 치운다.
+     */
+    fun closeTripResults() {
+        val kept = _backStack.value.filterNot { it.shownWhileDriving }
+        if (kept.size != _backStack.value.size) _backStack.value = kept.ifEmpty { listOf(Route.Home) }
+    }
+
+    /** [route] 하나를 백스택에서 뺀다(맨 위가 아니어도). 이미 없으면 그대로 — 화면이 스스로 떠날 때 다른 화면을 닫지 않게. */
+    fun close(route: Route) {
+        val i = _backStack.value.lastIndexOf(route)
+        if (i < 0) return
+        _backStack.value = _backStack.value.filterIndexed { index, _ -> index != i }.ifEmpty { listOf(Route.Home) }
+    }
+
+    /**
+     * FULL에서 내려가면 [Home]만 남긴다(스펙 6.9 3번) — 맨 위가 운행 직후 결과 카드면 그 카드는 Home 위에 남긴다
+     * ([shownWhileDriving], D-35: 주차 중 [기록 종료]로 열린 카드가 출발해도 끝까지 저장된다).
+     * 올라올 때는 화면을 되살리지 않는다 — 단, 그사이 들어온 딥링크(사용자가 알림을 눌러 요청한 화면)는 연다.
      */
     fun onTierChanged(newTier: UsageTier) {
-        if (newTier != UsageTier.FULL && (tier == UsageTier.FULL || _backStack.value != listOf(Route.Home))) {
-            _backStack.value = listOf(Route.Home)
+        if (newTier != UsageTier.FULL) {
+            val kept = listOf(Route.Home) + listOfNotNull(current.takeIf { it.shownWhileDriving })
+            if (_backStack.value != kept) _backStack.value = kept
         }
         tier = newTier
         tierKnown = true
         if (newTier == UsageTier.FULL) {
-            (pendingDeepLink ?: pendingParked)?.let { _backStack.value = listOf(Route.Home, it) }
+            pendingDeepLink?.let { _backStack.value = listOf(Route.Home, it) }
             pendingDeepLink = null
-            pendingParked = null
         }
     }
 }

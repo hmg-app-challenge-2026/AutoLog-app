@@ -44,6 +44,9 @@ class FakeTripSession(
     private val _currentDriver = MutableStateFlow<String?>(null)
     private var autoEndJob: Job? = null
 
+    /** 사람이 주차(P)가 아닐 때 끝냈으면 다음 주차까지 자동 시작하지 않는다(실구현 TripSessionManager와 같은 규칙, F-04). */
+    private var holdAutoStart = false
+
     override val state: StateFlow<SessionState> = _state.asStateFlow()
     override val motion: StateFlow<VehicleMotion?> = _motion.asStateFlow()
     override val totalOdometerKm: StateFlow<Double?> = _totalOdometerKm.asStateFlow()
@@ -66,6 +69,7 @@ class FakeTripSession(
     override suspend fun finalize() {
         autoEndJob?.cancel()
         finalizeNow()
+        if (_motion.value != VehicleMotion.PARKED) holdAutoStart = true
     }
 
     /** [기록 종료]: 기어 P와 같은 5초 종료 대기(이유 USER_REQUEST). 앱 A는 이렇게 끝낸 운행을 0 km여도 남긴다 — 가짜는 늘 남긴다. */
@@ -122,14 +126,17 @@ class FakeTripSession(
 
     fun setMotion(motion: VehicleMotion?) {
         _motion.value = motion
+        if (motion == VehicleMotion.PARKED) holdAutoStart = false
         val s = _state.value
+        // 사람이 끝낸 대기([기록 종료])는 움직여도 되돌리지 않는다
+        val userStop = s is SessionState.StopCandidate && s.reason == StopReason.USER_REQUEST
         when {
             motion == VehicleMotion.PARKED && s is SessionState.Recording -> startAutoEnd(s, StopReason.GEAR_P)
-            motion == VehicleMotion.MOVING && s is SessionState.StopCandidate -> {
+            motion == VehicleMotion.MOVING && s is SessionState.StopCandidate && !userStop -> {
                 autoEndJob?.cancel()
                 _state.value = SessionState.Recording(s.trip, s.liveKm, clock.nowMs())
             }
-            motion == VehicleMotion.MOVING && s.canStart() -> scope.launch { startSession() }
+            motion == VehicleMotion.MOVING && !holdAutoStart && s.canStart() -> scope.launch { startSession() }
             else -> Unit
         }
     }
@@ -159,7 +166,14 @@ class FakeTripSession(
         autoEndJob =
             scope.launch {
                 delay(gearPWaitMs)
-                if (_state.value is SessionState.StopCandidate) finalizeNow()
+                (_state.value as? SessionState.StopCandidate)?.let { c ->
+                    finalizeNow()
+                    if (c.reason == StopReason.USER_REQUEST &&
+                        _motion.value != VehicleMotion.PARKED
+                    ) {
+                        holdAutoStart = true
+                    }
+                }
             }
     }
 

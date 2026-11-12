@@ -1,5 +1,7 @@
 package kr.autolog.vehicle.ui.result
 
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
@@ -8,6 +10,8 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import kr.autolog.vehicle.core.PurposeCategory
 import kr.autolog.vehicle.screenshot.captureAll
 import kr.autolog.vehicle.ui.design.AutoLogTheme
+import kr.autolog.vehicle.ui.design.LocalDrivingLocked
+import kr.autolog.vehicle.ui.design.LocalInputLocked
 import kr.autolog.vehicle.ui.design.WindowLayoutHost
 import kr.autolog.vehicle.ui.trips.TripDay
 import kr.autolog.vehicle.ui.trips.TripWhen
@@ -35,6 +39,11 @@ private val ended = viewing.copy(canContinue = false)
 
 /** [수정하기] 뒤 — 카운트다운 멈춤, 출퇴근을 고름. */
 private val editing = viewing.copy(editing = true, autoCloseRemainingMs = null, selected = PurposeCategory.COMMUTE)
+
+/** 정차·주행 중(루트가 주는 잠금, D-31·D-35). */
+@Composable
+private fun Driving(content: @Composable () -> Unit) =
+    CompositionLocalProvider(LocalInputLocked provides true, LocalDrivingLocked provides true, content = content)
 
 @RunWith(AndroidJUnit4::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
@@ -82,6 +91,30 @@ class TripResultScreenTest {
     }
 
     @Test
+    fun `정차·주행 중 — 아래는 남은 시간과 안내 두 줄, 버튼·분류 문구 없음`() {
+        compose.setContent {
+            AutoLogTheme { WindowLayoutHost { Driving { TripResultScreen(ended, onAction = {}) } } }
+        }
+
+        compose.onNodeWithText("주차하면 운행 기록을 수정할 수 있어요").assertIsDisplayed()
+        compose.onNodeWithText("3초 후 자동 저장돼요.").assertIsDisplayed()
+        compose.onNodeWithText("일반 업무용 거리 48.2 km로 분류돼요.").assertDoesNotExist()
+        compose.onNodeWithText("수정하기").assertDoesNotExist()
+        compose.onNodeWithText("저장하기").assertDoesNotExist()
+        compose.onNodeWithText("기록 이어가기").assertDoesNotExist()
+    }
+
+    @Test
+    fun `정차·주행 중 저장 완료 — 확인 없이 체크와 문구만`() {
+        compose.setContent {
+            AutoLogTheme { WindowLayoutHost { Driving { TripResultScreen(ended.copy(saved = true), onAction = {}) } } }
+        }
+
+        compose.onNodeWithText("운행 기록을 저장했어요").assertIsDisplayed()
+        compose.onNodeWithText("확인").assertDoesNotExist()
+    }
+
+    @Test
     fun `수정 모드 — 수정하기가 빠져 버튼 둘, 라디오로 고르고 저장하기`() {
         val actions = mutableListOf<TripResultAction>()
         show(editing, actions)
@@ -114,6 +147,16 @@ class TripResultScreenshotTest {
 
     @Test
     fun ended() = captureAll("trip_result_ended") { TripResultScreen(ended, onAction = {}) }
+
+    /** 정차·주행 중 [기록 종료]·자동 종료로 끝난 운행(D-35): 아래는 남은 시간 + 안내 두 줄 — 막대·분류 문구·버튼 없음. */
+    @Test
+    fun driving() = captureAll("trip_result_driving") { Driving { TripResultScreen(ended, onAction = {}) } }
+
+    /** 정차·주행 중 저장 완료(D-35): [확인] 없이 체크 · 문구(같은 자리). */
+    @Test
+    fun savedDriving() = captureAll("trip_result_saved_driving") {
+        Driving { TripResultScreen(ended.copy(saved = true), onAction = {}) }
+    }
 
     /** 운행 기록 조회에서 연 사후 확인(D-29): 카운트다운 막대 없음, 제목은 운행 시각, 오른쪽 버튼 [닫기]. */
     @Test

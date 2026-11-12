@@ -36,7 +36,7 @@ internal fun reduceHome(
         // 종료 대기(AutoEnding)도 Home 뒤 배경은 기록 중 그대로 — 위에 운행 결과 카드가 열린다(D-28)
         is TripSession.Recording -> base.withTrip(HomePhase.RECORDING_PARKED, session.trip, session.liveKm, now)
         is TripSession.AutoEnding -> base.withTrip(HomePhase.RECORDING_PARKED, session.trip, session.liveKm, now)
-            .copy(autoEndInSec = remainingSeconds(session.deadlineAt, now))
+            .copy(autoEndInSec = remainingSeconds(session.deadlineAt, now).takeIf { it <= AUTO_END_NOTICE_SEC })
         is TripSession.NeedsRecovery ->
             base.copy(phase = HomePhase.NEEDS_RECOVERY, recoveryExtraKm = formatKm(session.extraKm))
     }
@@ -55,3 +55,9 @@ private fun HomeUiState.withTrip(phase: HomePhase, trip: ActiveTrip, liveKm: Dou
     origin = trip.origin,
     elapsedMin = ((now - trip.startTime) / 60_000).toInt().coerceAtLeast(0),
 )
+
+/**
+ * 상태 줄에 "n초 후 기록 종료"를 띄우는 마지막 구간(초). 신호에 10초만 서도 앱 A는 3분 "움직임 없음" 대기에 들어가므로,
+ * 처음부터 보이면 신호마다 "곧 끝난다"로 읽힌다 — 끝나기 1분 전부터만 알린다(2026-11-12 사용자 결정, D-37).
+ */
+const val AUTO_END_NOTICE_SEC = 60

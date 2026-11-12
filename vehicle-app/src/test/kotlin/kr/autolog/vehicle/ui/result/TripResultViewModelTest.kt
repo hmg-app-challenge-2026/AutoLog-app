@@ -2,6 +2,7 @@ package kr.autolog.vehicle.ui.result
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestScope
@@ -15,6 +16,7 @@ import kr.autolog.vehicle.TestAppGraph
 import kr.autolog.vehicle.common.AppClock
 import kr.autolog.vehicle.core.PurposeCategory
 import kr.autolog.vehicle.core.SessionState
+import kr.autolog.vehicle.core.TripRow
 import kr.autolog.vehicle.core.VehicleMotion
 import kr.autolog.vehicle.nav.Route
 import kr.autolog.vehicle.nav.TripResultMode
@@ -121,6 +123,51 @@ class TripResultViewModelTest {
     }
 
     @Test
+    fun `수정하던 중 출발하면 수정을 접고 고른 목적으로 5초 뒤 저장한다 — 누를 수 없는 화면에 멈추지 않게`() = runTest {
+        val g = TestAppGraph(backgroundScope, AppClock { testScheduler.currentTime }, start = Route.Home)
+        g.navigator.push(Route.TripResult("t-s1"))
+        val parked = MutableStateFlow(true)
+        val vm = TripResultViewModel("t-s1", g.tripResults, g.session, g.navigator, g.clock, parked = parked)
+        vm.uiState.first { !it.loading }
+        vm.onAction(TripResultAction.Edit)
+        vm.onAction(TripResultAction.Select(PurposeCategory.COMMUTE))
+
+        parked.value = false
+        runCurrent()
+        val state = vm.uiState.first { !it.editing }
+        assertEquals(5, state.autoCloseSec)
+        advanceTimeBy(5_100)
+        assertTrue(vm.uiState.value.saved) // 저장 완료 화면 — 정차·주행 중엔 저장한 때부터 1초
+        advanceTimeBy(SAVED_HOLD_MS)
+
+        assertEquals(Route.Home, g.navigator.current)
+        assertEquals(PurposeCategory.COMMUTE, purposeOf(g)!!.category)
+    }
+
+    @Test
+    fun `정차·주행 중엔 체크를 그렸다는 신호 없이도 저장 1초 뒤 닫힌다 — 앱이 뒤에 있어 화면이 안 그려져도`() = runTest {
+        val g = TestAppGraph(backgroundScope, AppClock { testScheduler.currentTime }, start = Route.Home)
+        g.navigator.push(Route.TripResult("t-s1"))
+        val vm =
+            TripResultViewModel(
+                "t-s1",
+                g.tripResults,
+                g.session,
+                g.navigator,
+                g.clock,
+                parked = MutableStateFlow(false),
+            )
+        vm.uiState.first { !it.loading }
+
+        advanceTimeBy(AUTO_CLOSE_MS + 100)
+        assertTrue(vm.uiState.value.saved)
+        advanceTimeBy(SAVED_HOLD_MS + 100)
+
+        assertEquals(listOf(Route.Home), g.navigator.backStack.value)
+        assertEquals(PurposeCategory.BUSINESS, purposeOf(g)!!.category)
+    }
+
+    @Test
     fun `보기 모드에선 목적을 못 바꾸고, 저장하기는 바로 저장하고 돌아간다`() = runTest {
         val (g, vm) = open()
         vm.uiState.first { !it.loading }
@@ -200,6 +247,21 @@ class TripResultViewModelTest {
         runCurrent()
 
         assertTrue(!vm.uiState.first().saved)
+    }
+
+    @Test
+    fun `종료 대기 중 기어 P를 빼고 출발하면 저장하지 않고 닫힌다 — 진행 중인 운행에 목적을 저장하지 않는다`() = runTest {
+        val (g, vm, tripId) = ending()
+        vm.uiState.first { !it.loading }
+        // 실제 저장소(Room)엔 기록 중인 운행 행이 있다(끝난 시각 없음) — 가짜 저장소에 같은 행을 둔다
+        g.store.upsert(TripRow(tripId, 0L, endTime = null, null, "본사", null, null, purpose = null))
+
+        g.trip.resume() // 앱 A: 기어가 P에서 빠졌다 → 종료 취소, 다시 기록 중
+        runCurrent()
+
+        assertEquals(Route.Home, g.navigator.current)
+        assertTrue(!vm.uiState.value.saved)
+        assertNull(g.store.trip(tripId)!!.purpose)
     }
 
     /** 기록 중 → 기어 P(종료 대기, 5초 뒤 종료) → Home 위 운행 결과 카드. */

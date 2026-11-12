@@ -25,7 +25,7 @@ import kr.autolog.vehicle.overlay.RecordingOverlay
  * 연결 지도와 연결하지 못한 것은 `docs/integration/backend-link.md`.
  */
 class RealAppGraph(
-    components: AutoLogComponents,
+    private val components: AutoLogComponents,
     carUx: CarUxSource,
     scope: CoroutineScope,
     override val clock: AppClock = AppClock.System,
@@ -33,6 +33,11 @@ class RealAppGraph(
     override val overlay: RecordingOverlay = RecordingOverlay.None,
 ) : AppGraph {
     override val navigator = Navigator(Route.ProfilePicker)
+
+    override fun setAppVisible(visible: Boolean) {
+        overlay.setAppVisible(visible)
+        components.presence.setAppVisible(visible)
+    }
     override val session = DefaultSessionRepository(components.session)
     override val usage = DefaultVehicleUsageRepository(components.session.motion, carUx.state, scope)
     override val profile =

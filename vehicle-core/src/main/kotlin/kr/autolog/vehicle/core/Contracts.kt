@@ -40,10 +40,16 @@ interface TripSessionApi {
     /** 프론트: [운행 시작] (F-02). 이미 기록 중이면 Failed. Odometer를 못 읽어도 시작한다(거리 미확정). */
     suspend fun startSession(): StartResult
 
-    /** 프론트 [기록 종료]: 5초 종료 대기에 들어가 결과 화면을 연다. */
+    /**
+     * 프론트 [기록 종료](주차 중): 5초 종료 대기에 들어가 결과 화면을 연다. 사람이 끝낸 대기라 차가 움직여도 되돌리지 않는다.
+     * 마감 때 주차(P)가 아니면 [finalize]처럼 다음 주차까지 자동 시작을 멈춘다 (F-04).
+     */
     suspend fun requestStop()
 
-    /** 종료 대기 화면·알림: 기다리지 않고 바로 끝낸다 (F-04). */
+    /**
+     * 프론트 [기록 종료](정차·주행 중)·종료 대기 화면·알림: 기다리지 않고 바로 끝낸다 (F-04).
+     * 주차(P)가 아닐 때(정차·주행 중) 끝내면 다음 주차 전까지 새 운행을 자동으로 시작하지 않는다 — 신호 대기로는 풀리지 않는다(끝낸 사람의 뜻대로).
+     */
     suspend fun finalize()
 
     /** 프론트·알림: [계속 기록]. StopCandidate → Recording, 정차 기록(Stop)만 남긴다 (F-04). */
@@ -75,6 +81,14 @@ interface TripSessionApi {
 }
 
 /** 화면이 읽는 운행 기록 (F-12). 원본은 Room. 구현: data/RoomLocalStore. */
+/**
+ * 앱 A: AutoLog 화면이 보이는지 화면이 알린다(Activity `onStart` = true, `onStop` = false — 분할 화면 한 칸도 보이는 것).
+ * 보이는 동안엔 운행 알림을 헤즈업(소리)으로 띄우지 않는다 — 화면이 운행 결과 카드로 같은 것을 이미 보여 준다(프론트 스펙 D-37).
+ */
+interface AppPresenceApi {
+    fun setAppVisible(visible: Boolean)
+}
+
 interface LocalStore {
     /** 프론트: 이력·운행기록부 화면. [month](Asia/Seoul 기준)에 시작한 운행, 최신 순. */
     fun trips(month: YearMonth): Flow<List<TripRow>>

@@ -15,6 +15,7 @@ import kr.autolog.vehicle.common.AppClock
 import kr.autolog.vehicle.core.MissedTrip
 import kr.autolog.vehicle.core.SessionState
 import kr.autolog.vehicle.core.VehicleMotion
+import kr.autolog.vehicle.data.usage.UsageTier
 import kr.autolog.vehicle.nav.Route
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -40,7 +41,7 @@ class HomeViewModelTest {
     @Test
     fun `기어 P(종료 대기)가 되면 운행 결과 카드가 바로 열리고, 끝나도 다시 열지 않는다`() = runTest {
         val g = graph()
-        HomeViewModel(g.session, g.context, g.trips, g.navigator, g.clock)
+        HomeViewModel(g.session, g.context, g.trips, g.navigator, g.clock, g.usage)
         g.trip.startSession()
         advanceTimeBy(1_100)
 
@@ -56,7 +57,7 @@ class HomeViewModelTest {
     @Test
     fun `계속 기록으로 되돌렸다가 다시 기어 P면 카드를 다시 연다`() = runTest {
         val g = graph()
-        HomeViewModel(g.session, g.context, g.trips, g.navigator, g.clock)
+        HomeViewModel(g.session, g.context, g.trips, g.navigator, g.clock, g.usage)
         g.trip.startSession()
         g.trip.setMotion(VehicleMotion.PARKED)
         advanceTimeBy(1_100)
@@ -71,9 +72,9 @@ class HomeViewModelTest {
     }
 
     @Test
-    fun `기록 종료를 누르면 자동 종료와 같은 5초 종료 대기에 들어가고 운행 결과가 열린다`() = runTest {
+    fun `주차 중 기록 종료를 누르면 자동 종료와 같은 5초 종료 대기에 들어가고 운행 결과가 열린다`() = runTest {
         val g = graph()
-        val vm = HomeViewModel(g.session, g.context, g.trips, g.navigator, g.clock)
+        val vm = HomeViewModel(g.session, g.context, g.trips, g.navigator, g.clock, g.usage)
         g.trip.startSession()
 
         vm.onAction(HomeAction.EndNow)
@@ -88,9 +89,84 @@ class HomeViewModelTest {
     }
 
     @Test
+    fun `주행 중 기록 종료는 바로 끝나 결과 카드가 열리고, 계속 달려도 새 운행을 시작하지 않는다`() = runTest {
+        val g = graph()
+        val vm = HomeViewModel(g.session, g.context, g.trips, g.navigator, g.clock, g.usage)
+        g.trip.startSession()
+        g.trip.setMotion(VehicleMotion.MOVING)
+        runCurrent() // 사용 단계(주행)가 반영되게
+        assertEquals(UsageTier.BACKGROUND, g.usage.tier.value)
+        g.navigator.onTierChanged(UsageTier.BACKGROUND) // 루트(AutoLogRoot)가 하는 일
+
+        vm.onAction(HomeAction.EndNow)
+        val ended = (g.trip.state.value as SessionState.PendingReview).trip.tripId // 5초 대기 없이 바로
+        g.trip.setMotion(VehicleMotion.MOVING) // 계속 달린다
+        advanceTimeBy(1_100) // 세션 값은 1초 스로틀
+
+        assertEquals(ended, (g.trip.state.value as SessionState.PendingReview).trip.tripId) // 새 운행 없음
+        // 주차를 기다리지 않고 바로 — 정차·주행 중엔 버튼 없이 5초 뒤 저장(D-35)
+        assertEquals(listOf(Route.Home, Route.TripResult(ended)), g.navigator.backStack.value)
+    }
+
+    @Test
+    fun `정차 중 기록 종료 뒤엔 출발해도 새 운행을 시작하지 않고, 주차하면 다시 자동 시작한다`() = runTest {
+        val g = graph()
+        val vm = HomeViewModel(g.session, g.context, g.trips, g.navigator, g.clock, g.usage)
+        g.trip.startSession()
+        g.trip.setMotion(VehicleMotion.STOPPED)
+        runCurrent()
+
+        vm.onAction(HomeAction.EndNow)
+        val ended = (g.trip.state.value as SessionState.PendingReview).trip.tripId
+        g.trip.setMotion(VehicleMotion.MOVING) // 신호가 바뀌어 출발
+        runCurrent()
+        assertEquals(ended, (g.trip.state.value as SessionState.PendingReview).trip.tripId)
+
+        g.trip.setMotion(VehicleMotion.PARKED)
+        g.trip.setMotion(VehicleMotion.MOVING) // 주차 뒤 다음 출발
+        runCurrent()
+        assertTrue(g.trip.state.value is SessionState.Recording)
+    }
+
+    @Test
+    fun `정차 중 종료 대기는 카드 없이 Home 상태 줄로, 끝나면 그때 결과 카드를 연다`() = runTest {
+        val g = graph()
+        HomeViewModel(g.session, g.context, g.trips, g.navigator, g.clock, g.usage)
+        g.trip.startSession()
+        g.trip.setMotion(VehicleMotion.STOPPED)
+        runCurrent()
+        g.navigator.onTierChanged(UsageTier.PEEK)
+
+        g.trip.requestStop() // 움직임 없음 자동 종료와 같은 종료 대기
+        advanceTimeBy(1_100)
+        assertTrue(g.trip.state.value is SessionState.StopCandidate)
+        assertEquals(listOf(Route.Home), g.navigator.backStack.value) // 되돌릴 버튼이 없으니 대기 카드는 주차 중에만
+
+        advanceTimeBy(5_000)
+        runCurrent()
+        val ended = (g.trip.state.value as SessionState.PendingReview).trip.tripId
+        assertEquals(Route.TripResult(ended), g.navigator.current)
+    }
+
+    @Test
+    fun `저장하지 않은 결과 카드는 다음 운행이 시작되면 닫힌다 — 다음 주차 때 지난 카드가 뜨지 않게`() = runTest {
+        val g = graph()
+        HomeViewModel(g.session, g.context, g.trips, g.navigator, g.clock, g.usage)
+        g.trip.startSession()
+        g.trip.finalize() // 앱이 뒤에 있어 카드가 그려지지 않았다
+        advanceTimeBy(1_100)
+        assertTrue(g.navigator.current is Route.TripResult)
+
+        g.trip.startSession() // 다시 출발 — 새 운행
+        advanceTimeBy(1_100)
+
+        assertEquals(listOf(Route.Home), g.navigator.backStack.value)
+    }
+
+    @Test
     fun `운행이 끝나면 목적 확인 화면이 자동으로 열린다`() = runTest {
         val g = graph()
-        HomeViewModel(g.session, g.context, g.trips, g.navigator, g.clock)
+        HomeViewModel(g.session, g.context, g.trips, g.navigator, g.clock, g.usage)
         g.trip.startSession()
         g.trip.addKm(2.0)
 
@@ -108,7 +184,7 @@ class HomeViewModelTest {
     @Test
     fun `독의 운행 기록은 이력(기록부 포함)으로 간다`() = runTest {
         val g = graph()
-        val vm = HomeViewModel(g.session, g.context, g.trips, g.navigator, g.clock)
+        val vm = HomeViewModel(g.session, g.context, g.trips, g.navigator, g.clock, g.usage)
 
         vm.onAction(HomeAction.OpenRecords)
 
@@ -118,7 +194,7 @@ class HomeViewModelTest {
     @Test
     fun `놓친 운행 팝업에서 추가하기를 누르면 운행으로 추가된다`() = runTest {
         val g = graph()
-        val vm = HomeViewModel(g.session, g.context, g.trips, g.navigator, g.clock)
+        val vm = HomeViewModel(g.session, g.context, g.trips, g.navigator, g.clock, g.usage)
         g.trip.setMissedTrip(MissedTrip(15.0, 0))
         assertEquals("15.0", vm.uiState.first { it.missedKm != null }.missedKm)
 

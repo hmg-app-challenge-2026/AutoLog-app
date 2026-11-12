@@ -456,6 +456,110 @@ class TripSessionManagerTest {
     }
 
     @Test
+    fun `달리는 중에 기록 종료를 바로 하면 끝나고, 계속 달려도 새 운행을 시작하지 않는다`() = runTest {
+        val rig = Rig(this)
+        val id = startedTrip(rig)
+        rig.car.speed(40.0)
+        runCurrent()
+        rig.car.drive(1.0)
+        runCurrent()
+
+        rig.session.finalize()
+        rig.car.speed(45.0)
+        rig.car.drive(0.5)
+        runCurrent()
+        advanceTimeBy(5_000)
+
+        assertTrue(rig.stateValue is SessionState.PendingReview)
+        assertEquals(id, (rig.stateValue as SessionState.PendingReview).trip.tripId)
+        assertEquals(1, rig.dao.trips.value.size)
+    }
+
+    @Test
+    fun `기록 종료로 멈춘 자동 시작은 신호 대기로는 풀리지 않고 주차해야 풀린다`() = runTest {
+        val rig = Rig(this)
+        startedTrip(rig)
+        rig.car.speed(40.0)
+        runCurrent()
+        rig.car.drive(1.0) // 짧은 운행 버리기(1분 미만·0.3 km 미만)에 걸리지 않게
+        runCurrent()
+        rig.session.finalize()
+
+        rig.car.speed(0.0)
+        runCurrent()
+        advanceTimeBy(DrivingJudge.MOVING_WINDOW_MS + 1_500) // 신호 대기
+        assertEquals(VehicleMotion.STOPPED, rig.session.motion.value)
+        rig.car.speed(30.0)
+        runCurrent()
+        assertTrue(rig.stateValue is SessionState.PendingReview) // 끝낸 대로 끝나 있다
+        assertEquals(1, rig.dao.trips.value.size)
+
+        rig.car.speed(0.0)
+        rig.car.shift(Gear.PARK) // 주차
+        runCurrent()
+        assertEquals(VehicleMotion.PARKED, rig.session.motion.value)
+        rig.car.shift(Gear.DRIVE)
+        rig.car.speed(20.0)
+        runCurrent()
+
+        assertTrue(rig.stateValue is SessionState.Recording) // 다음 출발은 새 운행
+        assertEquals(2, rig.dao.trips.value.size)
+    }
+
+    @Test
+    fun `정차 중에 기록 종료하면 출발해도 새 운행을 시작하지 않는다 — 다음 주차까지`() = runTest {
+        val rig = Rig(this)
+        startedTrip(rig)
+        rig.car.speed(40.0)
+        runCurrent()
+        rig.car.drive(1.0) // 짧은 운행 버리기(1분 미만·0.3 km 미만)에 걸리지 않게
+        runCurrent()
+        rig.car.speed(0.0)
+        runCurrent()
+        advanceTimeBy(DrivingJudge.MOVING_WINDOW_MS + 1_500)
+        assertEquals(VehicleMotion.STOPPED, rig.session.motion.value)
+
+        rig.session.finalize()
+        rig.car.speed(30.0)
+        rig.car.drive(0.5)
+        runCurrent()
+
+        assertTrue(rig.stateValue is SessionState.PendingReview)
+        assertEquals(1, rig.dao.trips.value.size)
+    }
+
+    @Test
+    fun `사람이 끝낸 종료 대기는 차가 움직여도 되돌리지 않는다`() = runTest {
+        val rig = Rig(this)
+        startedTrip(rig)
+        rig.session.requestStop()
+
+        rig.car.speed(30.0)
+        rig.car.drive(0.2)
+        runCurrent()
+        assertEquals(StopReason.USER_REQUEST, (rig.stateValue as SessionState.StopCandidate).reason)
+        advanceTimeBy(5_500)
+
+        assertTrue(rig.stateValue is SessionState.PendingReview) // 그대로 끝나고
+        assertEquals(1, rig.dao.trips.value.size) // 계속 달려도 새 운행은 다음 주차 뒤
+    }
+
+    @Test
+    fun `주차 중에 끝내면 자동 시작을 멈추지 않는다 — 다음 출발은 새 운행`() = runTest {
+        val rig = Rig(this)
+        startedTrip(rig)
+        rig.car.shift(Gear.PARK)
+        runCurrent()
+        rig.session.finalize()
+
+        rig.car.shift(Gear.DRIVE)
+        rig.car.speed(20.0)
+        runCurrent()
+
+        assertTrue(rig.stateValue is SessionState.Recording)
+    }
+
+    @Test
     fun `놓친 운행을 무시하면 같은 계기판 값으로는 다시 묻지 않는다`() = runTest {
         val rig = Rig(this) { dao, car ->
             car.km = 18_458.9

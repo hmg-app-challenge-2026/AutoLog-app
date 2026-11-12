@@ -9,6 +9,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -32,6 +34,9 @@ import kr.autolog.vehicle.nav.TripResultMode
  * 지금 선택으로 저장하고 돌아간다 — 시간이 다 됐을 때 저절로 일어나는 일과 같다.
  * 저장하지 않고 화면이 닫히면(주행 시작 등) 그 운행은 "목적 미입력"으로 남는다.
  *
+ * [parked] = 지금 주차인가(D-35). 정차·주행 중엔 화면에 버튼이 없다 — [수정하기] 중에 출발하면 수정을 접고 지금 선택으로
+ * 다시 5초 자동 저장으로 돌아간다(누를 수 없는 화면에 멈춰 있지 않게).
+ *
  * [mode] = REVIEW(운행 기록 조회에서 연 사후 확인, D-29): 카운트다운도 자동 저장도 없다. 목적 미입력 운행은 수정 모드로 열리고,
  * [저장]을 눌러야만 저장한 뒤 목록으로 돌아간다. [닫기]는 저장하지 않고 돌아간다.
  */
@@ -42,6 +47,7 @@ class TripResultViewModel(
     private val navigator: Navigator,
     private val clock: AppClock,
     private val mode: TripResultMode = TripResultMode.AFTER_TRIP,
+    parked: Flow<Boolean> = flowOf(true),
     ticker: Flow<Long> = tickerFlow(clock),
 ) : ViewModel() {
     private val review = mode == TripResultMode.REVIEW
@@ -52,6 +58,7 @@ class TripResultViewModel(
     private var hold: Job? = null
     private var finishing = false
     private var left = false
+    private var parkedNow = true
 
     val uiState: StateFlow<TripResultUiState> =
         // ticker는 1초마다 다시 계산하게 할 뿐 — 지금 시각은 계산할 때 시계에서(선택·수정으로 다시 계산할 때 옛 시각을 쓰지 않게)
@@ -74,8 +81,18 @@ class TripResultViewModel(
                         interaction.update { it.copy(autoCloseTotalMs = (r.endsAt - clock.nowMs()).coerceAtLeast(1)) }
                     // 이미 끝난 운행으로 열렸다 — 자체 카운트다운
                     first && r != null && r.endsAt == null -> startCountdown()
-                    // 종료 대기 → 끝남(시간 만료·[메인 화면으로]) 또는 사라짐(다시 출발해 앱 A가 종료를 취소)
-                    wasEnding && r?.endsAt == null -> onEnded(r)
+                    // 종료 대기가 풀렸다 — 끝났으면(끝난 시각이 있다) 저장, 다시 기록 중이면(기어 P를 빼고 출발해 앱 A가 종료를 취소)
+                    // 저장하지 않고 떠난다. 실제 저장소엔 기록 중인 운행도 있으므로(끝난 시각 없음) 있다/없다로 가르면 진행 중인 운행에
+                    // 목적을 저장하고 "저장했어요"를 띄운다(2026-11-12 점검에서 발견)
+                    wasEnding && r?.endsAt == null -> if (r?.endTime == null) leave() else onEnded(r)
+                }
+            }
+        }
+        if (!review) {
+            viewModelScope.launch {
+                parked.distinctUntilChanged().collect {
+                    parkedNow = it
+                    if (!it) stopEditing()
                 }
             }
         }
@@ -105,15 +122,18 @@ class TripResultViewModel(
         }
     }
 
-    private fun onEnded(result: TripResult?) {
-        if (result == null) {
-            leave()
-            return
-        }
+    private fun onEnded(result: TripResult) {
         viewModelScope.launch {
             results.classify(tripId, selectedNow())
             if (finishing || !interaction.value.editing) showSaved()
         }
+    }
+
+    /** 정차·주행이 됐다 — 고르던 목적은 지금 선택 그대로 두고, 끝난 운행이면 5초 자동 저장을 다시 건다(종료 대기면 앱 A 종료 시각이 마감). */
+    private fun stopEditing() {
+        if (!interaction.value.editing || finishing) return
+        interaction.update { it.copy(editing = false) }
+        if (current?.endsAt == null) startCountdown()
     }
 
     private fun startCountdown() {
@@ -145,6 +165,9 @@ class TripResultViewModel(
         if (left) return
         countdown?.cancel()
         interaction.update { it.copy(saved = true, saving = false, editing = false, autoCloseAt = null) }
+        // 정차·주행 중엔 체크가 정지형(바로 다 그려짐)이라 지금부터 센다 — 앱이 뒤로 물러나 화면이 그려지지 않아도
+        // 저장 완료 화면이 남아 있다가 나중에 앱을 열 때 지난 운행의 체크가 뜨지 않게(D-35)
+        if (!parkedNow) holdThenLeave()
     }
 
     /** 체크를 다 그린 뒤 [SAVED_HOLD_MS] 보여 주고 들어온 화면으로. 한 번만. */
@@ -172,11 +195,11 @@ class TripResultViewModel(
         }
     }
 
-    /** 들어온 화면으로(뒤가 없으면 Home). 한 번만. */
+    /** 들어온 화면으로(뒤가 없으면 Home). 한 번만. 이 카드만 뺀다 — 그사이 Home이 카드를 치웠으면 아무것도 닫지 않는다. */
     private fun leave() {
         if (left) return
         left = true
-        if (!navigator.pop()) navigator.replaceAll(Route.Home)
+        navigator.close(Route.TripResult(tripId, mode))
     }
 
     /** 지금 선택: 고른 값, 없으면 저장된 분류·기본값. */

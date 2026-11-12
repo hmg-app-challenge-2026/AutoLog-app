@@ -56,7 +56,10 @@ private const val EXPANDED_IMAGE_HEIGHT = 0.75f
 @Composable
 fun FuelEntryRoute(receiptId: String?) {
     val graph = LocalAppGraph.current
-    val vm = viewModel { FuelEntryViewModel(receiptId, graph.receipts, graph.session, graph.navigator) }
+    val vm =
+        viewModel {
+            FuelEntryViewModel(receiptId, graph.receipts, graph.session, graph.trips, graph.clock, graph.navigator)
+        }
     val state by vm.uiState.collectAsStateWithLifecycle()
     FuelEntryScreen(state, vm::onAction)
 }

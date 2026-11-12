@@ -12,6 +12,7 @@ import android.util.Log
 import androidx.lifecycle.LifecycleService
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 import kr.autolog.vehicle.core.DeepLink
 import kr.autolog.vehicle.core.TripSessionApi
@@ -33,7 +34,7 @@ class TripRecordingService : LifecycleService() {
             return
         }
         createChannels()
-        startInForeground(build(TripNotificationSpec.from(session.state.value)))
+        startInForeground(build(TripNotificationSpec.from(session.state.value, NotificationPresence.appVisible.value)))
         Log.i(TAG, "foreground started")
         follow(session)
     }
@@ -47,7 +48,9 @@ class TripRecordingService : LifecycleService() {
         followJob?.cancel()
         followed = session
         followJob = lifecycleScope.launch {
-            session.state.collect { notify(build(TripNotificationSpec.from(it))) }
+            // 화면이 보이는 동안엔 같은 내용을 조용히(헤즈업 없음, D-37)
+            combine(session.state, NotificationPresence.appVisible, TripNotificationSpec::from)
+                .collect { notify(build(it)) }
         }
     }
 
