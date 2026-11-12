@@ -81,6 +81,14 @@ interface TripSessionApi {
 }
 
 /** 화면이 읽는 운행 기록 (F-12). 원본은 Room. 구현: data/RoomLocalStore. */
+/**
+ * 앱 A: AutoLog 화면이 보이는지 화면이 알린다(Activity `onStart` = true, `onStop` = false — 분할 화면 한 칸도 보이는 것).
+ * 보이는 동안엔 운행 알림을 헤즈업(소리)으로 띄우지 않는다 — 화면이 운행 결과 카드로 같은 것을 이미 보여 준다(프론트 스펙 D-37).
+ */
+interface AppPresenceApi {
+    fun setAppVisible(visible: Boolean)
+}
+
 interface LocalStore {
     /** 프론트: 이력·운행기록부 화면. [month](Asia/Seoul 기준)에 시작한 운행, 최신 순. */
     fun trips(month: YearMonth): Flow<List<TripRow>>

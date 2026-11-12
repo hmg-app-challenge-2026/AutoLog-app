@@ -34,6 +34,7 @@ import kr.autolog.vehicle.report.MonthlyReportWorker
 import kr.autolog.vehicle.report.MonthlySender
 import kr.autolog.vehicle.report.PrefsMonthlySentStore
 import kr.autolog.vehicle.report.ReportBuilder
+import kr.autolog.vehicle.session.NotificationPresence
 import kr.autolog.vehicle.session.TripRecordingService
 import kr.autolog.vehicle.session.TripSessionManager
 import kr.autolog.vehicle.speech.SpeechGateway
@@ -63,6 +64,8 @@ class AutoLogComponents(
     val mail: MailApi,
     /** 앱 B: 설정 (F-24). */
     val settings: SettingsApi,
+    /** 앱 A: 화면이 보이는지 — 보이는 동안 알림은 조용히 (D-37). */
+    val presence: AppPresenceApi = NotificationPresence,
 )
 
 /**
