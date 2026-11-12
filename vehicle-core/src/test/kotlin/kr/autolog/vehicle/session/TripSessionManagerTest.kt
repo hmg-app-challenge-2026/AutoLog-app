@@ -476,22 +476,56 @@ class TripSessionManagerTest {
     }
 
     @Test
-    fun `기록 종료로 멈춘 자동 시작은 차가 한 번 서면 풀린다`() = runTest {
+    fun `기록 종료로 멈춘 자동 시작은 신호 대기로는 풀리지 않고 주차해야 풀린다`() = runTest {
         val rig = Rig(this)
         startedTrip(rig)
         rig.car.speed(40.0)
+        runCurrent()
+        rig.car.drive(1.0) // 짧은 운행 버리기(1분 미만·0.3 km 미만)에 걸리지 않게
         runCurrent()
         rig.session.finalize()
 
         rig.car.speed(0.0)
         runCurrent()
-        advanceTimeBy(DrivingJudge.MOVING_WINDOW_MS + 1_500) // 정차
+        advanceTimeBy(DrivingJudge.MOVING_WINDOW_MS + 1_500) // 신호 대기
         assertEquals(VehicleMotion.STOPPED, rig.session.motion.value)
         rig.car.speed(30.0)
         runCurrent()
+        assertTrue(rig.stateValue is SessionState.PendingReview) // 끝낸 대로 끝나 있다
+        assertEquals(1, rig.dao.trips.value.size)
 
-        assertTrue(rig.stateValue is SessionState.Recording)
+        rig.car.speed(0.0)
+        rig.car.shift(Gear.PARK) // 주차
+        runCurrent()
+        assertEquals(VehicleMotion.PARKED, rig.session.motion.value)
+        rig.car.shift(Gear.DRIVE)
+        rig.car.speed(20.0)
+        runCurrent()
+
+        assertTrue(rig.stateValue is SessionState.Recording) // 다음 출발은 새 운행
         assertEquals(2, rig.dao.trips.value.size)
+    }
+
+    @Test
+    fun `정차 중에 기록 종료하면 출발해도 새 운행을 시작하지 않는다 — 다음 주차까지`() = runTest {
+        val rig = Rig(this)
+        startedTrip(rig)
+        rig.car.speed(40.0)
+        runCurrent()
+        rig.car.drive(1.0) // 짧은 운행 버리기(1분 미만·0.3 km 미만)에 걸리지 않게
+        runCurrent()
+        rig.car.speed(0.0)
+        runCurrent()
+        advanceTimeBy(DrivingJudge.MOVING_WINDOW_MS + 1_500)
+        assertEquals(VehicleMotion.STOPPED, rig.session.motion.value)
+
+        rig.session.finalize()
+        rig.car.speed(30.0)
+        rig.car.drive(0.5)
+        runCurrent()
+
+        assertTrue(rig.stateValue is SessionState.PendingReview)
+        assertEquals(1, rig.dao.trips.value.size)
     }
 
     @Test
@@ -507,7 +541,7 @@ class TripSessionManagerTest {
         advanceTimeBy(5_500)
 
         assertTrue(rig.stateValue is SessionState.PendingReview) // 그대로 끝나고
-        assertEquals(1, rig.dao.trips.value.size) // 계속 달려도 새 운행은 다음 정차 뒤
+        assertEquals(1, rig.dao.trips.value.size) // 계속 달려도 새 운행은 다음 주차 뒤
     }
 
     @Test

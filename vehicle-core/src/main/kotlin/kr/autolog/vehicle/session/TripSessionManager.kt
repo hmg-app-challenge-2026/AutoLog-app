@@ -90,8 +90,9 @@ class TripSessionManager(
     @Volatile private var recovering = false
 
     /**
-     * 사람이 [기록 종료]로 끝냈는데 차가 아직 움직이는 중이면 켠다. 켜져 있는 동안은 움직여도 새 운행을 자동으로 시작하지 않고,
-     * 차가 서거나(정차·주차) 사람이 직접 시작하면 끈다 — 끝내자마자 같은 주행이 새 운행으로 다시 시작되지 않게(F-04, 2026-11-12).
+     * 사람이 [기록 종료]로 끝냈는데 그때 주차(P)가 아니면 켠다(정차·주행 중 종료, 주차 중 [기록 종료] 5초 대기 중 출발).
+     * 켜져 있는 동안은 움직여도 새 운행을 자동으로 시작하지 않고, **차가 주차되거나** 사람이 직접 시작하면 끈다 —
+     * 끝낸 사람의 뜻대로 끝나게. 신호 대기 같은 정차로는 풀리지 않는다(F-04, 2026-11-12 사용자 결정 B, 프론트 스펙 D-34).
      */
     @Volatile private var holdAutoStart = false
 
@@ -145,7 +146,7 @@ class TripSessionManager(
 
     override suspend fun finalize() = mutex.withLock {
         finalizeLocked()
-        holdAutoStartIfMoving()
+        holdAutoStartUntilParked()
     }
 
     override suspend fun resume() = mutex.withLock {
@@ -399,7 +400,7 @@ class TripSessionManager(
             when (val s = _state.value) {
                 is SessionState.StopCandidate -> if (now >= s.deadlineAt) {
                     finalizeLocked()
-                    if (s.reason == StopReason.USER_REQUEST) holdAutoStartIfMoving()
+                    if (s.reason == StopReason.USER_REQUEST) holdAutoStartUntilParked()
                 }
                 is SessionState.Recording -> {
                     val stillSince = maxOf(lastMovedAt ?: watchFrom, watchFrom)
@@ -571,15 +572,15 @@ class TripSessionManager(
 
     private fun updateMotion() {
         _motion.value = DrivingJudge.judge(gear, lastKm != null, lastMovedAt, clock.millis(), speedKph)
-        // 차가 섰다(정차·주차·판정 불가) — 다음 출발부터는 다시 자동 시작
-        if (_motion.value != VehicleMotion.MOVING) holdAutoStart = false
+        // 주차했다 — 다음 출발부터는 다시 자동 시작(정차·판정 불가로는 풀지 않는다)
+        if (_motion.value == VehicleMotion.PARKED) holdAutoStart = false
     }
 
-    /** 사람이 끝낸 직후 차가 움직이는 중이면 다음 정차·주차까지 자동 시작을 멈춘다([holdAutoStart]). */
-    private fun holdAutoStartIfMoving() {
+    /** 사람이 끝낸 직후 주차(P)가 아니면 다음 주차까지 자동 시작을 멈춘다([holdAutoStart]). */
+    private fun holdAutoStartUntilParked() {
         val s = _state.value
         val ended = s is SessionState.Idle || s is SessionState.PendingReview
-        if (ended && _motion.value == VehicleMotion.MOVING) holdAutoStart = true
+        if (ended && _motion.value != VehicleMotion.PARKED) holdAutoStart = true
     }
 
     private suspend fun save(trip: TripEntity) = dao.upsert(trip.copy(revision = trip.revision + 1))
