@@ -70,7 +70,7 @@ class DefaultTripResultRepository(
     }.distinctUntilChanged()
 
     override suspend fun classify(tripId: String, category: PurposeCategory) {
-        val row = store.trip(tripId) ?: return
+        val row = store.trip(tripId)?.takeIf { it.endTime != null } ?: return
         val suggested = purpose.suggest(row.facts()).detail
         session.confirmPurpose(tripId, detailFor(category, row.purpose, suggested, row.startTime), null, InputMode.TAP)
     }

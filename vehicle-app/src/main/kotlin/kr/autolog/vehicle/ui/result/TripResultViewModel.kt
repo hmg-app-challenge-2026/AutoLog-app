@@ -81,8 +81,10 @@ class TripResultViewModel(
                         interaction.update { it.copy(autoCloseTotalMs = (r.endsAt - clock.nowMs()).coerceAtLeast(1)) }
                     // 이미 끝난 운행으로 열렸다 — 자체 카운트다운
                     first && r != null && r.endsAt == null -> startCountdown()
-                    // 종료 대기 → 끝남(시간 만료·[메인 화면으로]) 또는 사라짐(다시 출발해 앱 A가 종료를 취소)
-                    wasEnding && r?.endsAt == null -> onEnded(r)
+                    // 종료 대기가 풀렸다 — 끝났으면(끝난 시각이 있다) 저장, 다시 기록 중이면(기어 P를 빼고 출발해 앱 A가 종료를 취소)
+                    // 저장하지 않고 떠난다. 실제 저장소엔 기록 중인 운행도 있으므로(끝난 시각 없음) 있다/없다로 가르면 진행 중인 운행에
+                    // 목적을 저장하고 "저장했어요"를 띄운다(2026-11-12 점검에서 발견)
+                    wasEnding && r?.endsAt == null -> if (r?.endTime == null) leave() else onEnded(r)
                 }
             }
         }
@@ -120,11 +122,7 @@ class TripResultViewModel(
         }
     }
 
-    private fun onEnded(result: TripResult?) {
-        if (result == null) {
-            leave()
-            return
-        }
+    private fun onEnded(result: TripResult) {
         viewModelScope.launch {
             results.classify(tripId, selectedNow())
             if (finishing || !interaction.value.editing) showSaved()

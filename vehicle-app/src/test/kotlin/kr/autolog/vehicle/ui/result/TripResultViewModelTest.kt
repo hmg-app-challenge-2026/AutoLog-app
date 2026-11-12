@@ -16,6 +16,7 @@ import kr.autolog.vehicle.TestAppGraph
 import kr.autolog.vehicle.common.AppClock
 import kr.autolog.vehicle.core.PurposeCategory
 import kr.autolog.vehicle.core.SessionState
+import kr.autolog.vehicle.core.TripRow
 import kr.autolog.vehicle.core.VehicleMotion
 import kr.autolog.vehicle.nav.Route
 import kr.autolog.vehicle.nav.TripResultMode
@@ -246,6 +247,21 @@ class TripResultViewModelTest {
         runCurrent()
 
         assertTrue(!vm.uiState.first().saved)
+    }
+
+    @Test
+    fun `종료 대기 중 기어 P를 빼고 출발하면 저장하지 않고 닫힌다 — 진행 중인 운행에 목적을 저장하지 않는다`() = runTest {
+        val (g, vm, tripId) = ending()
+        vm.uiState.first { !it.loading }
+        // 실제 저장소(Room)엔 기록 중인 운행 행이 있다(끝난 시각 없음) — 가짜 저장소에 같은 행을 둔다
+        g.store.upsert(TripRow(tripId, 0L, endTime = null, null, "본사", null, null, purpose = null))
+
+        g.trip.resume() // 앱 A: 기어가 P에서 빠졌다 → 종료 취소, 다시 기록 중
+        runCurrent()
+
+        assertEquals(Route.Home, g.navigator.current)
+        assertTrue(!vm.uiState.value.saved)
+        assertNull(g.store.trip(tripId)!!.purpose)
     }
 
     /** 기록 중 → 기어 P(종료 대기, 5초 뒤 종료) → Home 위 운행 결과 카드. */
