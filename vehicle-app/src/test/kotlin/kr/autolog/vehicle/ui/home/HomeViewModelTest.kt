@@ -109,6 +109,26 @@ class HomeViewModelTest {
     }
 
     @Test
+    fun `정차 중 기록 종료 뒤엔 출발해도 새 운행을 시작하지 않고, 주차하면 다시 자동 시작한다`() = runTest {
+        val g = graph()
+        val vm = HomeViewModel(g.session, g.context, g.trips, g.navigator, g.clock, g.usage)
+        g.trip.startSession()
+        g.trip.setMotion(VehicleMotion.STOPPED)
+        runCurrent()
+
+        vm.onAction(HomeAction.EndNow)
+        val ended = (g.trip.state.value as SessionState.PendingReview).trip.tripId
+        g.trip.setMotion(VehicleMotion.MOVING) // 신호가 바뀌어 출발
+        runCurrent()
+        assertEquals(ended, (g.trip.state.value as SessionState.PendingReview).trip.tripId)
+
+        g.trip.setMotion(VehicleMotion.PARKED)
+        g.trip.setMotion(VehicleMotion.MOVING) // 주차 뒤 다음 출발
+        runCurrent()
+        assertTrue(g.trip.state.value is SessionState.Recording)
+    }
+
+    @Test
     fun `정차 중 종료 대기는 카드 없이 Home 상태 줄로, 끝나면 그때 결과 카드를 연다`() = runTest {
         val g = graph()
         HomeViewModel(g.session, g.context, g.trips, g.navigator, g.clock, g.usage)

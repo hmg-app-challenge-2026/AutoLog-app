@@ -65,7 +65,7 @@ class HomeViewModel(
                 HomeAction.StartTrip -> session.startTrip()
                 // 주차 중: 자동 종료와 같은 5초 대기(결과 카드에서 되돌릴 수 있다).
                 // 정차·주행 중: 바로 끝낸다 — 되돌릴 버튼이 없으니 기다릴 이유가 없다. 결과 카드는 버튼 없이 열려 5초 뒤 저장되고(D-35),
-                // 달리는 중이었으면 앱 A가 다음 정차까지 새 운행을 다시 시작하지 않는다(D-34)
+                // 앱 A가 다음 주차까지 새 운행을 자동으로 시작하지 않는다 — 신호 대기로는 풀리지 않는다(D-34)
                 HomeAction.EndNow ->
                     if (usage.tier.value == UsageTier.FULL) session.requestStop() else session.endNow()
                 HomeAction.AcceptMissedTrip -> session.acceptMissedTrip()
