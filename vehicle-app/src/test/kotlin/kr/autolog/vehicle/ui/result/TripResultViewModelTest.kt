@@ -136,10 +136,34 @@ class TripResultViewModelTest {
         val state = vm.uiState.first { !it.editing }
         assertEquals(5, state.autoCloseSec)
         advanceTimeBy(5_100)
+        assertTrue(vm.uiState.value.saved) // 저장 완료 화면 — 정차·주행 중엔 저장한 때부터 1초
+        advanceTimeBy(SAVED_HOLD_MS)
 
-        acknowledgeSaved(g, vm)
         assertEquals(Route.Home, g.navigator.current)
         assertEquals(PurposeCategory.COMMUTE, purposeOf(g)!!.category)
+    }
+
+    @Test
+    fun `정차·주행 중엔 체크를 그렸다는 신호 없이도 저장 1초 뒤 닫힌다 — 앱이 뒤에 있어 화면이 안 그려져도`() = runTest {
+        val g = TestAppGraph(backgroundScope, AppClock { testScheduler.currentTime }, start = Route.Home)
+        g.navigator.push(Route.TripResult("t-s1"))
+        val vm =
+            TripResultViewModel(
+                "t-s1",
+                g.tripResults,
+                g.session,
+                g.navigator,
+                g.clock,
+                parked = MutableStateFlow(false),
+            )
+        vm.uiState.first { !it.loading }
+
+        advanceTimeBy(AUTO_CLOSE_MS + 100)
+        assertTrue(vm.uiState.value.saved)
+        advanceTimeBy(SAVED_HOLD_MS + 100)
+
+        assertEquals(listOf(Route.Home), g.navigator.backStack.value)
+        assertEquals(PurposeCategory.BUSINESS, purposeOf(g)!!.category)
     }
 
     @Test

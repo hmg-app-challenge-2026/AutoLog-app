@@ -97,4 +97,42 @@ class NavigatorTest {
 
         assertEquals(listOf(Route.Home), nav.backStack.value)
     }
+
+    @Test
+    fun `운행 직후 카드는 한 장만 — 다른 운행 카드가 뒤에 있으면 치운다`() {
+        val nav = Navigator(Route.Home)
+        nav.showTripResult(Route.TripResult("t-1"))
+        nav.push(Route.Settings)
+
+        nav.showTripResult(Route.TripResult("t-2"))
+
+        assertEquals(listOf(Route.Home, Route.Settings, Route.TripResult("t-2")), nav.backStack.value)
+    }
+
+    @Test
+    fun `기록 중이 되면 운행 직후 카드만 닫고 다른 화면은 그대로`() {
+        val nav = Navigator(Route.Home)
+        nav.push(Route.History)
+        nav.push(Route.TripResult("t-0", TripResultMode.REVIEW))
+        nav.showTripResult(Route.TripResult("t-1"))
+
+        nav.closeTripResults()
+
+        assertEquals(
+            listOf(Route.Home, Route.History, Route.TripResult("t-0", TripResultMode.REVIEW)),
+            nav.backStack.value,
+        )
+    }
+
+    @Test
+    fun `화면이 스스로 떠날 땐 자기만 빠진다 — 이미 치워졌으면 아무것도 닫지 않는다`() {
+        val nav = Navigator(Route.Home)
+        nav.push(Route.Settings)
+        nav.showTripResult(Route.TripResult("t-1"))
+        nav.closeTripResults()
+
+        nav.close(Route.TripResult("t-1"))
+
+        assertEquals(listOf(Route.Home, Route.Settings), nav.backStack.value)
+    }
 }

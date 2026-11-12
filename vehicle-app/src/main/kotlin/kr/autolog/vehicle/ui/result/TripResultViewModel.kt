@@ -58,6 +58,7 @@ class TripResultViewModel(
     private var hold: Job? = null
     private var finishing = false
     private var left = false
+    private var parkedNow = true
 
     val uiState: StateFlow<TripResultUiState> =
         // ticker는 1초마다 다시 계산하게 할 뿐 — 지금 시각은 계산할 때 시계에서(선택·수정으로 다시 계산할 때 옛 시각을 쓰지 않게)
@@ -87,7 +88,10 @@ class TripResultViewModel(
         }
         if (!review) {
             viewModelScope.launch {
-                parked.distinctUntilChanged().collect { if (!it) stopEditing() }
+                parked.distinctUntilChanged().collect {
+                    parkedNow = it
+                    if (!it) stopEditing()
+                }
             }
         }
     }
@@ -163,6 +167,9 @@ class TripResultViewModel(
         if (left) return
         countdown?.cancel()
         interaction.update { it.copy(saved = true, saving = false, editing = false, autoCloseAt = null) }
+        // 정차·주행 중엔 체크가 정지형(바로 다 그려짐)이라 지금부터 센다 — 앱이 뒤로 물러나 화면이 그려지지 않아도
+        // 저장 완료 화면이 남아 있다가 나중에 앱을 열 때 지난 운행의 체크가 뜨지 않게(D-35)
+        if (!parkedNow) holdThenLeave()
     }
 
     /** 체크를 다 그린 뒤 [SAVED_HOLD_MS] 보여 주고 들어온 화면으로. 한 번만. */
@@ -190,11 +197,11 @@ class TripResultViewModel(
         }
     }
 
-    /** 들어온 화면으로(뒤가 없으면 Home). 한 번만. */
+    /** 들어온 화면으로(뒤가 없으면 Home). 한 번만. 이 카드만 뺀다 — 그사이 Home이 카드를 치웠으면 아무것도 닫지 않는다. */
     private fun leave() {
         if (left) return
         left = true
-        if (!navigator.pop()) navigator.replaceAll(Route.Home)
+        navigator.close(Route.TripResult(tripId, mode))
     }
 
     /** 지금 선택: 고른 값, 없으면 저장된 분류·기본값. */

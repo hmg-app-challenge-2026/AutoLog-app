@@ -129,6 +129,21 @@ class HomeViewModelTest {
     }
 
     @Test
+    fun `저장하지 않은 결과 카드는 다음 운행이 시작되면 닫힌다 — 다음 주차 때 지난 카드가 뜨지 않게`() = runTest {
+        val g = graph()
+        HomeViewModel(g.session, g.context, g.trips, g.navigator, g.clock, g.usage)
+        g.trip.startSession()
+        g.trip.finalize() // 앱이 뒤에 있어 카드가 그려지지 않았다
+        advanceTimeBy(1_100)
+        assertTrue(g.navigator.current is Route.TripResult)
+
+        g.trip.startSession() // 다시 출발 — 새 운행
+        advanceTimeBy(1_100)
+
+        assertEquals(listOf(Route.Home), g.navigator.backStack.value)
+    }
+
+    @Test
     fun `운행이 끝나면 목적 확인 화면이 자동으로 열린다`() = runTest {
         val g = graph()
         HomeViewModel(g.session, g.context, g.trips, g.navigator, g.clock, g.usage)

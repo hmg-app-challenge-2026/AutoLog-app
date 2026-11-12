@@ -44,11 +44,18 @@ class HomeViewModel(
     init {
         // 운행이 끝나면 단계와 무관하게 바로 운행 결과 카드를 연다(스펙 7.3, D-28·D-35) — 정차·주행 중엔 버튼 없이 5초 뒤 저절로 저장.
         // 종료 대기(되돌릴 수 있는 카운트다운)는 주차 중에만 카드로 — 정차 중엔 Home 상태 줄이 남은 시간을 말한다(D-31).
-        // 같은 운행의 "종료 대기 → 끝남"은 한 번만 연다(같은 Route). [기록 이어가기]로 되돌렸다가 다시 종료 대기가 되면 다시 연다
+        // 같은 운행의 "종료 대기 → 끝남"은 한 번만 연다(같은 Route). [기록 이어가기]로 되돌렸다가 다시 종료 대기가 되면 다시 연다.
+        // 다시 기록 중이 되면(새 운행·기록 재개) 남아 있던 카드를 닫는다 — 앱이 뒤에 있는 동안 열린 카드가 나중에 엉뚱하게 뜨지 않게
         viewModelScope.launch {
-            combine(session.state, usage.tier) { s, tier -> s.resultRoute(parked = tier == UsageTier.FULL) }
+            combine(session.state, usage.tier) { s, tier -> s.resultCard(parked = tier == UsageTier.FULL) }
                 .distinctUntilChanged()
-                .collect { route -> route?.let(navigator::showTripResult) }
+                .collect { card ->
+                    when (card) {
+                        is ResultCard.Show -> navigator.showTripResult(card.route)
+                        ResultCard.Close -> navigator.closeTripResults()
+                        null -> Unit
+                    }
+                }
         }
     }
 
@@ -72,9 +79,18 @@ class HomeViewModel(
     }
 }
 
-/** 운행 결과 카드: 방금 끝나 목적을 기다리는 운행(단계 무관), 또는 종료 대기 중인 운행(주차 중에만). */
-private fun TripSession.resultRoute(parked: Boolean): Route.TripResult? = when (this) {
-    is TripSession.AutoEnding -> if (parked) Route.TripResult(trip.tripId) else null
-    is TripSession.PendingReview -> Route.TripResult(tripId)
+/** 세션 상태가 운행 결과 카드에 바라는 것. null = 그대로 둔다. */
+private sealed interface ResultCard {
+    data class Show(val route: Route.TripResult) : ResultCard
+
+    /** 기록 중 — 남아 있는 운행 직후 카드를 닫는다. */
+    data object Close : ResultCard
+}
+
+/** 방금 끝나 목적을 기다리는 운행(단계 무관)·종료 대기 중인 운행(주차 중에만)은 카드를 열고, 기록 중이면 닫는다. */
+private fun TripSession.resultCard(parked: Boolean): ResultCard? = when (this) {
+    is TripSession.AutoEnding -> if (parked) ResultCard.Show(Route.TripResult(trip.tripId)) else null
+    is TripSession.PendingReview -> ResultCard.Show(Route.TripResult(tripId))
+    is TripSession.Recording -> ResultCard.Close
     else -> null
 }
