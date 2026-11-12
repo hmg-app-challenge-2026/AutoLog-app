@@ -24,7 +24,7 @@
 
 | 화면 Repository | 계약 | 실구현(백엔드) | 상태 |
 |---|---|---|---|
-| `SessionRepository` | `TripSessionApi`([기록 종료] = `requestStop` 5초 종료 대기, 운행 결과 [저장하기] = `finalize` — 3.1) | `TripSessionManager` | 연결 |
+| `SessionRepository` | `TripSessionApi`([기록 종료] = 주차 중 `requestStop` 5초 대기 · 정차·주행 중 `finalize`(D-34), 운행 결과 [저장하기] = `finalize` — 3.1) | `TripSessionManager` | 연결 |
 | `VehicleUsageRepository`(사용 3단계) | `TripSessionApi.motion` + AAOS `CarUxRestrictions` | `DrivingJudge` + 프론트 `AndroidCarUxSource` | 연결 |
 | `ProfileRepository` | `PurposeEngine.orderedUsers` · `SettingsApi.users/addUser` · `TripSessionApi.currentDriver` | `DefaultPurposeEngine` · `SettingsService` | 연결(배차 순서는 G-02) |
 | `ContextRepository` | `ContextApi.destination` | `GatewayContext`(NaviGateway) | 연결 |

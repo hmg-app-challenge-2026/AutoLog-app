@@ -45,6 +45,7 @@ fun HomeRoute() {
                 graph.trips,
                 graph.navigator,
                 graph.clock,
+                graph.usage,
             )
         }
     val state by vm.uiState.collectAsStateWithLifecycle()

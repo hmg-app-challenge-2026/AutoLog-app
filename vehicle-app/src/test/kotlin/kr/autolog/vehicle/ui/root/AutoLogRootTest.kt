@@ -44,7 +44,7 @@ class AutoLogRootTest {
     }
 
     @Test
-    fun `정차 중 기록 중이면 기록 종료만 눌리고, 누르면 종료 대기에 들어간다`() {
+    fun `정차 중 기록 중이면 기록 종료만 눌리고, 누르면 바로 끝난다 — 결과 카드는 다음 주차 때`() {
         val graph = TestAppGraph(scope, start = Route.Home)
         runBlocking { graph.trip.startSession() }
         graph.trip.setMotion(VehicleMotion.STOPPED)
@@ -56,7 +56,24 @@ class AutoLogRootTest {
         compose.onNodeWithText("기록 종료").performClick()
         compose.waitForIdle()
 
-        assertTrue(graph.trip.state.value is SessionState.StopCandidate)
+        assertTrue(graph.trip.state.value is SessionState.PendingReview) // 카드를 띄울 수 없으니 기다리지 않는다
+        assertEquals(listOf(Route.Home), graph.navigator.backStack.value) // 결과 카드는 다음 주차 때
+    }
+
+    @Test
+    fun `주행 중에도 기록 종료만 눌리고, 누르면 기다리지 않고 바로 끝난다`() {
+        val graph = TestAppGraph(scope, start = Route.Home)
+        runBlocking { graph.trip.startSession() }
+        graph.trip.setMotion(VehicleMotion.MOVING)
+
+        compose.setContent { AutoLogRoot(graph, onRequestBackground = {}) }
+        compose.mainClock.advanceTimeBy(1_100)
+
+        assertEquals(1, compose.onAllNodes(hasClickAction() and isEnabled()).fetchSemanticsNodes().size)
+        compose.onNodeWithText("기록 종료").performClick()
+        compose.waitForIdle()
+
+        assertTrue(graph.trip.state.value is SessionState.PendingReview)
         assertEquals(listOf(Route.Home), graph.navigator.backStack.value) // 결과 카드는 다음 주차 때
     }
 

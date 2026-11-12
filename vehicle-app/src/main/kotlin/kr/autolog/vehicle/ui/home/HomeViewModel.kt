@@ -17,6 +17,8 @@ import kr.autolog.vehicle.data.repository.ContextRepository
 import kr.autolog.vehicle.data.repository.SessionRepository
 import kr.autolog.vehicle.data.repository.TripRepository
 import kr.autolog.vehicle.data.repository.TripSession
+import kr.autolog.vehicle.data.usage.UsageTier
+import kr.autolog.vehicle.data.usage.VehicleUsageRepository
 import kr.autolog.vehicle.nav.Navigator
 import kr.autolog.vehicle.nav.Route
 
@@ -26,6 +28,8 @@ class HomeViewModel(
     trips: TripRepository,
     private val navigator: Navigator,
     clock: AppClock,
+    /** 지금 주차인가 — [기록 종료]를 주차 중엔 5초 대기로, 정차·주행 중엔 바로 끝내기로(D-31·F-04). */
+    private val usage: VehicleUsageRepository,
     ticker: Flow<Long> = tickerFlow(clock),
 ) : ViewModel() {
     val uiState: StateFlow<HomeUiState> =
@@ -54,7 +58,10 @@ class HomeViewModel(
         viewModelScope.launch {
             when (action) {
                 HomeAction.StartTrip -> session.startTrip()
-                HomeAction.EndNow -> session.requestStop()
+                // 주차 중: 자동 종료와 같은 5초 대기(결과 카드에서 되돌릴 수 있다).
+                // 정차·주행 중: 바로 끝낸다 — 카드를 띄울 수 없고, 앱 A가 달리는 동안 새 운행을 다시 시작하지 않는다(2026-11-12 사용자 결정 ②)
+                HomeAction.EndNow ->
+                    if (usage.tier.value == UsageTier.FULL) session.requestStop() else session.endNow()
                 HomeAction.AcceptMissedTrip -> session.acceptMissedTrip()
                 HomeAction.IgnoreMissedTrip -> session.ignoreMissedTrip()
                 is HomeAction.Recover -> session.resolveRecovery(action.action)
