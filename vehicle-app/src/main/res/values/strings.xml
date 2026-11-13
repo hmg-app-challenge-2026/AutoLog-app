@@ -39,8 +39,6 @@
     <string name="trip_no_purpose">목적 미입력</string>
     <!-- 앞뒤 공백은 따옴표로 지킨다(aapt가 맨 앞·뒤 공백을 지운다) -->
     <string name="meta_separator">" · "</string>
-    <!-- 칸 이름 나열(주유량·리터당 가격) -->
-    <string name="list_dot">·</string>
     <string name="trip_driver_unset">운전자 미확정</string>
     <string name="upload_pending">전송 대기</string>
     <string name="upload_done">전송됨</string>
@@ -153,7 +151,7 @@
     <string name="fuel_edit">수정하기</string>
     <string name="fuel_input_hint">눌러서 입력</string>
     <string name="fuel_notice_amount">결제 금액을 입력해 주세요</string>
-    <string name="fuel_notice_check">%1$s 확인이 필요해요</string>
+    <string name="fuel_notice_check">주유 정보가 영수증과 일치하는지 확인해주세요</string>
     <string name="fuel_receipt_zoom">눌러서 크게 보기</string>
     <string name="fuel_discount_short">할인 %1$s</string>
     <string name="fuel_stop_badge">" · 주유 정차"</string>

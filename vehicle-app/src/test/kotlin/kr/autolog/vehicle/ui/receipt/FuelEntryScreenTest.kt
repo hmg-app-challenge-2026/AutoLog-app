@@ -36,7 +36,7 @@ class FuelEntryScreenTest {
         compose.onNodeWithText("68,000 원").assertIsDisplayed()
         compose.onNodeWithText("연결할 운행").assertIsDisplayed()
         compose.onNodeWithText("09:12 본사 → 판교 거래처 · 주유 정차").assertIsDisplayed()
-        compose.onNodeWithText("주유량·리터당 가격 확인이 필요해요").assertIsDisplayed()
+        compose.onNodeWithText("주유 정보가 영수증과 일치하는지 확인해주세요").assertIsDisplayed()
         compose.onNodeWithText("확인됨").assertDoesNotExist()
     }
 

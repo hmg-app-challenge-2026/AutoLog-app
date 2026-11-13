@@ -151,11 +151,8 @@ private fun noticeText(notice: FuelNotice): String = when (notice) {
     FuelNotice.ArithFailed -> stringResource(R.string.fuel_arith_failed)
     FuelNotice.OcrFailed -> stringResource(R.string.fuel_ocr_failed)
     FuelNotice.AmountMissing -> stringResource(R.string.fuel_notice_amount)
-    is FuelNotice.NeedsCheck ->
-        stringResource(
-            R.string.fuel_notice_check,
-            notice.fields.map { stringResource(it.label) }.joinToString(stringResource(R.string.list_dot)),
-        )
+    // 어느 칸인지는 요약의 주황 글자·칸 목록의 "확인 필요"가 말한다 — 안내는 할 일 하나로(2026-11-13 사용자 지시)
+    is FuelNotice.NeedsCheck -> stringResource(R.string.fuel_notice_check)
     FuelNotice.ArithOk -> stringResource(R.string.fuel_arith_ok)
 }
 

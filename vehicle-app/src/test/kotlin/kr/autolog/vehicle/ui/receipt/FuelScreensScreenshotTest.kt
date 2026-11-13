@@ -42,7 +42,7 @@ class FuelScreensScreenshotTest {
         )
     }
 
-    /** 영수증 요약(D-38): 금액 주인공 + 보조 두 줄(봐야 할 값만 주황) + 작은 사진 · 연결할 운행 · "… 확인이 필요해요" · [수정하기] [추가하기]. */
+    /** 영수증 요약(D-38): 금액 주인공 + 보조 두 줄(봐야 할 값만 주황) + 작은 사진 · 연결할 운행 · "주유 정보가 영수증과 일치하는지 확인해주세요" · [수정하기] [추가하기]. */
     @Test
     fun ocr() = captureAll("fuel_ocr") {
         FuelEntryScreen(reduceReceiptEntry(receipt, FakeReceiptApi.SAMPLE_CANDIDATES), onAction = {})
