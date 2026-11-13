@@ -916,7 +916,7 @@ suspend fun send(report: ReportEntity, to: List<String>) = withContext(Dispatche
 | DB | PostgreSQL 16 + Flyway |
 | 스토리지 | MinIO(S3 호환) — 영수증 원본·썸네일, 30일 수명주기 |
 | OCR | **Gemini API**(`gemini-2.5-flash`) — Google AI Kotlin SDK 또는 REST. 키는 환경변수 |
-| 인증 | 기기 토큰(차) · JWT(운영 웹 관리자) · QR 1회 토큰(폰, 10분) |
+| 인증 | 기기 토큰(차) · 회사 관리자 세션 토큰(운영 웹, 12시간) · 운영자 토큰(/ops) · QR 1회 토큰(폰, 10분) |
 | 배포 | Docker Compose, nginx TLS |
 
 `start.spring.io`에서 생성해 `relay/` 모듈로 편입(모노레포). 비동기는 `@Async` 스레드풀.
@@ -932,9 +932,14 @@ suspend fun send(report: ReportEntity, to: List<String>) = withContext(Dispatche
 | GET | `/v1/geo/reverse?lat=&lng=` | 기기 토큰 | 운행 출발·도착 좌표 → 주소(카카오 coord2address). 좌표는 저장하지 않음. 키 없음 503·카카오 실패 502 → 차가 내비 주소로 대신 (F-06·F-07) |
 | GET | `/r/{vehicleCode}?t=` | QR 토큰 | 카메라 페이지(정적 HTML 1장) |
 | POST | `/r/{vehicleCode}/receipt?t=` | QR 토큰 | multipart 사진 → 저장 → Gemini → inbox(RECEIPT) |
-| POST | `/admin/login` | — | 관리자 JWT |
-| GET/POST/PATCH/DELETE | `/admin/vehicles`, `/admin/vehicles/{id}/connect-code`, `/admin/vehicles/{id}/device` | JWT | 차량, 연결 코드 발급, 토큰 회수 |
-| GET/POST/PATCH/DELETE | `/admin/users`, `/admin/places`, `/admin/schedules`, `/admin/recipients` (+ `/import` CSV) | JWT | 변경 시 조직 차량 inbox에 전체 목록 적재(배차는 해당 차량만) |
+| POST | `/admin/auth/signup` | — | 회사 가입 `{orgName, email, password}` → 회사 + 첫 관리자 생성 후 로그인 응답. 승인·메일 인증 없음(바로 사용), 이름·이메일 중복 409, 서버 전체 시간당 30건 상한 |
+| POST | `/admin/auth/login` | — | `{email, password}` → `{token, expiresAt, email, orgName}`. 5번 틀리면 10분 잠금(429) |
+| GET/POST | `/admin/auth/me`, `/admin/auth/logout`, `/admin/auth/password` | 세션 | 내 정보, 로그아웃, 비밀번호 변경(다른 세션 끊김) |
+| GET/POST/PATCH/DELETE | `/admin/vehicles`, `/admin/vehicles/{id}/connect-code`, `/admin/vehicles/{id}/device` | 세션 | 차량, 연결 코드 발급, 토큰 회수 |
+| GET/POST/PATCH/DELETE | `/admin/users`, `/admin/places`, `/admin/schedules`, `/admin/recipients` (+ `/import` CSV) | 세션 | 변경 시 조직 차량 inbox에 전체 목록 적재(배차는 해당 차량만) |
+| GET/POST | `/ops/orgs`, `/ops/orgs/{id}/admins`, `/ops/admins/{id}/password` | 운영자 토큰 | 회사·회사 관리자 만들기, 비밀번호 재설정. nginx 밖으로 안 나감(`scripts/ops.sh`) |
+
+관리자 인증(2026-11-13): 서버 하나에 회사가 여럿이다. 회사가 운영 웹에서 직접 가입하면(가입한 사람 = 첫 관리자) 바로 쓸 수 있고, 운영자 /ops는 비밀번호 재설정 같은 예외용이다. 관리자는 이메일·비밀번호로 로그인해 받은 세션 토큰을 `X-Admin-Token` 헤더로 보낸다. 세션은 sha256 해시로만 저장(`admin_sessions`), 비밀번호는 PBKDF2-HMAC-SHA256. 모든 /admin API는 세션의 `org_id`로만 조회·변경한다. JWT 대신 서버 저장 세션을 쓴 이유: 로그아웃·비밀번호 변경 때 바로 끊을 수 있고 서버가 하나라 상태 저장이 부담이 아니다.
 
 **inbox payload (`shared` 모듈)**
 
@@ -991,7 +996,7 @@ POST /r/{code}/receipt
 |---|---|
 | 기기 토큰 | 해시 저장, 운영 웹에서 회수. 요청마다 vehicle_id 스코프 |
 | QR 토큰 | 1회·10분. 카메라 페이지는 로그인 없음 |
-| 관리자 | JWT, org 스코프 |
+| 관리자 | 회사별 계정(이메일·비밀번호, PBKDF2) + 서버 저장 세션(해시, 12시간), org 스코프. 운영자 API는 별도 토큰·내부망만 |
 | 영수증 | 30일 후 자동 삭제. 카드 뒷 4자리만 |
 | Gemini 키 | 서버 환경변수. APK·웹에 없음 |
 | 운행 데이터 | 서버에 없음 — 유출 면적 최소 |

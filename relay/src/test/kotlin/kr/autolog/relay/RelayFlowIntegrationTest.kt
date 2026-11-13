@@ -2,6 +2,8 @@ package kr.autolog.relay
 
 import kotlinx.serialization.builtins.ListSerializer
 import kr.autolog.relay.inbox.InboxService
+import kr.autolog.relay.support.TEST_OPS_TOKEN
+import kr.autolog.relay.support.adminSession
 import kr.autolog.shared.AutoLogJson
 import kr.autolog.shared.DeviceRegisterResponse
 import kr.autolog.shared.InboxItem
@@ -32,7 +34,7 @@ import java.util.UUID
  */
 @SpringBootTest(
     webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
-    properties = ["autolog.admin.token=test-admin", "autolog.public-base-url=https://relay.test"],
+    properties = ["autolog.ops.token=$TEST_OPS_TOKEN", "autolog.public-base-url=https://relay.test"],
 )
 @Testcontainers(disabledWithoutDocker = true)
 class RelayFlowIntegrationTest {
@@ -59,7 +61,7 @@ class RelayFlowIntegrationTest {
 
     @Test
     fun `관리자 차량 등록부터 기기 등록, inbox 수신·ack, QR 발급까지`() {
-        val admin = mapOf("X-Admin-Token" to "test-admin")
+        val admin = mapOf("X-Admin-Token" to http.adminSession("흐름 테스트 회사", "flow-admin@test.example"))
 
         // 관리자: 차량 등록 → 연결 코드
         val vehicle = http.postForEntity(
