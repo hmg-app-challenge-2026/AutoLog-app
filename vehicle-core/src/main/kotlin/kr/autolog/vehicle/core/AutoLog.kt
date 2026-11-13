@@ -106,7 +106,7 @@ object AutoLog {
             runCatching { it.start() }.onFailure { e -> log("vehicle start: ${e.message}") }
         }
         val navi = NaviGateway(app)
-        val location = LocationGateway(app, scope)
+        val location = LocationGateway(app, scope, log = { Log.i("AutoLog/location", it) })
         val speech = SpeechGateway(app)
         scope.launch { runCatching { navi.start() }.onFailure { log("navi start: ${it.message}") } }
         runCatching { location.start() }.onFailure { log("location start: ${it.message}") }
