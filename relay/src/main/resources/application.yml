@@ -35,7 +35,7 @@ autolog:
     signed-url-days: 7
   receipt-retention-days: 30
   geocoder:
-    kakao-key: ${KAKAO_REST_KEY:}      # 운영 웹 장소 주소 → 좌표. 비어 있으면 좌표를 직접 입력
+    kakao-key: ${KAKAO_REST_KEY:}      # 주소 → 좌표(운영 웹)·좌표 → 주소(GET /v1/geo/reverse). 비어 있으면 둘 다 끈다
     base-url: https://dapi.kakao.com
 
 management.endpoints.web.exposure.include: health

@@ -111,6 +111,13 @@ class RelayFlowIntegrationTest {
         val qrRes = AutoLogJson.decodeFromString(QrTokenResponse.serializer(), qr.body!!)
         assertTrue(qrRes.url.startsWith("https://relay.test/r/"))
 
+        // 주소 변환: 토큰 없으면 401, 카카오 키가 없는 서버면 503 GEOCODER_DISABLED (차는 내비 주소로 대신한다)
+        val geoUrl = "/v1/geo/reverse?lat=37.5665&lng=126.978"
+        assertEquals(HttpStatus.UNAUTHORIZED, http.getForEntity(geoUrl, String::class.java).statusCode)
+        val geo = http.exchange(geoUrl, HttpMethod.GET, auth(device.deviceToken), String::class.java)
+        assertEquals(HttpStatus.SERVICE_UNAVAILABLE, geo.statusCode)
+        assertTrue(geo.body!!.contains("GEOCODER_DISABLED"))
+
         // 토큰 회수 후 401
         http.exchange("/admin/vehicles/$vehicleId/device", HttpMethod.DELETE, json("", admin), Void::class.java)
         assertEquals(
