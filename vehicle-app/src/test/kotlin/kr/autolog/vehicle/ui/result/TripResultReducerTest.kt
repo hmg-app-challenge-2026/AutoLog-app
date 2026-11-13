@@ -63,4 +63,41 @@ class TripResultReducerTest {
         assertEquals(300L, reduceTripResult(trip, loaded = true, at, now = 4_700).autoCloseRemainingMs)
         assertEquals(0L, reduceTripResult(trip, loaded = true, at, now = 6_000).autoCloseRemainingMs)
     }
+
+    @Test
+    fun `고친 거리가 있으면 그 거리와 수정됨, 주소는 그대로 넘긴다`() {
+        val withAddress = trip.copy(originAddress = "경기 성남시 분당구 삼평동 판교역로 1", destinationAddress = "서울 강남구 역삼동 테헤란로 152")
+
+        val s = reduceTripResult(withAddress, loaded = true, TripResultInteraction(editedKm = 50.0), now = 0)
+
+        assertEquals("50.0", s.km)
+        assertTrue(s.distanceEdited)
+        assertEquals("경기 성남시 분당구 삼평동 판교역로 1", s.originAddress)
+        assertEquals("서울 강남구 역삼동 테헤란로 152", s.destinationAddress)
+    }
+
+    @Test
+    fun `저장된 수정 거리도 수정됨으로 보인다`() {
+        val s = reduceTripResult(trip.copy(distanceEdited = true), loaded = true, TripResultInteraction(), now = 0)
+
+        assertTrue(s.distanceEdited)
+    }
+
+    @Test
+    fun `거리 숫자판은 소수 1자리까지만 받는다`() {
+        assertEquals("12.3", pressDistanceKey("12.3", '4'))
+        assertEquals("12.", pressDistanceKey("12", '.'))
+        assertEquals("1500.0", pressDistanceKey("1500.", '0'))
+        assertEquals("", distanceDraftOf(null))
+        assertEquals("1234.5", distanceDraftOf(1_234.5))
+    }
+
+    @Test
+    fun `거리는 0 초과 1500 km 이하만 받는다`() {
+        assertEquals(DistanceInput.Invalid(DistanceEntryError.EMPTY_OR_ZERO), parseDistance(""))
+        assertEquals(DistanceInput.Invalid(DistanceEntryError.EMPTY_OR_ZERO), parseDistance("0.0"))
+        assertEquals(DistanceInput.Invalid(DistanceEntryError.TOO_LONG), parseDistance("1500.1"))
+        assertEquals(DistanceInput.Valid(1_500.0), parseDistance("1500"))
+        assertEquals(DistanceInput.Valid(0.1), parseDistance("0.1"))
+    }
 }

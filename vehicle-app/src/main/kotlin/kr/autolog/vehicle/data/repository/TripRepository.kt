@@ -36,8 +36,9 @@ class DefaultTripRepository(private val store: LocalStore, private val settings:
                     endTime = r.endTime,
                     driverName = r.driverUserId?.let { names[it] },
                     driverUnset = r.driverUserId == null,
-                    origin = r.originLabel,
-                    destination = r.destinationLabel,
+                    // 목록은 한 줄 — 이름(등록 장소·건물), 없으면 주소(I-05)
+                    origin = r.originLabel ?: r.originAddress,
+                    destination = r.destinationLabel ?: r.destinationAddress,
                     distanceKm = r.distanceKm,
                     purpose = r.purpose,
                     upload =

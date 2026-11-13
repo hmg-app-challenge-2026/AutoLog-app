@@ -113,11 +113,38 @@ class TripResultViewModel(
                 countdown?.cancel()
                 interaction.update { it.copy(editing = true, autoCloseAt = null) }
             }
+            TripResultAction.EditDistance -> interaction.update {
+                if (!it.editing) return@update it
+                it.copy(distanceEditor = DistanceEditor(distanceDraftOf(it.editedKm ?: current?.distanceKm)))
+            }
+            is TripResultAction.DistanceKey -> updateDistanceDraft { pressDistanceKey(it, action.key) }
+            TripResultAction.DistanceDelete -> updateDistanceDraft { it.dropLast(1) }
+            TripResultAction.ConfirmDistance -> confirmDistance()
+            TripResultAction.CancelDistance -> interaction.update { it.copy(distanceEditor = null) }
             // [저장하기] = 남은 시간이 다 됐을 때와 같은 끝내기. 사후 확인은 고친 목적만 저장하고 목록으로
             TripResultAction.Save -> if (review) saveReview() else finish()
             TripResultAction.Close -> leave()
             TripResultAction.CheckDrawn -> holdThenLeave()
         }
+    }
+
+    private fun updateDistanceDraft(edit: (String) -> String) = interaction.update { i ->
+        i.distanceEditor?.let { e -> i.copy(distanceEditor = DistanceEditor(edit(e.draft))) } ?: i
+    }
+
+    /** 거리 팝업 [완료]: 범위 안이면 화면 거리를 바꾸고 닫는다(저장은 [저장하기] 때), 아니면 이유를 팝업에. */
+    private fun confirmDistance() = interaction.update { i ->
+        val editor = i.distanceEditor ?: return@update i
+        when (val r = parseDistance(editor.draft)) {
+            is DistanceInput.Valid -> i.copy(editedKm = r.km, distanceEditor = null)
+            is DistanceInput.Invalid -> i.copy(distanceEditor = editor.copy(error = r.error))
+        }
+    }
+
+    /** 고친 거리(있으면) → 목적 순으로 저장한다. 저장 경로(자동 저장·[저장하기]·사후 확인)가 모두 여기를 지난다. */
+    private suspend fun persist() {
+        interaction.value.editedKm?.let { results.editDistance(tripId, it) }
+        results.classify(tripId, selectedNow())
     }
 
     private fun keepRecording() {
@@ -131,7 +158,7 @@ class TripResultViewModel(
     private fun onEnded(result: TripResult) {
         if (deleting) return // 지우려고 끝낸 것 — 목적을 저장하면 운행이 되살아난다
         viewModelScope.launch {
-            results.classify(tripId, selectedNow())
+            persist()
             if (finishing || !interaction.value.editing) showSaved()
         }
     }
@@ -152,7 +179,7 @@ class TripResultViewModel(
     private fun stopEditing() {
         if (!interaction.value.editing || finishing || deleting) return
         // 삭제 팝업도 닫는다 — 정차·주행 중엔 누를 수 있는 것이 없다
-        interaction.update { it.copy(editing = false, confirmingDelete = false) }
+        interaction.update { it.copy(editing = false, confirmingDelete = false, distanceEditor = null) }
         if (current?.endsAt == null) startCountdown()
     }
 
@@ -175,7 +202,7 @@ class TripResultViewModel(
         if (!now.editing || now.saving) return
         interaction.update { it.copy(saving = true) }
         viewModelScope.launch {
-            results.classify(tripId, selectedNow())
+            persist()
             showSaved()
         }
     }
@@ -209,7 +236,7 @@ class TripResultViewModel(
             if (current?.endsAt != null) {
                 session.endNow()
             } else {
-                results.classify(tripId, selectedNow())
+                persist()
                 showSaved()
             }
         }

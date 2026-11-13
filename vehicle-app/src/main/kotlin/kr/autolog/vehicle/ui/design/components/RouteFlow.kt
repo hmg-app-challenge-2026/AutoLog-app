@@ -63,6 +63,7 @@ private const val GLOW_SPREAD = 1.2f
  * [live] = 지금 달리는 운행(흐르는 화살표). 끝난 운행(운행 결과·이력)은 false — 화살표 대신 ○와 ●를 잇는 가는 선(지도 앱 경로 요약처럼),
  * 흐름이 "진행 중"으로 잘못 읽히지 않게.
  * [textStyle]은 출발지·목적지 글자 크기, [markerScale]은 왼쪽 표시(○ · 갈매기 · ●) 배율 — 큰 글자 옆에서 표시가 작아 보이지 않게(Home).
+ * [originDetail]·[destinationDetail] = 이름 아래 작은 글자 한 줄(주소, `caption` · `textSecondary`, I-05 이름 + 주소 2줄). null이면 이름만.
  */
 @Composable
 fun RouteFlow(
@@ -73,6 +74,8 @@ fun RouteFlow(
     live: Boolean = true,
     textStyle: TextStyle = AutoLogTheme.type.title,
     markerScale: Float = 1f,
+    originDetail: String? = null,
+    destinationDetail: String? = null,
 ) {
     val c = AutoLogTheme.colors
     val density = LocalDensity.current
@@ -85,29 +88,47 @@ fun RouteFlow(
     Column(modifier, verticalArrangement = Arrangement.spacedBy(Space.s1)) {
         if (origin != null) {
             RouteRow(markerHeight = originLine, markerScale, marker = { OriginMarker(markerScale) }) {
-                Text(
-                    origin,
-                    style = originStyle,
-                    color = c.textSecondary,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
+                Column {
+                    Text(
+                        origin,
+                        style = originStyle,
+                        color = c.textSecondary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    originDetail?.let { PlaceDetail(it) }
+                }
             }
             RouteRow(markerHeight = null, markerScale, marker = {
                 if (live) FlowChevrons(markerScale) else StaticConnector(markerScale)
             }) {}
         }
         RouteRow(markerHeight = destinationLine, markerScale, marker = { DestinationMarker(markerScale) }) {
-            // 긴 거래처 이름은 두 줄까지, 넘치면 말줄임
-            Text(
-                destination,
-                style = destinationStyle,
-                color = destinationColor,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-            )
+            Column {
+                // 긴 거래처 이름은 두 줄까지, 넘치면 말줄임
+                Text(
+                    destination,
+                    style = destinationStyle,
+                    color = destinationColor,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                destinationDetail?.let { PlaceDetail(it) }
+            }
         }
     }
+}
+
+/** 장소 이름 아래 주소 한 줄 — 글자 하한(`caption`)·회색, 길면 말줄임. */
+@Composable
+private fun PlaceDetail(text: String) {
+    Text(
+        text,
+        style = AutoLogTheme.type.caption,
+        color = AutoLogTheme.colors.textSecondary,
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
+    )
 }
 
 /** 경로선 한 줄: 왼쪽 표시 칸(폭 `iconSm` × [scale], [markerHeight]가 있으면 그 높이 가운데) + 12 dp + 오른쪽 글자 칸. */

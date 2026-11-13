@@ -52,6 +52,7 @@ import kr.autolog.vehicle.ui.design.components.RouteFlow
 import kr.autolog.vehicle.ui.design.components.ScreenHeader
 import kr.autolog.vehicle.ui.design.components.ScrollColumn
 import kr.autolog.vehicle.ui.design.components.Section
+import kr.autolog.vehicle.ui.design.components.TertiaryButton
 import kr.autolog.vehicle.ui.design.components.TopLine
 import kr.autolog.vehicle.ui.design.durationText
 import kr.autolog.vehicle.ui.design.motion.FadeThrough
@@ -110,6 +111,10 @@ fun TripResultScreen(state: TripResultUiState, onAction: (TripResultAction) -> U
                         onCancel = { onAction(TripResultAction.CancelDelete) },
                     )
                 }
+                // 거리 고치기(F-05) — 닫히는 동안에도 그릴 값이 있게 빈 편집기로 대신한다
+                ModalHost(visible = shown.distanceEditor != null) {
+                    DistanceEditDialog(shown.distanceEditor ?: DistanceEditor(), onAction)
+                }
             }
         }
     }
@@ -163,7 +168,7 @@ private fun ResultBody(state: TripResultUiState, onAction: (TripResultAction) ->
                             .then(if (spacious) Modifier.offset(y = -COLUMNS_LIFT_SPACIOUS) else Modifier),
                     ) {
                         ScrollColumn(Modifier.weight(1f).heightIn(max = availableHeight)) {
-                            TripSummary(state, gap = summaryGap)
+                            TripSummary(state, onAction, gap = summaryGap)
                         }
                         ScrollColumn(Modifier.weight(1f).heightIn(max = availableHeight)) {
                             Purpose(state, onAction)
@@ -194,7 +199,7 @@ private fun ResultBody(state: TripResultUiState, onAction: (TripResultAction) ->
                 // [수정]을 누르면 아래에 있는 운행 목적이 보이게 끝까지 내린다
                 LaunchedEffect(state.editing) { if (state.editing) scroll.animateScrollTo(scroll.maxValue) }
                 ScrollColumn(Modifier.weight(1f).fillMaxWidth(), scroll) {
-                    TripSummary(state)
+                    TripSummary(state, onAction)
                     Spacer(Modifier.height(Space.s6))
                     Purpose(state, onAction)
                 }
@@ -250,11 +255,19 @@ private fun ResultSection(@StringRes title: Int, content: @Composable ColumnScop
     }
 }
 
-/** 운행 요약: "운행 거리 · 시간" → [gap] → "운행 경로", 위아래로. */
+/** 운행 요약: "운행 거리 · 시간" → [gap] → "운행 경로", 위아래로. 수정 모드면 거리 아래 [거리 수정하기](F-05). */
 @Composable
-private fun TripSummary(state: TripResultUiState, gap: Dp = Space.s7) {
+private fun TripSummary(state: TripResultUiState, onAction: (TripResultAction) -> Unit, gap: Dp = Space.s7) {
     Column {
-        ResultSection(R.string.section_distance_time) { DistanceTime(state) }
+        ResultSection(R.string.section_distance_time) {
+            DistanceTime(state)
+            if (state.editing) {
+                TertiaryButton(
+                    stringResource(R.string.result_edit_distance),
+                    onClick = { onAction(TripResultAction.EditDistance) },
+                )
+            }
+        }
         Spacer(Modifier.height(gap))
         ResultSection(R.string.section_route) { Route(state) }
     }
@@ -274,18 +287,33 @@ private fun DistanceTime(state: TripResultUiState) {
         state.minutes?.let {
             Text(minutesText(it), modifier = Modifier.alignByBaseline(), style = t.resultTime, color = c.textSecondary)
         }
+        // 사람이 고친 거리(F-05) — 계기판 값이 아님을 조용히 알린다(엑셀 비고에는 계기판 값이 남는다)
+        if (state.distanceEdited && state.km != null) {
+            Text(
+                stringResource(R.string.trip_km_edited),
+                modifier = Modifier.alignByBaseline(),
+                style = t.caption,
+                color = c.textSecondary,
+            )
+        }
     }
 }
 
-/** 경로선 — 끝난 운행이라 ○—● 가는 선(흐름 모션 없음). 도착지를 모르면 "위치 미상". */
+/**
+ * 경로선 — 끝난 운행이라 ○—● 가는 선(흐름 모션 없음). 장소마다 이름 + 주소 2줄(I-05), 이름이 없으면 주소가 이름 자리에.
+ * 둘 다 모르면 "위치 미상".
+ */
 @Composable
 private fun Route(state: TripResultUiState) {
     val c = AutoLogTheme.colors
+    val destination = state.destination ?: state.destinationAddress
     RouteFlow(
-        origin = state.origin,
-        destination = state.destination ?: stringResource(R.string.place_unknown),
-        destinationColor = if (state.destination != null) c.textPrimary else c.textSecondary,
+        origin = state.origin ?: state.originAddress,
+        destination = destination ?: stringResource(R.string.place_unknown),
+        destinationColor = if (destination != null) c.textPrimary else c.textSecondary,
         live = false,
+        originDetail = state.originAddress.takeIf { state.origin != null },
+        destinationDetail = state.destinationAddress.takeIf { state.destination != null },
     )
 }
 

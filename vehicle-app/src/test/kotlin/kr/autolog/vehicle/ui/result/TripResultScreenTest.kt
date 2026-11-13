@@ -29,8 +29,11 @@ private val viewing =
         loading = false,
         km = "48.2",
         minutes = 52,
-        origin = "판교 테크노밸리",
-        destination = "서울 강남구 역삼동",
+        origin = "본사",
+        destination = "판교 테크노밸리 거래처",
+        // 이름 + 주소 2줄(I-05)
+        originAddress = "서울 서대문구 연희동 연희로 11-1",
+        destinationAddress = "경기 성남시 분당구 삼평동 판교역로 166",
         autoCloseRemainingMs = 3_000,
         canContinue = true,
     )
@@ -156,6 +159,61 @@ class TripResultScreenTest {
     }
 
     @Test
+    fun `이름과 주소를 2줄로, 이름이 없으면 주소가 이름 자리에`() {
+        show(ended.copy(destination = null), mutableListOf())
+
+        // 작은 테스트 창(1024×640)에선 요약 칸이 스크롤된다 — 있는지만 본다(배치는 스크린샷)
+        compose.onNodeWithText("본사").assertExists()
+        compose.onNodeWithText("서울 서대문구 연희동 연희로 11-1").assertExists()
+        compose.onNodeWithText("경기 성남시 분당구 삼평동 판교역로 166").assertExists()
+        compose.onNodeWithText("위치 미상").assertDoesNotExist()
+    }
+
+    @Test
+    fun `거리 수정하기는 수정 모드에만 있고, 누르면 거리 팝업을 연다`() {
+        val actions = mutableListOf<TripResultAction>()
+        show(editing, actions)
+
+        compose.onNodeWithText("거리 수정하기").performClick()
+
+        assertEquals(listOf<TripResultAction>(TripResultAction.EditDistance), actions)
+    }
+
+    @Test
+    fun `보기 모드엔 거리 수정하기가 없다`() {
+        show(ended, mutableListOf())
+
+        compose.onNodeWithText("거리 수정하기").assertDoesNotExist()
+    }
+
+    @Test
+    fun `거리 팝업 — 숫자판·완료·X, 범위 밖이면 이유`() {
+        val actions = mutableListOf<TripResultAction>()
+        show(editing.copy(distanceEditor = DistanceEditor("0", DistanceEntryError.EMPTY_OR_ZERO)), actions)
+
+        compose.onNodeWithText("0보다 큰 거리를 입력해 주세요").assertIsDisplayed()
+        compose.onNodeWithText("5").performClick()
+        compose.onNodeWithText("완료").performClick()
+        compose.onNodeWithContentDescription("닫기").performClick()
+
+        assertEquals(
+            listOf(
+                TripResultAction.DistanceKey('5'),
+                TripResultAction.ConfirmDistance,
+                TripResultAction.CancelDistance,
+            ),
+            actions,
+        )
+    }
+
+    @Test
+    fun `고친 거리엔 수정됨`() {
+        show(ended.copy(km = "50.0", distanceEdited = true), mutableListOf())
+
+        compose.onNodeWithText("수정됨").assertIsDisplayed()
+    }
+
+    @Test
     fun `수정 모드 — 수정하기가 빠지고 빨간 삭제하기가 생긴다, 라디오로 고르고 저장하기`() {
         val actions = mutableListOf<TripResultAction>()
         show(editing, actions)
@@ -188,6 +246,21 @@ class TripResultScreenshotTest {
 
     @Test
     fun ended() = captureAll("trip_result_ended") { TripResultScreen(ended, onAction = {}) }
+
+    /** 수정 모드 [거리 수정하기] → 숫자판 팝업(F-05). 범위 밖으로 [완료]를 눌러 이유가 보인다. */
+    @Test
+    fun distanceEditor() = captureAll("trip_result_distance") {
+        TripResultScreen(
+            editing.copy(distanceEditor = DistanceEditor("1600", DistanceEntryError.TOO_LONG)),
+            onAction = {},
+        )
+    }
+
+    /** 고친 거리(수정됨) + 목적지 없이 끝나 이름 없이 주소만 있는 도착지. */
+    @Test
+    fun editedNoName() = captureAll("trip_result_edited_address_only") {
+        TripResultScreen(ended.copy(km = "50.0", distanceEdited = true, destination = null), onAction = {})
+    }
 
     /** 수정 모드 [삭제하기] → 확인 팝업(D-39): "이 운행을 삭제할까요?" + [확인](빨강) · [취소]. */
     @Test

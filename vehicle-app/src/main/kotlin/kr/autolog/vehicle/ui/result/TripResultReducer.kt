@@ -1,9 +1,12 @@
 package kr.autolog.vehicle.ui.result
 
+import kr.autolog.vehicle.core.TripLimits
 import kr.autolog.vehicle.data.repository.TripResult
 import kr.autolog.vehicle.nav.TripResultMode
+import kr.autolog.vehicle.ui.design.components.applyKey
 import kr.autolog.vehicle.ui.design.formatKm
 import kr.autolog.vehicle.ui.trips.tripWhenOf
+import java.util.Locale
 
 /**
  * 운행 결과 상태 계산(순수 함수, TripResultReducerTest 대상). [result] null + [loaded] = 운행을 찾지 못함.
@@ -23,7 +26,11 @@ internal fun reduceTripResult(
     if (result == null) return TripResultUiState(loading = false, notFound = true)
     return TripResultUiState(
         loading = false,
-        km = formatKm(result.distanceKm),
+        km = formatKm(interaction.editedKm ?: result.distanceKm),
+        distanceEdited = interaction.editedKm != null || result.distanceEdited,
+        distanceEditor = interaction.distanceEditor,
+        originAddress = result.originAddress,
+        destinationAddress = result.destinationAddress,
         minutes = result.endTime?.let { ((it - result.startTime) / 60_000).toInt().coerceAtLeast(0) },
         origin = result.origin,
         destination = result.destination,
@@ -42,3 +49,32 @@ internal fun reduceTripResult(
         startedAt = if (review) tripWhenOf(result.startTime, now) else null,
     )
 }
+
+/** 거리 팝업을 열 때의 글자: 지금 보이는 거리(소수 1자리, 쉼표 없이). 거리 미확정이면 빈 칸. */
+internal fun distanceDraftOf(km: Double?): String = km?.let { String.format(Locale.US, "%.1f", it) }.orEmpty()
+
+/** 거리 숫자판 한 글자: [applyKey] 규칙 + 소수는 1자리까지, 최대 "1500.0" 길이. */
+internal fun pressDistanceKey(current: String, key: Char): String {
+    val next = applyKey(current, key, maxLength = DISTANCE_MAX_CHARS)
+    val decimals = next.substringAfter('.', "").length
+    return if (decimals > 1) current else next
+}
+
+/** [완료] 결과: 받을 수 있는 거리, 또는 받을 수 없는 이유. */
+internal sealed interface DistanceInput {
+    data class Valid(val km: Double) : DistanceInput
+
+    data class Invalid(val error: DistanceEntryError) : DistanceInput
+}
+
+/** 0 초과 [TripLimits.MAX_TRIP_KM] 이하만 받는다(앱 A `editDistance`와 같은 범위). */
+internal fun parseDistance(draft: String): DistanceInput {
+    val km = draft.toDoubleOrNull()
+    return when {
+        km == null || km <= 0.0 -> DistanceInput.Invalid(DistanceEntryError.EMPTY_OR_ZERO)
+        km > TripLimits.MAX_TRIP_KM -> DistanceInput.Invalid(DistanceEntryError.TOO_LONG)
+        else -> DistanceInput.Valid(km)
+    }
+}
+
+private const val DISTANCE_MAX_CHARS = 6

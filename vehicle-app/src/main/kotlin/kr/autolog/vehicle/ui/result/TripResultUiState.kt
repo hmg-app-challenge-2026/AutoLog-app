@@ -23,8 +23,16 @@ data class TripResultUiState(
     val notFound: Boolean = false,
     val km: String? = null,
     val minutes: Int? = null,
+    /** 장소 이름(등록 장소·내비 목적지·건물). 경로선 큰 글자. */
     val origin: String? = null,
     val destination: String? = null,
+    /** 장소 주소(`광역 기초 읍면동 도로명 번호`). 이름이 있으면 그 아래 작은 글자, 없으면 이름 자리에 — I-05 이름 + 주소 2줄. */
+    val originAddress: String? = null,
+    val destinationAddress: String? = null,
+    /** 보이는 거리가 사람이 고친 값(저장된 수정이거나 이번에 고친 값) — 거리 옆 "수정됨". */
+    val distanceEdited: Boolean = false,
+    /** 거리 고치기 팝업. null = 닫힘(F-05, 수정 모드에서만 연다). */
+    val distanceEditor: DistanceEditor? = null,
     val selected: PurposeCategory = PurposeCategory.BUSINESS,
     val editing: Boolean = false,
     /** 메인 화면으로 돌아가기까지 남은 시간(ms). null = 멈춤(수정 중). 막대와 버튼 글자가 이 값 하나를 쓴다. */
@@ -47,10 +55,19 @@ data class TripResultUiState(
     val autoCloseSec: Int? get() = autoCloseRemainingMs?.let { ((it + 999) / 1_000).toInt() }
 }
 
+/** 거리 고치기 팝업: 숫자판으로 친 글자([draft], 소수 1자리까지)와 [완료]를 눌렀는데 받을 수 없었던 이유. */
+data class DistanceEditor(val draft: String = "", val error: DistanceEntryError? = null)
+
+/** 거리 입력 오류 — 화면이 문구로 바꾼다(ViewModel·Reducer는 문구를 모른다). 범위: 0 초과 1,500 km 이하(TripLimits). */
+enum class DistanceEntryError { EMPTY_OR_ZERO, TOO_LONG }
+
 /** 사용자 조작으로 바뀌는 값 — ViewModel이 들고 있고 [reduceTripResult]가 운행 정보와 합친다. */
 data class TripResultInteraction(
     /** 사용자가 고른 분류. null = 아직 안 건드림(저장된 분류 또는 기본값). */
     val selected: PurposeCategory? = null,
+    /** 이번에 고친 거리(km) — [저장하기] 때 저장한다. null = 안 고침. */
+    val editedKm: Double? = null,
+    val distanceEditor: DistanceEditor? = null,
     val editing: Boolean = false,
     /** 이미 끝난 운행의 자체 카운트다운 마감 시각(epoch ms). 종료 대기 중이면 쓰지 않는다 — 앱 A 종료 시각이 마감. */
     val autoCloseAt: Long? = null,
@@ -70,6 +87,21 @@ sealed interface TripResultAction {
 
     /** 카운트다운을 멈추고 목적을 바꿀 수 있게 한다. */
     data object Edit : TripResultAction
+
+    /** 수정 모드의 [거리 수정하기] — 숫자판 팝업을 지금 거리로 연다(F-05). */
+    data object EditDistance : TripResultAction
+
+    /** 거리 팝업 숫자판 한 글자(0–9, '.'). */
+    data class DistanceKey(val key: Char) : TripResultAction
+
+    /** 거리 팝업 숫자판 지우기. */
+    data object DistanceDelete : TripResultAction
+
+    /** 거리 팝업 [완료] — 범위 안이면 이 거리로 바꾸고 닫는다(저장은 [Save] 때). */
+    data object ConfirmDistance : TripResultAction
+
+    /** 거리 팝업 X — 고치지 않고 닫는다. */
+    data object CancelDistance : TripResultAction
 
     /** 수정 모드의 빨간 [삭제하기] — "이 운행을 삭제할까요?" 팝업을 연다(D-39). */
     data object Delete : TripResultAction

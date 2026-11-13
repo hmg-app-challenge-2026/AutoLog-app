@@ -67,7 +67,14 @@ class GalleryScreenshotTest {
             }
             HeroMetric("23.4", "km", "주행 거리", "계기판 거리를 읽지 못했어요", size = MetricSize.MEDIUM)
             RouteFlow("본사", "판교 테크노밸리 거래처")
-            RouteFlow("본사", "판교 테크노밸리 거래처", live = false)
+            // 끝난 운행 — 이름 + 주소 2줄(I-05, 운행 결과)
+            RouteFlow(
+                "본사",
+                "판교 테크노밸리 거래처",
+                live = false,
+                originDetail = "서울 서대문구 연희동 연희로 11-1",
+                destinationDetail = "경기 성남시 분당구 삼평동 판교역로 166",
+            )
         }
     }
 
