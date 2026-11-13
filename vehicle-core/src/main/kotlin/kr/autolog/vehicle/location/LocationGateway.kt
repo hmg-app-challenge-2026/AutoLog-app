@@ -19,7 +19,9 @@ import kr.autolog.vehicle.core.sdkListenerFlow
 import java.time.Clock
 
 /**
- * Fused Location SDK 게이트웨이 (F-07). FusedLocation SDK 1.0.4 기준.
+ * Fused Location SDK 게이트웨이 (F-07). FusedLocation SDK 1.1.3 기준.
+ * 1.0.4는 시스템 서비스 `IPlacesenseService/default`를 찾는데 Pleos Connect v2.1.0에는 없어(binder null) 콜백이 오지 않았다.
+ * 1.1.3은 `FusedLocationService`에 바인딩한다(2026-11-13 에뮬레이터 확인, sdk-findings 4).
  *
  * 경로는 저장하지 않는다. 최신 좌표 1건만 메모리에 두고, 운행 시작·종료 때 [snapshot]으로 1건씩 꺼낸다.
  * 권한: pleos.car.permission.FUSED_LOCATION (런타임 요청 필요 여부는 [검증 필요])
@@ -28,6 +30,7 @@ class LocationGateway(
     context: Context,
     private val scope: CoroutineScope,
     private val clock: Clock = Clock.systemUTC(),
+    private val log: (String) -> Unit = {},
 ) {
     private val fused = FusedLocation(context.applicationContext)
     private var collectJob: Job? = null
@@ -42,7 +45,15 @@ class LocationGateway(
             unregister = { fused.unregisterFusedLocationCallback(it) },
             makeListener = { emit, _ ->
                 object : FusedLocationListener {
-                    override fun onChanged(data: LocationData) = emit(data.toFix())
+                    // 1.1.3은 null을 줄 수 있다(Kotlin 메타데이터 `LocationData?`) — 좌표가 없으면 건너뛴다
+                    override fun onChanged(location: LocationData?) {
+                        location?.let { emit(it.toFix()) }
+                    }
+
+                    // 흐름을 닫으면 다시 받지 못한다 — 남기고 계속 듣는다(다음 좌표가 오면 그대로 쓴다)
+                    override fun onError(exception: Exception) {
+                        log("fused error: ${exception.message}")
+                    }
                 }
             },
         )
