@@ -75,10 +75,25 @@ class KakaoReverseGeocoderTest {
     }
 
     @Test
-    fun `세종처럼 기초자치단체가 없으면 건너뛴다`() {
-        val d = doc("""{${road("세종특별자치시", "", "어진동", "한누리대로", "2130")}}""")
+    fun `세종은 카카오가 주는 세종시를 겹쳐 쓰지 않는다 — 실제 응답`() {
+        val d =
+            doc(
+                """{${road("세종특별자치시", "세종시", "", "한누리대로", "2130", building = "세종특별자치시청")},
+                "address": {"address_name": "세종특별자치시 보람동 718", "region_3depth_name": "보람동"}}""",
+            )
 
-        assertEquals("세종 어진동 한누리대로 2130", formatKakaoDocument(d)?.address)
+        assertEquals("세종 보람동 한누리대로 2130", formatKakaoDocument(d)?.address)
+    }
+
+    @Test
+    fun `동 지역은 도로명주소의 읍면동이 비어 지번의 법정동을 쓴다 — 실제 응답(서울시청)`() {
+        val d =
+            doc(
+                """{${road("서울", "중구", "", "세종대로", "110", building = "서울특별시청")},
+                "address": {"address_name": "서울 중구 태평로1가 31", "region_3depth_name": "태평로1가"}}""",
+            )
+
+        assertEquals(ReverseGeocodeResponse("서울 중구 태평로1가 세종대로 110", "서울특별시청"), formatKakaoDocument(d))
     }
 
     @Test

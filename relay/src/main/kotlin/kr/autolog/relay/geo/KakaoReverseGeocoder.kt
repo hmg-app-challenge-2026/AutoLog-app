@@ -77,6 +77,8 @@ class KakaoReverseGeocoder(private val props: RelayProperties, builder: RestClie
  * coord2address 문서 하나 → `광역 기초 읍면동 도로명 번호` (open-issues I-05). 순수 함수.
  * 예: `서울 서대문구 연희동 연희로 11-1`, `경기 성남시 분당구 정자동 정자일로 1`, `부산 기장군 장안읍 해맞이로 10-1`.
  * 도로명주소가 없으면 지번 주소(`경기 안성시 죽산면 죽산리 343-1`)를 쓴다. 둘 다 없으면 null.
+ * 실제 응답(2026-11-13 확인): 동 지역은 `road_address.region_3depth_name`이 비어 있어 지번 주소의 법정동을 쓴다,
+ * 건물 위가 아닌 좌표는 `road_address`가 null, 세종은 `region_2depth_name`이 "세종시".
  */
 internal fun formatKakaoDocument(doc: JsonObject): ReverseGeocodeResponse? {
     val road = doc["road_address"].objectOrNull()
@@ -88,9 +90,12 @@ internal fun formatKakaoDocument(doc: JsonObject): ReverseGeocodeResponse? {
             val main = road.text("main_building_no")
             val sub = road.text("sub_building_no")?.takeIf { it != "0" }
             val number = main?.let { if (sub != null) "$it-$sub" else it }
+            val region = KoreanAddress.shortenRegion(road.text("region_1depth_name"))
+            // 세종은 기초자치단체가 없는데 카카오가 "세종시"를 준다 → "세종 세종시"로 겹치지 않게 뺀다(2026-11-13 실제 응답)
+            val city = road.text("region_2depth_name")?.takeUnless { it == "${region}시" }
             KoreanAddress.join(
-                KoreanAddress.shortenRegion(road.text("region_1depth_name")),
-                road.text("region_2depth_name"),
+                region,
+                city,
                 town,
                 road.text("road_name"),
                 number,
