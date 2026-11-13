@@ -18,13 +18,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.withStyle
 import coil.compose.SubcomposeAsyncImage
 import kr.autolog.vehicle.R
 import kr.autolog.vehicle.ui.design.AutoLogTheme
@@ -96,22 +94,21 @@ private fun FuelSection(@StringRes title: Int, content: @Composable ColumnScope.
 }
 
 /**
- * 영수증 요약: 결제 금액이 주인공(운행 결과의 거리와 같은 크기), 그 아래 보조 두 줄.
- * 봐야 할 값만 주황으로 — 믿을 만한 값엔 아무 표시도 하지 않는다(정상은 조용히). 고치는 곳은 [수정하기]의 칸 목록.
+ * 영수증 요약: 결제 금액이 주인공(운행 결과의 거리와 같은 크기), 그 아래 보조 두 줄 — 첫 줄(유종·주유량·단가) 검정, 둘째 줄 회색.
+ * 값마다 색을 달리하지 않는다(2026-11-13 사용자 지시 — 갈색 강조가 별로). 봐야 할 칸은 [수정하기]의 칸 목록이 "확인 필요"로 말한다.
  */
 @Composable
 private fun FuelSummary(state: FuelEntryUiState) {
     val c = AutoLogTheme.colors
     val t = AutoLogTheme.type
-    val check = state.needsCheck.toSet()
     Text(
         fieldText(FuelField.AMOUNT, state[FuelField.AMOUNT]).orEmpty(),
         style = t.resultDistance,
-        color = if (FuelField.AMOUNT in check) c.warning else c.textPrimary,
+        color = c.textPrimary,
     )
     Spacer(Modifier.height(Space.s3))
-    SummaryLine(state, SUMMARY_LINE_1 + discountIfAny(state), check, t.title)
-    SummaryLine(state, SUMMARY_LINE_2, check, t.body)
+    SummaryLine(state, SUMMARY_LINE_1 + discountIfAny(state), t.title, c.textPrimary)
+    SummaryLine(state, SUMMARY_LINE_2, t.body, c.textSecondary)
 }
 
 /** 할인은 0이 아닐 때만 요약에 — 대부분 0이라 늘 보이면 소음이다. */
@@ -119,26 +116,15 @@ private fun discountIfAny(state: FuelEntryUiState): List<FuelField> =
     if ((state[FuelField.DISCOUNT].toIntOrNull() ?: 0) > 0) listOf(FuelField.DISCOUNT) else emptyList()
 
 @Composable
-private fun SummaryLine(state: FuelEntryUiState, fields: List<FuelField>, check: Set<FuelField>, style: TextStyle) {
-    val c = AutoLogTheme.colors
-    val separator = stringResource(R.string.meta_separator)
-    val parts = fields.mapNotNull { f -> fieldText(f, state[f])?.let { f to it } }
-    if (parts.isEmpty()) return
-    val text =
-        buildAnnotatedString {
-            parts.forEachIndexed { i, (field, value) ->
-                if (i > 0) append(separator)
-                val shown = if (field ==
-                    FuelField.DISCOUNT
-                ) {
-                    stringResource(R.string.fuel_discount_short, value)
-                } else {
-                    value
-                }
-                if (field in check) withStyle(SpanStyle(color = c.warning)) { append(shown) } else append(shown)
+private fun SummaryLine(state: FuelEntryUiState, fields: List<FuelField>, style: TextStyle, color: Color) {
+    val parts =
+        fields.mapNotNull { field ->
+            fieldText(field, state[field])?.let {
+                if (field == FuelField.DISCOUNT) stringResource(R.string.fuel_discount_short, it) else it
             }
         }
-    Text(text, style = style, color = c.textSecondary)
+    if (parts.isEmpty()) return
+    Text(parts.joinToString(stringResource(R.string.meta_separator)), style = style, color = color)
 }
 
 /** 칸 목록: 봐야 할 칸이 먼저(`listedFields`), 결제 금액은 한 단계 크게. 빈 칸은 "눌러서 입력". 누르면 숫자판·입력 칸 팝업. */
