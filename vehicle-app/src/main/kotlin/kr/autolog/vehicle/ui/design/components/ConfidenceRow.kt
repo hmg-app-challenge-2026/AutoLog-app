@@ -3,7 +3,6 @@ package kr.autolog.vehicle.ui.design.components
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
@@ -11,7 +10,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.ErrorOutline
 import androidx.compose.material.icons.rounded.ReportProblem
 import androidx.compose.material3.Icon
@@ -43,7 +41,15 @@ fun confidenceLevelOf(value: String?, confidence: Double?): ConfidenceLevel = wh
     else -> ConfidenceLevel.RECHECK
 }
 
-/** 디자인 언어 11장 ConfidenceRow. 색만으로 전하지 않는다 — 아이콘 + 글자 + (노랑·빨강) 테두리. 탭하면 편집. */
+/** 사람이 봐야 하는 신뢰도인가 — "확인 필요"·"다시 확인". 값이 없는 칸(MISSING)은 경고가 아니라 빈 칸이다(채우라는 안내는 화면이 한 줄로). */
+val ConfidenceLevel.needsCheck: Boolean get() = this == ConfidenceLevel.CHECK || this == ConfidenceLevel.RECHECK
+
+/**
+ * 디자인 언어 11장 ConfidenceRow — 고칠 수 있는 칸 한 줄: 왼쪽 이름, 오른쪽 값. 탭하면 편집.
+ * **정상은 조용히**: 믿을 만한 값(OK)엔 아무 표시도 없다(예전엔 칸마다 "확인됨" — 여섯 번 반복돼 정작 볼 칸이 묻혔다, 2026-11-12).
+ * 봐야 할 값만 색만으로 전하지 않게 아이콘 + 글자 + 테두리. 값이 없으면 [placeholder](흐린 글자)로 눌러서 넣는 칸임을 드러낸다.
+ * [emphasized] = 화면의 주인공 값(결제 금액) — 값 글자를 한 단계 크게.
+ */
 @Composable
 fun ConfidenceRow(
     label: String,
@@ -51,37 +57,53 @@ fun ConfidenceRow(
     confidence: Double?,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    placeholder: String = "—",
+    emphasized: Boolean = false,
 ) {
     val c = AutoLogTheme.colors
     val t = AutoLogTheme.type
     val level = confidenceLevelOf(value, confidence)
-    val (tone, icon, text) =
+    val warn =
         when (level) {
-            ConfidenceLevel.OK -> Triple(c.success, Icons.Rounded.CheckCircle, R.string.confidence_ok)
             ConfidenceLevel.CHECK -> Triple(c.warning, Icons.Rounded.ErrorOutline, R.string.confidence_check)
             ConfidenceLevel.RECHECK -> Triple(c.danger, Icons.Rounded.ReportProblem, R.string.confidence_recheck)
-            ConfidenceLevel.MISSING -> Triple(c.danger, Icons.Rounded.ReportProblem, R.string.confidence_missing)
+            ConfidenceLevel.OK, ConfidenceLevel.MISSING -> null
         }
-    val shape = RoundedCornerShape(Radius.sm)
+    val shape = RoundedCornerShape(Radius.md)
     Row(
         modifier
             .fillMaxWidth()
-            .heightIn(min = Size.touchMin)
+            .heightIn(min = if (emphasized) Size.buttonLg else Size.touchMin)
             .tappable(onClick)
             .clip(shape)
             .background(c.surface1)
-            .then(if (level == ConfidenceLevel.OK) Modifier else Modifier.border(Size.ring, tone, shape))
+            .then(warn?.let { Modifier.border(Size.ring, it.first, shape) } ?: Modifier)
             .padding(horizontal = Space.s5, vertical = Space.s3),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(Space.s4),
     ) {
-        Column(Modifier.weight(1f)) {
-            Text(label, style = t.caption, color = c.textSecondary)
-            Text(value ?: "—", style = t.title, color = c.textPrimary, maxLines = 1)
+        Text(label, Modifier.weight(1f), style = t.body, color = c.textSecondary, maxLines = 1)
+        warn?.let { (tone, icon, text) ->
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(Space.s2),
+            ) {
+                Icon(icon, contentDescription = null, tint = tone, modifier = Modifier.size(Size.icon))
+                Text(stringResource(text), style = t.caption, color = tone)
+            }
         }
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Space.s2)) {
-            Icon(icon, contentDescription = null, tint = tone, modifier = Modifier.size(Size.icon))
-            Text(stringResource(text), style = t.caption, color = tone)
-        }
+        // 빈 칸 안내는 값보다 작게 — 값과 같은 크기면 칸마다 "눌러서 입력"이 소리친다
+        Text(
+            value ?: placeholder,
+            style = if (value == null) {
+                t.body
+            } else if (emphasized) {
+                t.headline
+            } else {
+                t.title
+            },
+            color = if (value == null) c.textTertiary else c.textPrimary,
+            maxLines = 1,
+        )
     }
 }

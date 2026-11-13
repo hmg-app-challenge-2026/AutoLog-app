@@ -119,10 +119,8 @@
     <string name="action_settings">설정</string>
     <string name="input_locked">지금은 입력할 수 없어요</string>
     <string name="keypad_delete">지우기</string>
-    <string name="confidence_ok">확인됨</string>
     <string name="confidence_check">확인 필요</string>
     <string name="confidence_recheck">다시 확인</string>
-    <string name="confidence_missing">입력 필요</string>
     <string name="qr_description">영수증을 보낼 주소의 QR 코드</string>
     <string name="fuel_qr_title">주유 영수증 등록</string>
     <string name="receipt_qr_hint">스마트폰으로 QR 코드를 인식한 뒤 안내에 따라 영수증을 업로드해주세요</string>
@@ -146,8 +144,15 @@
     <string name="fuel_discount">할인 금액</string>
     <string name="fuel_card_last4">카드 끝 4자리</string>
     <string name="fuel_arith_ok">금액 검산 통과</string>
-    <string name="fuel_arith_failed">금액이 맞지 않아요</string>
+    <string name="fuel_arith_failed">주유량과 리터당 가격으로 계산한 금액이 결제 금액과 달라요</string>
     <string name="fuel_link_trip">연결할 운행</string>
+    <!-- 주유 입력 창 다시 짜기(D-38) -->
+    <string name="fuel_section_details">주유 내역</string>
+    <string name="fuel_edit">수정하기</string>
+    <string name="fuel_input_hint">눌러서 입력</string>
+    <string name="fuel_notice_amount">결제 금액을 입력해 주세요</string>
+    <string name="fuel_notice_check">주유 정보가 영수증과 일치하는지 확인해주세요</string>
+    <string name="fuel_discount_short">할인 %1$s</string>
     <string name="fuel_stop_badge">" · 주유 정차"</string>
     <string name="fuel_no_trip">연결 안 함</string>
     <string name="action_done">완료</string>

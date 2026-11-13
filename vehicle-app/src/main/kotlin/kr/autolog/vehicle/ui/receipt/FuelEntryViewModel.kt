@@ -56,6 +56,7 @@ class FuelEntryViewModel(
             is FuelEntryAction.TextChanged -> _uiState.update { it.typeText(action.value) }
             FuelEntryAction.CloseEditor -> _uiState.update { it.copy(editing = null) }
             is FuelEntryAction.SelectTrip -> _uiState.update { it.copy(selectedTripId = action.tripId) }
+            FuelEntryAction.OpenDetails -> _uiState.update { it.copy(detailsOpen = true) }
             FuelEntryAction.Add -> add()
             FuelEntryAction.Back -> navigator.pop()
         }
