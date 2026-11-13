@@ -7,7 +7,8 @@
 | 1 | Vehicle Service 연결 | `initialize()` 직후 첫 조회가 10–22 ms 안에 성공. capability `READ` | 에뮬레이터 Pleos_Connect_v2.1.0 (API 34, arm64) | 2026-11-09 | 재시도는 실패 대비로 유지(F-01 5초×12). `VehicleProbeTest.connectsAndReadsOdometer` |
 | 2 | Odometer 단위·소수점·갱신 주기 | 콘솔 입력값 그대로(18443.9 → `Float` 18443.9). 리스너 지연 4–5 ms. 23.4 km 차이 정확. **감소 불가**(콘솔이 거부) | 에뮬레이터 Pleos_Connect_v2.1.0 (API 34, arm64) | 2026-11-09 | 에뮬레이터는 값을 바꿀 때만 콜백 → 실차 갱신 주기 [검증 필요]. `odometerListenerReceivesChangeAndDistanceIsExact` |
 | 3 | NaviHelper 목적지 콜백 | | | | |
-| 4 | Fused Location 콜백·accuracy | | | | |
+| 4 | Fused Location 콜백·accuracy | **앱에 오지 않음:** 위치 서비스(`ai.pleos.playground.service.location.fused`)는 `adb emu geo fix` 값을 1초마다 만들지만(confidence 5.0) AutoLog 프로세스 로그엔 콜백이 없고 `freshFix()`가 null — 출발 좌표가 비었다. 등록 시점(`initialize` 직후 바인딩 전 등록?)·권한 [검증 필요] | 에뮬레이터 Pleos_Connect_v2.1.0 | 2026-11-13 | 지금은 내비 현재 위치가 좌표 출처. `LocationGateway.start` 확인 필요 |
+| 4c | NaviHelper 현재 위치·address | `getCurrentLocationInfo` → 내비 앱이 한 번 열려 준비되기 전엔 `navi not ready`(응답 없음, 3초 시간 초과). 준비 뒤엔 좌표 + `address` = **`수정구 시흥동`(구·동만, 광역·기초시·도로명·번호 없음)**. 내비 위치는 `geo fix`와 무관하게 내비 자체 위치 | 에뮬레이터 Pleos_Connect_v2.1.0 | 2026-11-13 | 그래서 주소는 relay(카카오) 우선, 내비 주소는 폴백일 뿐(F-07, I-05) |
 | 4a | 내비 전환 후 백그라운드 콜백 | **부분 확인:** 앱 화면 없이 포그라운드 서비스만 있는 프로세스에서 Odometer·Gear 콜백 수신, 자동 시작 → 23.4 km → 기어 P 5초 확정까지 동작 | 에뮬레이터 Pleos_Connect_v2.1.0 | 2026-11-09 | 내비 앱을 전면에 띄운 상태·10분 생존은 [검증 필요]. `TripScenarioTest` |
 | 4b | 절전 후 프로세스 생존 | | | | |
 | 5 | CarInfo·Gear 제공 범위 | Gear P/D 조회·리스너 동작(지연 13–16 ms). VIN 제공(9자 — 에뮬레이터 더미로 보임). DrivingMode는 기어가 아님(주행 모드) | 에뮬레이터 Pleos_Connect_v2.1.0 (API 34, arm64) | 2026-11-09 | Gear API는 **deprecated**("use the Google GEAR_SELECTION property") → AAOS `GEAR_SELECTION` 폴백 준비. `gearParkAndDriveArriveByReadAndListener`, `recordsVinAvailability` |

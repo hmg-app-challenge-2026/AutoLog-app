@@ -123,6 +123,30 @@ class DeviceRepositoryTest {
         assertTrue("tok-secret" !in DeviceRecord("https://a", "tok-secret", "v", "o").toString())
     }
 
+    @Test
+    fun `주소 변환은 기기 토큰으로 위도·경도를 묻고 응답을 읽는다`() = runTest {
+        store.save(DeviceRecord(url.trimEnd('/'), "tok", "veh-1", "org-1"))
+        server.enqueue(json(200, """{"address":"서울 서대문구 연희동 연희로 11-1","place_name":"연희빌딩"}"""))
+
+        val r = repo.call { u, t -> reverseGeocode(u, t, 37.5665, 126.978) }
+
+        val req = server.takeRequest()
+        assertEquals("/v1/geo/reverse?lat=37.5665&lng=126.978", req.path)
+        assertEquals("Bearer tok", req.getHeader("Authorization"))
+        assertEquals("연희빌딩", (r as RelayResult.Ok).value.placeName)
+    }
+
+    @Test
+    fun `주소 변환이 꺼진 서버(503)는 오류 코드를 돌려주고 연결 상태는 그대로다`() = runTest {
+        store.save(DeviceRecord(url.trimEnd('/'), "tok", "veh-1", "org-1"))
+        server.enqueue(json(503, """{"code":"GEOCODER_DISABLED","message":"off"}"""))
+
+        val r = repo.call { u, t -> reverseGeocode(u, t, 37.0, 127.0) }
+
+        assertEquals("GEOCODER_DISABLED", (r as RelayResult.Failure).code)
+        assertTrue(store.record != null)
+    }
+
     private fun json(code: Int, body: String) = MockResponse().setResponseCode(code).setBody(body)
         .setHeader("Content-Type", "application/json")
 }

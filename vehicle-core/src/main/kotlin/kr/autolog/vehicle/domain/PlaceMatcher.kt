@@ -1,11 +1,7 @@
 package kr.autolog.vehicle.domain
 
 import kr.autolog.shared.PlaceKind
-import kotlin.math.asin
-import kotlin.math.cos
-import kotlin.math.pow
-import kotlin.math.sin
-import kotlin.math.sqrt
+import kr.autolog.vehicle.core.GeoDistance
 
 /** 등록 장소. Room PlaceEntity에서 필요한 값만 옮긴 것. */
 data class Place(
@@ -25,7 +21,6 @@ data class Place(
  */
 object PlaceMatcher {
     const val DEFAULT_MARGIN_M = 50.0
-    private const val EARTH_RADIUS_M = 6_371_000.0
 
     fun match(lat: Double, lng: Double, places: List<Place>, marginM: Double = DEFAULT_MARGIN_M): Place? = places
         .map { it to distanceM(lat, lng, it.lat, it.lng) }
@@ -34,10 +29,6 @@ object PlaceMatcher {
         ?.first
 
     /** 두 좌표 사이 거리(m), haversine. */
-    fun distanceM(lat1: Double, lng1: Double, lat2: Double, lng2: Double): Double {
-        val dLat = Math.toRadians(lat2 - lat1)
-        val dLng = Math.toRadians(lng2 - lng1)
-        val a = sin(dLat / 2).pow(2) + cos(Math.toRadians(lat1)) * cos(Math.toRadians(lat2)) * sin(dLng / 2).pow(2)
-        return 2 * EARTH_RADIUS_M * asin(sqrt(a))
-    }
+    fun distanceM(lat1: Double, lng1: Double, lat2: Double, lng2: Double): Double =
+        GeoDistance.meters(lat1, lng1, lat2, lng2)
 }

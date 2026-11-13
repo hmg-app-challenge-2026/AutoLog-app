@@ -54,6 +54,8 @@ class RoomDomainStore(
             destinationLabel = t.destinationLabel,
             endLat = t.destinationLat,
             endLng = t.destinationLng,
+            originAddress = t.originAddress,
+            destinationAddress = t.destinationAddress,
             confirmedPurpose = t.confirmedPurpose(),
             stopLabels = trips.stops(t.tripId).mapNotNull { it.label },
         )

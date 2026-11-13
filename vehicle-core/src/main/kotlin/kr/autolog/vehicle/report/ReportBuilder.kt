@@ -132,6 +132,8 @@ class ReportBuilder(
                             text(t.dept),
                             Cell.Text(t.userName ?: "미확정"),
                             text(route(t)),
+                            text(t.originAddress),
+                            text(t.destinationAddress),
                             num(t.startKm),
                             num(t.endKm),
                             num(t.distanceKm),
@@ -144,13 +146,13 @@ class ReportBuilder(
                     )
                 }
                 add(
-                    listOf(Cell.Text("합계", bold = true), null, null, null, null, null, null) +
+                    listOf(Cell.Text("합계", bold = true), null, null, null, null, null, null, null, null) +
                         listOf(s.totalKm, s.commuteKm, s.businessKm).map { Cell.Num(it, bold = true) },
                 )
                 add(listOf(Cell.Text("업무사용비율(%)", bold = true), Cell.Num(s.businessRatio, bold = true)))
             },
-            widths = listOf(16, 6, 11, 10, 30, 19, 19, 13, 14, 16, 12, 36, 26),
-            merges = listOf("A1:M1", "A2:M2"),
+            widths = listOf(16, 6, 11, 10, 30, 34, 34, 19, 19, 13, 14, 16, 12, 36, 26),
+            merges = listOf("A1:O1", "A2:O2"),
         )
 
     private fun expenseSheet(
@@ -231,9 +233,19 @@ class ReportBuilder(
         "앱 미실행 중 운행(시각 추정)".takeIf { t.timeEstimated && t.note?.contains("앱 미실행") != true },
         "목적 미확정 — 업무거리 0".takeIf { t.purpose == null || t.purpose.category == PurposeCategory.UNDETERMINED },
         "운전자 미확정".takeIf { t.userId == null },
+        editedRemark(t),
     ).joinToString(" · ")
 
-    private fun route(t: ReportTrip) = listOfNotNull(t.originLabel, t.destinationLabel).joinToString(" → ")
+    /** 사람이 고친 거리면 계기판 원본을 비고에 남긴다(F-05 — 원본은 덮지 않는다). */
+    private fun editedRemark(t: ReportTrip): String? {
+        if (!t.isDistanceEdited) return null
+        val odo = t.odometerDistanceKm?.let { "계기판 ${"%.1f".format(Locale.ROOT, it)} km" } ?: "계기판 미확정"
+        return "거리 수정($odo)"
+    }
+
+    /** 이름(등록 장소·내비 목적지·건물) → 이름. 이름이 없으면 주소. 주소는 옆 칸에 따로 적는다. */
+    private fun route(t: ReportTrip) =
+        listOfNotNull(t.originLabel ?: t.originAddress, t.destinationLabel ?: t.destinationAddress).joinToString(" → ")
 
     private fun date(ms: Long) = Instant.ofEpochMilli(ms).atZone(zone).format(DATE)
 
@@ -261,7 +273,7 @@ class ReportBuilder(
         private val YYYYMM = DateTimeFormatter.ofPattern("yyyyMM")
         private val YYYY_MM = DateTimeFormatter.ofPattern("yyyy-MM")
         val LOG_HEADER = listOf(
-            "사용일자", "요일", "부서", "성명", "출발 → 도착", "주행 전 계기판(km)", "주행 후 계기판(km)", "주행거리(km)",
+            "사용일자", "요일", "부서", "성명", "출발 → 도착", "출발지 주소", "도착지 주소", "주행 전 계기판(km)", "주행 후 계기판(km)", "주행거리(km)",
             "출·퇴근용(km)", "일반 업무용(km)", "목적", "비고", "검토",
         )
         val EXPENSE_HEADER = listOf(
