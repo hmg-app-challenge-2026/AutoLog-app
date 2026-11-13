@@ -136,11 +136,21 @@ class FuelEntryReducerTest {
                 FuelField.DATETIME,
                 FuelField.FUEL_TYPE,
                 FuelField.AMOUNT,
-                FuelField.DISCOUNT,
                 FuelField.CARD_LAST4,
             ),
             state.listedFields,
         )
+    }
+
+    @Test
+    fun `할인은 칸 목록에 없지만 영수증 값은 검산·저장에 그대로 쓴다`() {
+        val withDiscount = receipt.copy(fields = receipt.fields.copy(discountWon = 1_000, amountWon = 67_000))
+
+        val state = reduceReceiptEntry(withDiscount, oneCandidate)
+
+        assertFalse(FuelField.DISCOUNT in state.fields)
+        assertEquals("1000", state[FuelField.DISCOUNT])
+        assertEquals(1_000, state.toReceiptFields().discountWon)
     }
 
     @Test
