@@ -115,7 +115,9 @@ class TripResultViewModel(
             }
             TripResultAction.EditDistance -> interaction.update {
                 if (!it.editing) return@update it
-                it.copy(distanceEditor = DistanceEditor(distanceDraftOf(it.editedKm ?: current?.distanceKm)))
+                it.copy(
+                    distanceEditor = DistanceEditor(placeholder = distanceDraftOf(it.editedKm ?: current?.distanceKm)),
+                )
             }
             is TripResultAction.DistanceKey -> updateDistanceDraft { pressDistanceKey(it, action.key) }
             TripResultAction.DistanceDelete -> updateDistanceDraft { it.dropLast(1) }
@@ -129,12 +131,14 @@ class TripResultViewModel(
     }
 
     private fun updateDistanceDraft(edit: (String) -> String) = interaction.update { i ->
-        i.distanceEditor?.let { e -> i.copy(distanceEditor = DistanceEditor(edit(e.draft))) } ?: i
+        i.distanceEditor?.let { e -> i.copy(distanceEditor = e.copy(draft = edit(e.draft), error = null)) } ?: i
     }
 
-    /** 거리 팝업 [완료]: 범위 안이면 화면 거리를 바꾸고 닫는다(저장은 [저장하기] 때), 아니면 이유를 팝업에. */
+    /** 거리 팝업 [완료]: 비었으면 그대로 닫고, 범위 안이면 화면 거리를 바꾸고 닫는다(저장은 [저장하기] 때), 아니면 이유를 팝업에. */
     private fun confirmDistance() = interaction.update { i ->
         val editor = i.distanceEditor ?: return@update i
+        // 아무것도 안 눌렀으면 지금 거리 그대로 닫는다
+        if (editor.draft.isEmpty()) return@update i.copy(distanceEditor = null)
         when (val r = parseDistance(editor.draft)) {
             is DistanceInput.Valid -> i.copy(editedKm = r.km, distanceEditor = null)
             is DistanceInput.Invalid -> i.copy(distanceEditor = editor.copy(error = r.error))

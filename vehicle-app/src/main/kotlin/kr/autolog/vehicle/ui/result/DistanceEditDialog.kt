@@ -21,6 +21,7 @@ import kr.autolog.vehicle.ui.design.components.SecondaryButton
 
 /**
  * 운행 거리 고치기 팝업(F-05) — 주유 입력의 숫자 칸 팝업(`FieldEditor`)과 같은 모양: 제목 + 값(`headline` + km) + 숫자판.
+ * 빈 입력으로 열리고 지금 거리는 회색 안내로만 보인다(지우고 다시 쓸 필요 없음). 아무것도 안 누르고 [완료]하면 그대로 닫는다.
  * 값을 검사해야 해서 [완료]로 끝내고(범위 밖이면 이유를 값 아래 빨갛게), 오른쪽 위 X는 고치지 않고 닫는다.
  * 계기판 원본은 앱 A가 따로 남기므로 여기서 고친 값은 "수정됨"으로 보인다.
  */
@@ -40,8 +41,9 @@ internal fun DistanceEditDialog(editor: DistanceEditor, onAction: (TripResultAct
     ) {
         Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
             Row(horizontalArrangement = Arrangement.spacedBy(Space.s2)) {
+                // 비어 있으면 지금 거리를 회색 안내로 — 숫자를 누르면 바로 새 값으로 바뀐다
                 Text(
-                    editor.draft.ifEmpty { stringResource(R.string.value_zero) },
+                    editor.draft.ifEmpty { editor.placeholder.ifEmpty { stringResource(R.string.value_zero) } },
                     modifier = Modifier.alignByBaseline(),
                     style = AutoLogTheme.type.headline,
                     color = if (editor.draft.isEmpty()) c.textTertiary else c.textPrimary,
