@@ -108,6 +108,8 @@ private fun FuelSummary(state: FuelEntryUiState) {
     )
     Spacer(Modifier.height(Space.s3))
     SummaryLine(state, SUMMARY_LINE_1 + discountIfAny(state), t.title, c.textPrimary)
+    // 두 줄이 붙어 한 덩어리로 읽히지 않게 금액↔첫 줄과 같은 간격(2026-11-13 사용자 지시)
+    Spacer(Modifier.height(Space.s3))
     SummaryLine(state, SUMMARY_LINE_2, t.body, c.textSecondary)
 }
 
