@@ -200,7 +200,7 @@ android {
     defaultConfig {
         minSdk = 28
         consumerProguardFiles("consumer-rules.pro")
-        buildConfigField("String", "RELAY_BASE_URL", "\"http://10.0.2.2:8080/\"")   // 에뮬레이터에서 호스트 PC
+        // 서버 주소는 화면 앱(vehicle-app)의 BuildConfig.RELAY_BASE_URL — local.properties autolog.relayUrl (2026-11-13)
     }
     compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }
     kotlinOptions { jvmTarget = "17" }

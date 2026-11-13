@@ -1,4 +1,6 @@
 // 차량 앱 화면 (Compose). 로직은 :vehicle-core.
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -17,6 +19,10 @@ android {
         targetSdk = 35
         versionCode = 1
         versionName = "0.1.0"
+        // 중계 서버 주소(서버는 하나라 차 화면에서 묻지 않는다, 2026-11-13 사용자 결정).
+        // local.properties 의 autolog.relayUrl 로 바꾼다 — 실차 테스트는 맥 IP, 배포는 운영 도메인.
+        // 없으면 에뮬레이터에서 본 호스트 PC(10.0.2.2).
+        buildConfigField("String", "RELAY_BASE_URL", "\"${relayUrl()}\"")
     }
 
     flavorDimensions += "backend"
@@ -33,7 +39,10 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
     kotlinOptions { jvmTarget = "17" }
-    buildFeatures { compose = true }
+    buildFeatures {
+        compose = true
+        buildConfig = true
+    }
     testOptions { unitTests { isIncludeAndroidResources = true } }
 
     buildTypes {
@@ -74,4 +83,10 @@ dependencies {
     testImplementation(platform(libs.compose.bom))
     testImplementation(fe.compose.ui.test.junit4)
     debugImplementation(fe.compose.ui.test.manifest)
+}
+
+fun relayUrl(): String {
+    val f = rootProject.file("local.properties")
+    val props = Properties().apply { if (f.exists()) f.inputStream().use(::load) }
+    return (props.getProperty("autolog.relayUrl") ?: "http://10.0.2.2:8080").trim().trimEnd('/')
 }

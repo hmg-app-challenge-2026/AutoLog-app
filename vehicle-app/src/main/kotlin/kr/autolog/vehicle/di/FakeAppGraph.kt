@@ -2,6 +2,7 @@ package kr.autolog.vehicle.di
 
 import androidx.compose.runtime.Composable
 import kotlinx.coroutines.CoroutineScope
+import kr.autolog.vehicle.BuildConfig
 import kr.autolog.vehicle.common.AppClock
 import kr.autolog.vehicle.data.fake.FakeDeviceApi
 import kr.autolog.vehicle.data.fake.FakeLocalStore
@@ -52,6 +53,7 @@ open class FakeAppGraph(
     carUx: CarUxSource,
     start: Route = Route.ProfilePicker,
     vehicleId: String = "veh-demo",
+    relayUrl: String = BuildConfig.RELAY_BASE_URL,
     overlay: ((FakeSources) -> @Composable () -> Unit)? = null,
 ) : AppGraph {
     val sources = FakeSources(scope, clock)
@@ -70,6 +72,6 @@ open class FakeAppGraph(
         }
     override val reports = DefaultReportRepository(sources.report, sources.mail, sources.settingsApi)
     override val settings =
-        DefaultSettingsRepository(sources.device, sources.upload, sources.settingsApi, sources.mail, scope)
+        DefaultSettingsRepository(sources.device, sources.upload, sources.settingsApi, sources.mail, scope, relayUrl)
     override val demoOverlay: (@Composable () -> Unit)? = overlay?.invoke(sources)
 }

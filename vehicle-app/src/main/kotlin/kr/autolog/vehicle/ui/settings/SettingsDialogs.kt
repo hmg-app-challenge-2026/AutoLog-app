@@ -48,18 +48,13 @@ private fun SettingsDialogCard(
                     stringResource(R.string.settings_register_submit),
                     onClick = submit,
                     modifier = Modifier.fillMaxWidth(),
-                    enabled = ConnectCode.isComplete(d.code) && d.serverUrl.isNotBlank(),
+                    enabled = ConnectCode.isComplete(d.code),
                     loading = state.running == SettingsTask.REGISTER,
                 )
             },
         ) {
             DialogBody {
-                InputField(
-                    stringResource(R.string.settings_server_url),
-                    d.serverUrl,
-                    { onAction(SettingsAction.EditDialog(DialogField.SERVER_URL, it)) },
-                    keyboardType = KeyboardType.Uri,
-                )
+                // 서버 주소는 묻지 않는다 — 서버는 하나라 빌드에 고정(2026-11-13 사용자 결정)
                 // 6칸으로 보여 주고 키보드로 받는다. 서버 코드는 글자와 숫자가 섞인다(2~9, A~Z 중 I·O 제외) — 소문자로 쳐도
                 // 대문자로 들어가고 0·1·I·O·기호는 들어가지 않는다(ViewModel → ConnectCode.normalize, G-01)
                 CodeField(

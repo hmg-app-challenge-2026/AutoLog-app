@@ -6,6 +6,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kr.autolog.vehicle.BuildConfig
 import kr.autolog.vehicle.core.ConnectionState
 import kr.autolog.vehicle.core.DeviceApi
 import kr.autolog.vehicle.core.MailApi
@@ -25,7 +26,8 @@ import kr.autolog.vehicle.data.upload.UploadStatus
 interface SettingsRepository {
     val link: StateFlow<ServerLink>
 
-    suspend fun register(serverUrl: String, code: String): Outcome
+    /** 연결 코드 6자리로 차를 서버에 등록한다. 서버 주소는 빌드에 고정된 값([DefaultSettingsRepository.serverUrl]). */
+    suspend fun register(code: String): Outcome
 
     val upload: StateFlow<UploadInfo>
 
@@ -58,15 +60,16 @@ class DefaultSettingsRepository(
     private val settings: SettingsApi,
     private val mail: MailApi,
     scope: CoroutineScope,
+    /** 중계 서버 주소. 서버는 하나라 화면에서 묻지 않는다(2026-11-13) — 기본은 빌드 설정(local.properties autolog.relayUrl). */
+    private val serverUrl: String = BuildConfig.RELAY_BASE_URL,
 ) : SettingsRepository {
     override val link: StateFlow<ServerLink> =
         device.connection.map { it.toLink() }.stateIn(scope, SharingStarted.Eagerly, device.connection.value.toLink())
 
-    override suspend fun register(serverUrl: String, code: String): Outcome =
-        when (val r = device.register(serverUrl.trim(), code.trim())) {
-            RegisterResult.Ok -> Outcome.Ok
-            is RegisterResult.Invalid -> Outcome.Failed(r.reason)
-        }
+    override suspend fun register(code: String): Outcome = when (val r = device.register(serverUrl, code.trim())) {
+        RegisterResult.Ok -> Outcome.Ok
+        is RegisterResult.Invalid -> Outcome.Failed(r.reason)
+    }
 
     override val upload: StateFlow<UploadInfo> =
         uploads.status.map { it.toInfo() }.stateIn(scope, SharingStarted.Eagerly, uploads.status.value.toInfo())

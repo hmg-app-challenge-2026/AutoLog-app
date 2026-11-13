@@ -61,7 +61,7 @@ class SettingsViewModel(
             SettingsAction.CloseSection -> local.update { it.copy(section = null) }
             SettingsAction.Back -> navigator.pop()
             SettingsAction.StartRegister ->
-                openDialog(SettingsDialog.Register(registerPreset(settings.link.value)), SettingsTask.REGISTER)
+                openDialog(SettingsDialog.Register(), SettingsTask.REGISTER)
             SettingsAction.UploadNow -> run(SettingsTask.UPLOAD) { settings.uploadNow().toResult() }
             is SettingsAction.EditMail -> local.update { it.copy(mail = it.mail.edit(action.field, action.value)) }
             SettingsAction.SaveMail -> saveMail()
@@ -112,8 +112,8 @@ class SettingsViewModel(
     private fun submitDialog() {
         when (val d = local.value.dialog) {
             is SettingsDialog.Register -> {
-                if (!ConnectCode.isComplete(d.code) || d.serverUrl.isBlank()) return
-                run(SettingsTask.REGISTER) { settings.register(d.serverUrl, d.code).toResult() }
+                if (!ConnectCode.isComplete(d.code)) return
+                run(SettingsTask.REGISTER) { settings.register(d.code).toResult() }
             }
             is SettingsDialog.AddRecipient -> {
                 if (d.email.isBlank()) return
@@ -160,7 +160,6 @@ private fun MailForm.edit(field: MailField, value: String) = when (field) {
 
 private fun SettingsDialog.edit(field: DialogField, value: String): SettingsDialog = when (this) {
     is SettingsDialog.Register -> when (field) {
-        DialogField.SERVER_URL -> copy(serverUrl = value)
         // 키보드로 친 소문자는 대문자로, 서버가 쓰지 않는 글자는 들어가지 않는다(G-01)
         DialogField.CONNECT_CODE -> copy(code = ConnectCode.normalize(value))
         else -> this
