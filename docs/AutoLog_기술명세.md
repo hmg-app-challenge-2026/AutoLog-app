@@ -929,6 +929,7 @@ suspend fun send(report: ReportEntity, to: List<String>) = withContext(Dispatche
 | GET | `/v1/inbox` | 기기 토큰 | 내 차 앞으로 온 편지 목록 `[{id, kind, payload, created_at}]` |
 | POST | `/v1/inbox/{id}/ack` | 기기 토큰 | 수신 확인 → 삭제 |
 | POST | `/v1/qr-tokens` | 기기 토큰 | 영수증용 1회 토큰 발급(10분) → 차가 QR에 넣음 |
+| GET | `/v1/geo/reverse?lat=&lng=` | 기기 토큰 | 운행 출발·도착 좌표 → 주소(카카오 coord2address). 좌표는 저장하지 않음. 키 없음 503·카카오 실패 502 → 차가 내비 주소로 대신 (F-06·F-07) |
 | GET | `/r/{vehicleCode}?t=` | QR 토큰 | 카메라 페이지(정적 HTML 1장) |
 | POST | `/r/{vehicleCode}/receipt?t=` | QR 토큰 | multipart 사진 → 저장 → Gemini → inbox(RECEIPT) |
 | POST | `/admin/login` | — | 관리자 JWT |
@@ -1209,7 +1210,7 @@ interface MailApi {                              // 프론트: 보내기·설정
 }
 
 // ===== 앱 B(서버) 제공, 앱 A(InboxSyncWorker) 소비 — shared 모듈 =====
-// POST /v1/devices · GET /v1/inbox · POST /v1/inbox/{id}/ack · POST /v1/qr-tokens   (4.3절)
+// POST /v1/devices · GET /v1/inbox · POST /v1/inbox/{id}/ack · POST /v1/qr-tokens · GET /v1/geo/reverse   (4.3절)
 ```
 
 - **첫날 A·B가 이 파일과 `fake/` 패키지의 `Fake*` 구현을 커밋**한다. 프론트는 `FakeTripSession`(23.4 km를 뿜음)·`FakeReceiptApi`로 화면 전부를 만들 수 있다. A는 `FakeContext`·`FakeRelayApi`(로컬 JSON)로, B는 `FakeLocalStore`로 각자 테스트한다.
