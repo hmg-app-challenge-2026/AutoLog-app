@@ -21,6 +21,7 @@ import kr.autolog.vehicle.core.UploadState.PENDING
 import kr.autolog.vehicle.fake.FakeReceiptApi
 import java.time.Instant
 import java.time.YearMonth
+import kr.autolog.vehicle.fake.FakeLocalStore as CoreFakeStore
 
 /** 화면·엑셀의 날짜 기준(Backend CONVENTIONS 6.3). */
 
@@ -74,6 +75,14 @@ class FakeLocalStore(clock: AppClock, seed: Boolean = true) : LocalStore {
         }
     }
 
+    /** 거리 수정(F-05). 없는 운행이면 false. 실구현처럼 수정 표시를 남긴다. */
+    fun editDistance(tripId: String, km: Double): Boolean {
+        if (rows.value.none { it.tripId == tripId }) return false
+        rows.value =
+            rows.value.map { if (it.tripId == tripId) it.copy(distanceKm = km, isDistanceEdited = true) else it }
+        return true
+    }
+
     fun assignDriver(tripId: String, userId: String) {
         rows.value = rows.value.map { if (it.tripId == tripId) it.copy(driverUserId = userId) else it }
     }
@@ -101,7 +110,19 @@ class FakeLocalStore(clock: AppClock, seed: Boolean = true) : LocalStore {
                 km: Double?,
                 p: PurposeDetail?,
                 up: UploadState,
-            ) = TripRow(id, now - ago, now - ago + minutes * 60_000, driver, from, to, km, p, upload = up)
+            ) = TripRow(
+                id,
+                now - ago,
+                now - ago + minutes * 60_000,
+                driver,
+                from,
+                to,
+                km,
+                p,
+                upload = up,
+                originAddress = CoreFakeStore.SAMPLE_ADDRESSES[from],
+                destinationAddress = CoreFakeStore.SAMPLE_ADDRESSES[to],
+            )
             return listOf(
                 row("t-s1", 2 * HOUR, 35, "u-1", "본사", "판교 테크노밸리 거래처", 23.4, null, PENDING),
                 row("t-s2", DAY, 50, "u-2", "판교 거래처", "수원 지점", 41.2, BRANCH_MOVE, DONE),

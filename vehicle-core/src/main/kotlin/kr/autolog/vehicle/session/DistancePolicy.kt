@@ -1,5 +1,6 @@
 package kr.autolog.vehicle.session
 
+import kr.autolog.vehicle.core.TripLimits
 import java.math.BigDecimal
 
 /**
@@ -8,7 +9,7 @@ import java.math.BigDecimal
  */
 object DistancePolicy {
     /** 1회 운행 상한. 넘으면 계기판 값 이상으로 본다. */
-    const val MAX_TRIP_KM = 1_500.0
+    const val MAX_TRIP_KM = TripLimits.MAX_TRIP_KM
 
     /** 이보다 짧고([MIN_DURATION_MS]) 덜 갔으면([MIN_DISTANCE_KM]) "이동 없음". */
     const val MIN_DURATION_MS = 60_000L
@@ -36,6 +37,9 @@ object DistancePolicy {
             else -> Verdict.Ok(distance)
         }
     }
+
+    /** 사람이 고친 거리로 받을 수 있는 값: 0 초과 [MAX_TRIP_KM] 이하(F-05 수정). NaN·무한대는 거절. */
+    fun isEditableKm(km: Double): Boolean = km > 0.0 && km <= MAX_TRIP_KM
 
     /** 두 계기판 값의 차이. Double 뺄셈의 꼬리(23.400000000001455)를 없애려고 10진수로 뺀다. */
     fun difference(startKm: Double, endKm: Double): Double =

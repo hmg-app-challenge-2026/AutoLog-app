@@ -16,3 +16,4 @@
 | `FakeLocalStore` | LocalStore | A | `seed = false` 빈 기록, `pushReceipt()` 영수증 도착 |
 | `FakeReportApi` | ReportApi | A | `nextFailure = "…"` 생성 실패 |
 | `FakeDeviceApi` | DeviceApi | A | `registered = false` 미등록, `setUnreachable()` 서버 끊김 |
+| `FakeGeocode` | GeocodeApi | A | `serverDown = true` 서버 실패 → 지금 위치면 내비 주소, 지난 좌표면 null |

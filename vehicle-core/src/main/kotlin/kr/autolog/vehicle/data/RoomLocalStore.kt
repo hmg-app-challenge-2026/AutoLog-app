@@ -50,4 +50,5 @@ internal fun TripEntity.toRow() = TripRow(
     distanceKm = reportedKm(),
     purpose = confirmedPurpose(),
     note = purposeNote,
+    isDistanceEdited = editedDistanceKm != null,
 )

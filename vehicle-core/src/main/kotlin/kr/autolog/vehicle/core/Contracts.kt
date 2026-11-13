@@ -74,6 +74,13 @@ interface TripSessionApi {
         destinationLabel: String? = null,
     )
 
+    /**
+     * 프론트: 운행 결과 카드 수정 모드에서 거리 고치기 (F-05, F-12). 계기판 원본(`distanceKm`)은 덮지 않고 수정값을 따로 남긴다 —
+     * 목록·엑셀은 수정값을 쓰고 엑셀 비고에 계기판 값을 적는다. 거리 미확정 운행도 여기서 채운다.
+     * 0 초과 [TripLimits.MAX_TRIP_KM] 이하만 받는다. 저장했으면 true, 범위 밖·없는 운행·기록 중인 운행이면 false.
+     */
+    suspend fun editDistance(tripId: String, km: Double): Boolean
+
     /** 프론트: 운전자 미확정 운행에 운전자 지정 (F-20). */
     suspend fun assignDriver(tripId: String, userId: String, source: DriverSource)
 
@@ -182,6 +189,16 @@ interface RelayClient {
     suspend fun syncNow(): SyncResult
 }
 
+/**
+ * 좌표 → 주소 (F-06, F-07, open-issues I-05). 중계 서버(카카오 coord2address)에 묻고, 실패하면 내비 현재 위치 주소로 대신한다.
+ * 내비(NaviHelper)는 좌표를 주소로 바꾸지 못하고 "지금 차 위치"의 주소만 주므로, 폴백은 [isCurrentPosition]일 때만 쓴다.
+ * 앱 A: 운행 시작·종료 직후(session), 주소 없는 지난 운행 채우기(InboxSync). 화면은 쓰지 않는다. 구현: data/RelayGeocode.
+ */
+interface GeocodeApi {
+    /** 둘 다 실패하면 null. 예외를 던지지 않는다. */
+    suspend fun reverse(lat: Double, lng: Double, isCurrentPosition: Boolean): GeocodeResult?
+}
+
 // ===== 앱 B 제공 =====
 
 /** 내비 목적지와 현재 좌표 (F-06, F-07). 구현: NaviGateway + LocationGateway. */
@@ -230,6 +247,9 @@ interface PurposeEngine {
      * 최근 7일 안에 끝난 운전자 미확정 운행, 최신 순. 고르면 TripSessionApi.assignDriver(앱 A)로 저장한다.
      */
     suspend fun unassignedTrips(vehicleId: String, now: Long): List<UnassignedTrip>
+
+    /** 앱 A: 운행 출발·도착 좌표가 등록 장소(반경 + 여유) 안이면 가장 가까운 그 장소. 이름을 출발지·도착지 이름으로 쓴다. 없으면 null. */
+    suspend fun placeAt(lat: Double, lng: Double): PlaceInfo?
 }
 
 /** 음성 입력 (F-09, F-18). 정차 중에만 부른다. 구현: speech/ (Gleo STT). */
@@ -301,4 +321,4 @@ interface SettingsApi {
 }
 
 // ===== 앱 B(서버) 제공, 앱 A(InboxSyncWorker) 소비 — shared 모듈 =====
-// POST /v1/devices · GET /v1/inbox · POST /v1/inbox/{id}/ack · POST /v1/qr-tokens   (기술명세 4.3)
+// POST /v1/devices · GET /v1/inbox · POST /v1/inbox/{id}/ack · POST /v1/qr-tokens · GET /v1/geo/reverse   (기술명세 4.3)

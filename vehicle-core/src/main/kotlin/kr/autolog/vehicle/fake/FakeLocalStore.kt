@@ -66,6 +66,15 @@ class FakeLocalStore(clock: Clock = Clock.systemUTC(), seed: Boolean = true) : L
         }
     }
 
+    /** 거리 수정(F-05). 없는 운행이면 false. 실구현처럼 수정 표시를 남긴다. */
+    fun editDistance(tripId: String, km: Double): Boolean {
+        if (rows.value.none { it.tripId == tripId }) return false
+        rows.value = rows.value.map {
+            if (it.tripId == tripId) it.copy(distanceKm = km, isDistanceEdited = true) else it
+        }
+        return true
+    }
+
     fun assignDriver(tripId: String, userId: String) {
         rows.value = rows.value.map { if (it.tripId == tripId) it.copy(driverUserId = userId) else it }
     }
@@ -80,6 +89,17 @@ class FakeLocalStore(clock: Clock = Clock.systemUTC(), seed: Boolean = true) : L
 
     companion object {
         private val SEOUL: ZoneId = ZoneId.of("Asia/Seoul")
+
+        /** 샘플 장소 이름 → 주소(`광역 기초 읍면동 도로명 번호`). 화면의 이름 + 주소 2줄을 보여 주려고 둔다. */
+        val SAMPLE_ADDRESSES: Map<String, String> =
+            mapOf(
+                "본사" to FakeTripSession.SAMPLE_ORIGIN_ADDRESS,
+                "판교 테크노밸리 거래처" to FakeTripSession.SAMPLE_DESTINATION_ADDRESS,
+                "판교 거래처" to FakeTripSession.SAMPLE_DESTINATION_ADDRESS,
+                "수원 지점" to "경기 수원시 영통구 매탄동 삼성로 129",
+                "자택" to "부산 기장군 장안읍 해맞이로 10-1",
+                "강남 고객사" to "서울 강남구 역삼동 테헤란로 152",
+            )
         private const val HOUR = 3_600_000L
         private const val DAY = 24 * HOUR
 
@@ -93,7 +113,18 @@ class FakeLocalStore(clock: Clock = Clock.systemUTC(), seed: Boolean = true) : L
                 to: String,
                 km: Double?,
                 purpose: PurposeDetail?,
-            ) = TripRow(id, now - ago, now - ago + minutes * 60_000, driver, from, to, km, purpose)
+            ) = TripRow(
+                id,
+                now - ago,
+                now - ago + minutes * 60_000,
+                driver,
+                from,
+                to,
+                km,
+                purpose,
+                originAddress = SAMPLE_ADDRESSES[from],
+                destinationAddress = SAMPLE_ADDRESSES[to],
+            )
             return listOf(
                 row("t-s1", 2 * HOUR, 35, "u-1", "본사", "판교 테크노밸리 거래처", 23.4, null),
                 row("t-s2", DAY, 50, "u-2", "판교 거래처", "수원 지점", 41.2, BRANCH_MOVE),

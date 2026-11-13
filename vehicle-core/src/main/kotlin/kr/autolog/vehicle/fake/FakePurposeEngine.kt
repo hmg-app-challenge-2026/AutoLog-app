@@ -4,6 +4,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 import kr.autolog.vehicle.core.DriverCandidate
 import kr.autolog.vehicle.core.DriverSource
+import kr.autolog.vehicle.core.PlaceInfo
 import kr.autolog.vehicle.core.PurposeDetail
 import kr.autolog.vehicle.core.PurposeEngine
 import kr.autolog.vehicle.core.PurposeRuleId
@@ -24,6 +25,8 @@ class FakePurposeEngine(
     var users: List<UserCard> = SAMPLE_USERS,
     var proposePlace: Boolean = true,
     var unassigned: List<UnassignedTrip> = SAMPLE_UNASSIGNED,
+    /** [placeAt]이 돌려줄 등록 장소. null = 어디에도 속하지 않음. */
+    var place: PlaceInfo? = null,
 ) : PurposeEngine {
     override suspend fun suggest(trip: TripFacts): Suggestion = suggestion
 
@@ -37,6 +40,8 @@ class FakePurposeEngine(
         if (label.isBlank()) SettingsResult.Invalid("이름을 입력해 주세요") else SettingsResult.Ok
 
     override suspend fun unassignedTrips(vehicleId: String, now: Long): List<UnassignedTrip> = unassigned
+
+    override suspend fun placeAt(lat: Double, lng: Double): PlaceInfo? = place
 
     companion object {
         val CONFIDENT = Suggestion(PurposeDetail.CLIENT_VISIT, 0.97, PurposeRuleId.SCHEDULE, "sch-1")
