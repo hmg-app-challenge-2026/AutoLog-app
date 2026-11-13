@@ -80,6 +80,19 @@ class FakeTripSession(
         _state.value = SessionState.Recording(s.trip, s.liveKm, clock.millis())
     }
 
+    override suspend fun discardTrip(tripId: String) {
+        val s = _state.value
+        if (s is SessionState.StopCandidate && s.trip.tripId == tripId) {
+            autoEndJob?.cancel()
+            finalizeNow()
+        }
+        val now = _state.value
+        if (now is SessionState.Recording && now.trip.tripId == tripId) return // 기록 중인 운행은 지우지 않는다
+        store?.discard(tripId)
+        if (now is SessionState.PendingReview && now.trip.tripId == tripId) _state.value = SessionState.Idle
+        if (_motion.value != VehicleMotion.PARKED) holdAutoStart = true
+    }
+
     override suspend fun confirmPurpose(
         tripId: String,
         detail: PurposeDetail,

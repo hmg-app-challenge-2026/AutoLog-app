@@ -56,6 +56,13 @@ interface TripSessionApi {
     suspend fun resume()
 
     /**
+     * 프론트: 운행 결과 카드 [삭제하기](프론트 스펙 D-39). 방금 끝나 목적을 기다리는 운행 또는 종료 대기 중인 운행 [tripId]를 지운다 —
+     * 종료 대기면 먼저 끝낸다(계기판 마지막 값은 남겨 놓친 운행으로 다시 묻지 않게). 지운 운행은 `DISCARDED`로 남아 목록·엑셀에서 빠진다.
+     * 사람이 끝낸 것이라 주차가 아니면 [finalize]처럼 다음 주차까지 자동 시작을 멈춘다. 기록 중인 운행·이미 지운 운행이면 아무 일도 없다.
+     */
+    suspend fun discardTrip(tripId: String)
+
+    /**
      * 프론트: 목적 확정 (F-08, F-09). 지금 끝난 운행이든 지난 운행이든 [tripId]로 확정한다.
      * [destinationLabel]은 목적지 없이 끝난 운행에서 사용자가 고른 도착지 이름(F-06). null이면 그대로 둔다.
      */

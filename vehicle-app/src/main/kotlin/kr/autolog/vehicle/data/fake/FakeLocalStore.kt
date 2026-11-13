@@ -55,6 +55,11 @@ class FakeLocalStore(clock: AppClock, seed: Boolean = true) : LocalStore {
     }
 
     /** 목적 확정. [destinationLabel]은 목적지 없이 끝난 운행에서 고른 도착지(실구현 `TripSessionManager.confirmPurpose`와 같은 규칙). */
+    /** 운행 결과 카드 [삭제하기] — 앱 A는 DISCARDED로 남기고 목록에서 뺀다. 가짜는 행을 지운다. */
+    fun discard(tripId: String) {
+        rows.value = rows.value.filterNot { it.tripId == tripId }
+    }
+
     fun confirm(tripId: String, detail: PurposeDetail, note: String?, destinationLabel: String? = null) {
         rows.value = rows.value.map {
             if (it.tripId == tripId) {

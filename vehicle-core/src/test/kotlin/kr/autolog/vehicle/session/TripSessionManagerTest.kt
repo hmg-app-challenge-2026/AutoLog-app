@@ -239,6 +239,53 @@ class TripSessionManagerTest {
     }
 
     @Test
+    fun `끝난 운행을 지우면 목록에서 빠지는 DISCARDED로 남고 대기로 — 목적 확정이 와도 되살리지 않는다`() = runTest {
+        val rig = Rig(this)
+        val id = startedTrip(rig)
+        rig.car.drive(23.4)
+        runCurrent()
+        rig.car.shift(Gear.PARK)
+        runCurrent()
+        rig.session.finalize()
+
+        rig.session.discardTrip(id)
+        rig.session.confirmPurpose(id, PurposeDetail.FIELD_WORK, null, InputMode.TAP)
+
+        assertTrue(rig.stateValue is SessionState.Idle)
+        assertEquals(TripStatus.DISCARDED, rig.dao.trip(id)!!.status)
+        assertNull(rig.dao.trip(id)!!.purposeDetail)
+    }
+
+    @Test
+    fun `종료 대기 중에 지우면 먼저 끝내고 지운다 — 계기판 마지막 값은 남아 놓친 운행으로 묻지 않는다`() = runTest {
+        val rig = Rig(this)
+        val id = startedTrip(rig)
+        rig.car.drive(5.0)
+        runCurrent()
+        rig.session.requestStop()
+        runCurrent()
+        assertTrue(rig.stateValue is SessionState.StopCandidate)
+
+        rig.session.discardTrip(id)
+
+        assertTrue(rig.stateValue is SessionState.Idle)
+        assertEquals(TripStatus.DISCARDED, rig.dao.trip(id)!!.status)
+        assertEquals(18_425.5, rig.dao.state!!.lastKnownOdometerKm!!, 0.0)
+        assertNull(rig.session.missedTrip.value)
+    }
+
+    @Test
+    fun `기록 중인 운행은 지우지 않는다`() = runTest {
+        val rig = Rig(this)
+        val id = startedTrip(rig)
+
+        rig.session.discardTrip(id)
+
+        assertTrue(rig.stateValue is SessionState.Recording)
+        assertEquals(TripStatus.RECORDING, rig.dao.trip(id)!!.status)
+    }
+
+    @Test
     fun `목적을 확정하면 확정 상태로 저장하고 Idle로 돌아간다`() = runTest {
         val rig = Rig(this)
         val id = startedTrip(rig)

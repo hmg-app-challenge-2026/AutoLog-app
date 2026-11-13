@@ -47,6 +47,11 @@ class FakeLocalStore(clock: Clock = Clock.systemUTC(), seed: Boolean = true) : L
         rows.value = rows.value.filterNot { it.tripId == row.tripId } + row
     }
 
+    /** 운행 결과 카드 [삭제하기] — 앱 A는 DISCARDED로 남기고 목록에서 뺀다. 가짜는 행을 지운다. */
+    fun discard(tripId: String) {
+        rows.value = rows.value.filterNot { it.tripId == tripId }
+    }
+
     fun confirm(tripId: String, detail: PurposeDetail, note: String?, destinationLabel: String? = null) {
         rows.value = rows.value.map {
             if (it.tripId == tripId) {

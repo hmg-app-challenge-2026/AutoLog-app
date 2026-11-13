@@ -153,6 +153,21 @@ class TripSessionManager(
         (_state.value as? SessionState.StopCandidate)?.let { resumeLocked(it) } ?: Unit
     }
 
+    override suspend fun discardTrip(tripId: String) = mutex.withLock {
+        // 종료 대기면 먼저 끝낸다 — 끝난 시각·계기판 값(놓친 운행 기준)을 남긴다. 짧은 운행 버리기에 걸리면 이미 DISCARDED
+        val s = _state.value
+        if (s is SessionState.StopCandidate && s.trip.tripId == tripId) finalizeLocked()
+        // 기록 중인 운행·이미 지운 운행은 그대로
+        val trip = dao.trip(tripId)
+            ?.takeIf { it.status != TripStatus.RECORDING && it.status != TripStatus.DISCARDED }
+            ?: return@withLock
+        save(trip.copy(status = TripStatus.DISCARDED))
+        val now = _state.value
+        if (now is SessionState.PendingReview && now.trip.tripId == tripId) _state.value = SessionState.Idle
+        log("discard $tripId: user")
+        holdAutoStartUntilParked()
+    }
+
     override suspend fun confirmPurpose(
         tripId: String,
         detail: PurposeDetail,
@@ -160,7 +175,8 @@ class TripSessionManager(
         inputMode: InputMode,
         destinationLabel: String?,
     ) = mutex.withLock {
-        val t = dao.trip(tripId) ?: return@withLock
+        // 지운 운행은 되살리지 않는다(목적 확정이 상태를 CONFIRMED로 바꾸므로 — D-39)
+        val t = dao.trip(tripId)?.takeIf { it.status != TripStatus.DISCARDED } ?: return@withLock
         save(
             t.copy(
                 purposeDetail = detail.name,
