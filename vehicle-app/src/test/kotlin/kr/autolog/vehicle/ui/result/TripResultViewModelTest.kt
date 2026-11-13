@@ -316,14 +316,15 @@ class TripResultViewModelTest {
     }
 
     @Test
-    fun `거리 수정 — 지금 거리로 팝업이 열리고, 고쳐 완료하면 화면에 수정됨, 저장하면 목적과 함께 저장된다`() = runTest {
+    fun `거리 수정 — 빈 입력으로 열리고 지금 거리는 안내로만, 바로 눌러 완료하면 수정됨, 저장하면 목적과 함께 저장된다`() = runTest {
         val (g, vm) = open()
         vm.uiState.first { !it.loading }
         vm.onAction(TripResultAction.Edit)
 
         vm.onAction(TripResultAction.EditDistance)
-        assertEquals("23.4", vm.uiState.first { it.distanceEditor != null }.distanceEditor!!.draft)
-        repeat(4) { vm.onAction(TripResultAction.DistanceDelete) }
+        val opened = vm.uiState.first { it.distanceEditor != null }.distanceEditor!!
+        assertEquals("", opened.draft)
+        assertEquals("23.4", opened.placeholder)
         "25.5".forEach { vm.onAction(TripResultAction.DistanceKey(it)) }
         vm.onAction(TripResultAction.ConfirmDistance)
 
@@ -347,10 +348,11 @@ class TripResultViewModelTest {
         vm.uiState.first { !it.loading }
         vm.onAction(TripResultAction.Edit)
         vm.onAction(TripResultAction.EditDistance)
-        repeat(4) { vm.onAction(TripResultAction.DistanceDelete) }
 
+        vm.onAction(TripResultAction.DistanceKey('0'))
         vm.onAction(TripResultAction.ConfirmDistance)
         assertEquals(DistanceEntryError.EMPTY_OR_ZERO, vm.uiState.first().distanceEditor!!.error)
+        vm.onAction(TripResultAction.DistanceDelete)
         "1501".forEach { vm.onAction(TripResultAction.DistanceKey(it)) }
         vm.onAction(TripResultAction.ConfirmDistance)
         assertEquals(DistanceEntryError.TOO_LONG, vm.uiState.first().distanceEditor!!.error)
@@ -360,6 +362,20 @@ class TripResultViewModelTest {
         assertEquals("23.4", state.km)
         assertFalse(state.distanceEdited)
         assertFalse(g.store.trip("t-s1")!!.isDistanceEdited)
+    }
+
+    @Test
+    fun `거리 수정 — 아무것도 안 누르고 완료하면 지금 거리 그대로 닫힌다`() = runTest {
+        val (_, vm) = open()
+        vm.uiState.first { !it.loading }
+        vm.onAction(TripResultAction.Edit)
+        vm.onAction(TripResultAction.EditDistance)
+
+        vm.onAction(TripResultAction.ConfirmDistance)
+
+        val state = vm.uiState.first { it.distanceEditor == null }
+        assertEquals("23.4", state.km)
+        assertFalse(state.distanceEdited)
     }
 
     @Test

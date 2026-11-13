@@ -56,7 +56,11 @@ data class TripResultUiState(
 }
 
 /** 거리 고치기 팝업: 숫자판으로 친 글자([draft], 소수 1자리까지)와 [완료]를 눌렀는데 받을 수 없었던 이유. */
-data class DistanceEditor(val draft: String = "", val error: DistanceEntryError? = null)
+/**
+ * 거리 팝업 상태. 빈 입력으로 열리고 지금 거리는 [placeholder](회색 안내)로만 보인다 —
+ * 지우지 않고 바로 새 값을 누르게 하기 위해서다. [draft]가 비어 있으면 [완료]는 거리를 바꾸지 않고 닫는다.
+ */
+data class DistanceEditor(val draft: String = "", val error: DistanceEntryError? = null, val placeholder: String = "")
 
 /** 거리 입력 오류 — 화면이 문구로 바꾼다(ViewModel·Reducer는 문구를 모른다). 범위: 0 초과 1,500 km 이하(TripLimits). */
 enum class DistanceEntryError { EMPTY_OR_ZERO, TOO_LONG }
