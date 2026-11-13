@@ -28,8 +28,8 @@ data class FuelEntryUiState(
 ) {
     operator fun get(field: FuelField): String = values[field].orEmpty()
 
-    /** 이 창에 보이는 칸(선언 순서). 직접 입력이면 공통 칸만. */
-    val fields: List<FuelField> get() = FuelField.entries.filter { receipt != null || !it.receiptOnly }
+    /** 이 창에 보이는 칸(선언 순서). 직접 입력이면 공통 칸만, 숨긴 칸(할인)은 빼고. */
+    val fields: List<FuelField> get() = FuelField.entries.filter { it.shown && (receipt != null || !it.receiptOnly) }
 
     /** 금액 검산(리터 × 단가 − 할인 = 금액). 영수증이 아니거나 OCR이 실패했으면 null(검사하지 않음). */
     val arithOk: Boolean? get() = fuelArithOk(this)

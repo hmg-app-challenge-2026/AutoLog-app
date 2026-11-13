@@ -35,6 +35,12 @@ enum class FuelField(
     @StringRes val unit: Int? = null,
     /** 영수증에서 왔을 때만 보이는 칸(직접 입력은 공통 칸만 — 금액·리터·단가). */
     val receiptOnly: Boolean = false,
+    /**
+     * 칸 목록에 보이는지. false면 화면에 칸이 없고, 값은 OCR에서 온 그대로 검산·저장에만 쓴다.
+     * 할인은 2026-11-13 사용자 결정으로 입력 칸에서 뺐다(주유 기록에 필요 없음). 영수증에 할인이 찍혀 있으면
+     * 금액 검산(리터 × 단가 − 할인)이 맞도록 값은 그대로 들고 간다.
+     */
+    val shown: Boolean = true,
 ) {
     MERCHANT(R.string.fuel_merchant, FuelInput.TEXT, "merchant", receiptOnly = true),
     DATETIME(R.string.fuel_datetime, FuelInput.TEXT, "datetime", receiptOnly = true),
@@ -42,6 +48,13 @@ enum class FuelField(
     AMOUNT(R.string.fuel_amount, FuelInput.INTEGER, "amountWon", unit = R.string.unit_won),
     LITERS(R.string.fuel_liters, FuelInput.DECIMAL, "liters", unit = R.string.unit_liter),
     UNIT_PRICE(R.string.fuel_unit_price, FuelInput.INTEGER, "unitPrice", unit = R.string.unit_won_per_liter),
-    DISCOUNT(R.string.fuel_discount, FuelInput.INTEGER, "discountWon", unit = R.string.unit_won, receiptOnly = true),
+    DISCOUNT(
+        R.string.fuel_discount,
+        FuelInput.INTEGER,
+        "discountWon",
+        unit = R.string.unit_won,
+        receiptOnly = true,
+        shown = false,
+    ),
     CARD_LAST4(R.string.fuel_card_last4, FuelInput.LAST4, "cardLast4", receiptOnly = true),
 }
