@@ -3,6 +3,8 @@ package kr.autolog.relay
 import kotlinx.serialization.builtins.ListSerializer
 import kr.autolog.relay.receipt.OcrResult
 import kr.autolog.relay.receipt.ReceiptOcr
+import kr.autolog.relay.support.TEST_OPS_TOKEN
+import kr.autolog.relay.support.adminSession
 import kr.autolog.shared.AutoLogJson
 import kr.autolog.shared.DeviceRegisterResponse
 import kr.autolog.shared.InboxItem
@@ -41,7 +43,7 @@ import javax.imageio.ImageIO
 /** 폰 업로드 → MinIO 저장 → (가짜) OCR → receipts 기록 → 차 inbox → 썸네일 서명 URL 다운로드. Docker 없으면 건너뜀. */
 @SpringBootTest(
     webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
-    properties = ["autolog.admin.token=test-admin"],
+    properties = ["autolog.ops.token=$TEST_OPS_TOKEN"],
 )
 @Testcontainers(disabledWithoutDocker = true)
 class ReceiptUploadIntegrationTest {
@@ -82,9 +84,11 @@ class ReceiptUploadIntegrationTest {
 
     @Autowired lateinit var http: TestRestTemplate
 
-    private val admin = HttpHeaders().apply {
-        contentType = MediaType.APPLICATION_JSON
-        set("X-Admin-Token", "test-admin")
+    private val admin by lazy {
+        HttpHeaders().apply {
+            contentType = MediaType.APPLICATION_JSON
+            set("X-Admin-Token", http.adminSession("영수증 테스트 회사", "receipt-admin@test.example"))
+        }
     }
 
     private fun bearer(token: String) = HttpEntity<Void>(HttpHeaders().apply { setBearerAuth(token) })

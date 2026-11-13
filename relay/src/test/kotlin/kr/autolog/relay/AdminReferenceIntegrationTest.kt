@@ -3,6 +3,8 @@ package kr.autolog.relay
 import kotlinx.serialization.builtins.ListSerializer
 import kr.autolog.relay.admin.GeoPoint
 import kr.autolog.relay.admin.Geocoder
+import kr.autolog.relay.support.TEST_OPS_TOKEN
+import kr.autolog.relay.support.adminSession
 import kr.autolog.shared.AutoLogJson
 import kr.autolog.shared.DeviceRegisterResponse
 import kr.autolog.shared.InboxItem
@@ -37,7 +39,7 @@ import java.nio.charset.Charset
 /** 운영 웹 기준 정보 API → 차 inbox 배포 (F-43, F-51~54). 실제 PostgreSQL. Docker 없으면 건너뜀. */
 @SpringBootTest(
     webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
-    properties = ["autolog.admin.token=test-admin"],
+    properties = ["autolog.ops.token=$TEST_OPS_TOKEN"],
 )
 @Testcontainers(disabledWithoutDocker = true)
 class AdminReferenceIntegrationTest {
@@ -58,9 +60,13 @@ class AdminReferenceIntegrationTest {
 
     @Autowired lateinit var http: TestRestTemplate
 
-    private val adminHeaders = HttpHeaders().apply {
-        contentType = MediaType.APPLICATION_JSON
-        set("X-Admin-Token", "test-admin")
+    private val adminToken by lazy { http.adminSession("기준정보 테스트 회사", "ref-admin@test.example") }
+
+    private val adminHeaders by lazy {
+        HttpHeaders().apply {
+            contentType = MediaType.APPLICATION_JSON
+            set("X-Admin-Token", adminToken)
+        }
     }
 
     private fun post(path: String, body: String): ResponseEntity<String> =
@@ -72,7 +78,7 @@ class AdminReferenceIntegrationTest {
             bytes,
             HttpHeaders().apply {
                 contentType = MediaType("text", "csv")
-                set("X-Admin-Token", "test-admin")
+                set("X-Admin-Token", adminToken)
             },
         ),
         String::class.java,

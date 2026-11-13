@@ -1,11 +1,17 @@
 // 중계 서버 관리자 API (F-50~54). nginx와 vite dev 서버가 /admin/api/* → relay /admin/* 로 넘긴다.
-// 인증은 JWT 도입 전까지 X-Admin-Token(서버 환경변수 ADMIN_TOKEN). 이 브라우저에만 저장한다.
+// 인증: 회사 관리자가 이메일·비밀번호로 로그인하면 받는 세션 토큰을 X-Admin-Token으로 보낸다(2026-11-13).
+// 토큰은 이 브라우저에만 저장하고, 서버가 403(만료·로그아웃)을 주면 지우고 로그인 화면으로 돌아간다.
 
 const BASE = '/admin/api'
-const TOKEN_KEY = 'autolog.adminToken'
+const TOKEN_KEY = 'autolog.adminSession'
+const LEGACY_KEY = 'autolog.adminToken' // 예전 공용 토큰 — 더는 쓰지 않으므로 지운다
+
+/** 세션이 끝났을 때(403) App이 로그인 화면으로 돌아가도록 알린다. */
+export const SESSION_EXPIRED = 'autolog:session-expired'
 
 export function getToken(): string {
   try {
+    localStorage.removeItem(LEGACY_KEY)
     return localStorage.getItem(TOKEN_KEY) ?? ''
   } catch {
     return ''
@@ -17,7 +23,7 @@ export function setToken(token: string) {
     if (token) localStorage.setItem(TOKEN_KEY, token)
     else localStorage.removeItem(TOKEN_KEY)
   } catch {
-    // 저장소를 못 쓰는 브라우저 — 새로고침하면 다시 입력
+    // 저장소를 못 쓰는 브라우저 — 새로고침하면 다시 로그인
   }
 }
 
@@ -50,7 +56,11 @@ async function request<T>(method: string, path: string, body?: unknown, contentT
   const json = text ? safeParse(text) : undefined
   if (!res.ok) {
     const j = (json ?? {}) as { code?: string; message?: string; errors?: { line: number; message: string }[] }
-    const fallback = res.status === 403 ? '관리자 토큰이 틀렸어요' : `요청이 실패했어요 (HTTP ${res.status})`
+    const fallback = res.status === 403 ? '로그인이 끝났어요. 다시 로그인해 주세요' : `요청이 실패했어요 (HTTP ${res.status})`
+    if (res.status === 403 && !path.startsWith('/auth/login') && !path.startsWith('/auth/signup')) {
+      setToken('')
+      window.dispatchEvent(new Event(SESSION_EXPIRED))
+    }
     throw new ApiError(res.status, j.code ?? 'HTTP', j.message ?? fallback, j.errors ?? [])
   }
   return json as T
@@ -92,7 +102,26 @@ export interface Vehicle {
   vehicleId: string
   plateNo: string
   model: string | null
+  vehicleCode: string
   registered: boolean
+  lastInboxAt: string | null
+}
+
+export interface ConnectCode {
+  code: string
+  expiresAt: string
+}
+
+export interface LoginResult {
+  token: string
+  expiresAt: string
+  email: string
+  orgName: string
+}
+
+export interface Me {
+  email: string
+  orgName: string
 }
 
 export interface User {
@@ -123,12 +152,24 @@ export interface ScheduleInput {
 // ---- 호출 ----
 
 export const api = {
+  login: (email: string, password: string) => request<LoginResult>('POST', '/auth/login', { email, password }),
+  signup: (orgName: string, email: string, password: string) =>
+    request<LoginResult>('POST', '/auth/signup', { orgName, email, password }),
+  me: () => request<Me>('GET', '/auth/me'),
+  logout: () => request<void>('POST', '/auth/logout'),
+  changePassword: (currentPassword: string, newPassword: string) =>
+    request<void>('POST', '/auth/password', { currentPassword, newPassword }),
+
   places: () => request<Place[]>('GET', '/places'),
   createPlace: (p: PlaceInput) => request<Place>('POST', '/places', p),
   deletePlace: (id: string) => request<void>('DELETE', `/places/${id}`),
   importPlaces: (csv: File) => request<{ imported: number }>('POST', '/places/import', csv, 'text/csv'),
 
   vehicles: () => request<Vehicle[]>('GET', '/vehicles'),
+  createVehicle: (plateNo: string, model?: string) =>
+    request<{ vehicleId: string; vehicleCode: string }>('POST', '/vehicles', { plateNo, model }),
+  connectCode: (vehicleId: string) => request<ConnectCode>('POST', `/vehicles/${vehicleId}/connect-code`),
+  revokeDevice: (vehicleId: string) => request<void>('DELETE', `/vehicles/${vehicleId}/device`),
   users: () => request<User[]>('GET', '/users'),
 
   schedules: (from: string, to: string) =>

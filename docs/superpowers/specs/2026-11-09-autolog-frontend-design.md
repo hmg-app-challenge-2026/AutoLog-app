@@ -126,7 +126,7 @@ AutoLog는 **운전하는 동안 쓰는 앱이 아니다.** 기록은 차가 백
 | Backend `web/` | `web/admin` 빈 골격(React 18.3.1 · TS 5.6 · Vite 6), `web/camera` 빈 파일. 이 리포의 `web/`이 대체한다 |
 | 앱 B 계약 (구현·Fake 있음) | `ContextApi` · `PurposeEngine` · `VoiceApi` · `ReceiptApi` · `MailApi` · `SettingsApi` — `vehicle-core/src/main/kotlin/kr/autolog/vehicle/core/Contracts.kt`(당시 `backend/` submodule 안) |
 | 앱 A 계약 | `TripSessionApi` · `LocalStore` · `ReportApi` · `DeviceApi` — 2026-11-09엔 `TODO(A)`만 있어 interim 초안으로 개발, **2026-11-10 `c3883db`로 실구현 머지·연결 완료**(6.6) |
-| relay API | 차량 `/v1/devices`·`/v1/inbox`·`/v1/inbox/{id}/ack`·`/v1/qr-tokens`, 카메라 `POST /r/{code}/receipt?t=`(multipart `image`), 관리자 `/admin/vehicles|users|places|schedules|recipients`(CRUD + CSV import), 인증 `X-Admin-Token` 헤더 |
+| relay API | 차량 `/v1/devices`·`/v1/inbox`·`/v1/inbox/{id}/ack`·`/v1/qr-tokens`, 카메라 `POST /r/{code}/receipt?t=`(multipart `image`), 관리자 `/admin/vehicles|users|places|schedules|recipients`(CRUD + CSV import), 인증: 회사 관리자 로그인 `/admin/auth/login` → 세션 토큰을 `X-Admin-Token` 헤더로(2026-11-13) |
 | 일정 | 11.14 3인 통합 → 11.15 1차 제출 → 12.03–04 시연 |
 
 ---
@@ -855,7 +855,7 @@ D-12에 따라 11.15 이후. API가 오기 전에는 `data/fake/FakeUploadApi`(�
 |---|---|
 | 스택 | React 18.3.1 · TypeScript 5.6 · Vite 6 · Tailwind 3.4 · TanStack Query 5 · react-router-dom 6 · Vitest + Testing Library · ESLint |
 | 배포 경로 | Vite `base: '/admin/'`. API는 같은 오리진 `/admin/api/*`(nginx가 relay `/admin/*`로 프록시) |
-| 인증 | 첫 화면에서 관리자 토큰 입력 → `sessionStorage` 저장 → 모든 요청에 `X-Admin-Token`. 403이면 토큰 화면으로 |
+| 인증 | 회사가 [회사 가입](회사 이름·이메일·비밀번호, 가입한 사람이 관리자, 가입하면 바로 사용)하거나 이메일·비밀번호로 로그인(2026-11-13) → 세션 토큰을 `localStorage`에 저장 → 모든 요청에 `X-Admin-Token`. 403이면 로그인 화면으로. [내 계정]에서 비밀번호 변경 |
 | 디자인 | `design-language.md`의 같은 토큰·서체(Asta Sans, `@fontsource-variable/asta-sans` self-host). 사무실 환경이므로 **라이트 기본** + 다크 전환 |
 | 타입 | relay에 OpenAPI가 없다. `src/api/types.ts`에 relay DTO를 손으로 옮기고, 각 타입 위에 원본 파일 경로를 주석으로 단다(예: `// relay/admin/AdminVehicleController.kt CreateVehicleRequest`) |
 

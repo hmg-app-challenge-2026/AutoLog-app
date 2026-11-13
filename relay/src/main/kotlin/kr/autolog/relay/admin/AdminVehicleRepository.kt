@@ -17,20 +17,6 @@ data class AdminVehicle(
 
 @Repository
 class AdminVehicleRepository(private val jdbc: JdbcClient) {
-    /** 조직이 없으면 만든다(JWT·조직 관리 도입 전 단일 조직). */
-    fun ensureOrg(name: String): UUID = jdbc
-        .sql("SELECT org_id FROM organizations WHERE name = :name LIMIT 1")
-        .param("name", name)
-        .query(UUID::class.java)
-        .optional()
-        .orElseGet {
-            UUID.randomUUID().also { id ->
-                jdbc.sql(
-                    "INSERT INTO organizations (org_id, name) VALUES (:id, :name)",
-                ).param("id", id).param("name", name).update()
-            }
-        }
-
     fun insertVehicle(orgId: UUID, plateNo: String, model: String?, vehicleCode: String): UUID {
         val id = UUID.randomUUID()
         jdbc

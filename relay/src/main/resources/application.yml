@@ -16,8 +16,10 @@ spring:
 autolog:
   public-base-url: ${PUBLIC_BASE_URL:http://localhost}   # QR에 들어갈 주소 (폰이 접속)
   admin:
-    token: ${ADMIN_TOKEN:}             # 비어 있으면 /admin API 비활성. JWT 도입 전 임시 인증
-    org-name: ${ADMIN_ORG_NAME:데모 조직}
+    session-hours: 12                  # 회사 관리자 로그인 유지 시간(/admin/auth/login)
+    signups-per-hour: 30               # 회사 가입(/admin/auth/signup) 서버 전체 시간당 상한 — 자동 대량 가입 방지
+  ops:
+    token: ${OPS_TOKEN:${ADMIN_TOKEN:}}   # 운영자 토큰 — 회사·관리자 계정 만들기(/ops). 비어 있으면 /ops 비활성. 예전 ADMIN_TOKEN도 받는다
   connect-code-ttl-hours: 24
   qr-token-ttl-minutes: 10
   inbox-retention-days: 30
