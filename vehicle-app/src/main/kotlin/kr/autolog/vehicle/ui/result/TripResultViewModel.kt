@@ -57,6 +57,7 @@ class TripResultViewModel(
     private var countdown: Job? = null
     private var hold: Job? = null
     private var finishing = false
+    private var deleting = false
     private var left = false
     private var parkedNow = true
 
@@ -103,6 +104,18 @@ class TripResultViewModel(
             TripResultAction.Continue -> keepRecording()
             is TripResultAction.Select ->
                 interaction.update { if (it.editing) it.copy(selected = action.category) else it }
+            // 삭제(D-39)는 운행 직후 카드의 수정 모드에서만 — 지운 뒤 저장 완료 화면 없이 들어온 화면으로
+            TripResultAction.Delete -> interaction.update {
+                if (it.editing &&
+                    !review
+                ) {
+                    it.copy(confirmingDelete = true)
+                } else {
+                    it
+                }
+            }
+            TripResultAction.CancelDelete -> interaction.update { it.copy(confirmingDelete = false) }
+            TripResultAction.ConfirmDelete -> delete()
             TripResultAction.Edit -> {
                 countdown?.cancel()
                 interaction.update { it.copy(editing = true, autoCloseAt = null) }
@@ -123,16 +136,30 @@ class TripResultViewModel(
     }
 
     private fun onEnded(result: TripResult) {
+        if (deleting) return // 지우려고 끝낸 것 — 목적을 저장하면 운행이 되살아난다
         viewModelScope.launch {
             results.classify(tripId, selectedNow())
             if (finishing || !interaction.value.editing) showSaved()
         }
     }
 
+    /** 운행을 지우고(종료 대기면 앱 A가 먼저 끝낸다) 들어온 화면으로. 한 번만. */
+    private fun delete() {
+        if (deleting || finishing) return
+        deleting = true
+        countdown?.cancel()
+        interaction.update { it.copy(confirmingDelete = false) }
+        viewModelScope.launch {
+            session.discardTrip(tripId)
+            leave()
+        }
+    }
+
     /** 정차·주행이 됐다 — 고르던 목적은 지금 선택 그대로 두고, 끝난 운행이면 5초 자동 저장을 다시 건다(종료 대기면 앱 A 종료 시각이 마감). */
     private fun stopEditing() {
-        if (!interaction.value.editing || finishing) return
-        interaction.update { it.copy(editing = false) }
+        if (!interaction.value.editing || finishing || deleting) return
+        // 삭제 팝업도 닫는다 — 정차·주행 중엔 누를 수 있는 것이 없다
+        interaction.update { it.copy(editing = false, confirmingDelete = false) }
         if (current?.endsAt == null) startCountdown()
     }
 
@@ -181,7 +208,7 @@ class TripResultViewModel(
 
     /** 지금 선택으로 저장하고 저장 완료 화면으로(→ 들어온 화면). 종료 대기 중이면 먼저 바로 끝낸다(저장은 onEnded가). */
     private fun finish() {
-        if (finishing) return
+        if (finishing || deleting) return
         finishing = true
         countdown?.cancel()
         interaction.update { it.copy(saving = true, autoCloseAt = null) }

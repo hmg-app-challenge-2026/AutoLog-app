@@ -63,6 +63,9 @@ interface SessionRepository {
 
     suspend fun keepRecording()
 
+    /** 운행 결과 카드 [삭제하기](D-39) — 방금 끝났거나 종료 대기 중인 운행을 지운다(목록·엑셀에서 빠진다). */
+    suspend fun discardTrip(tripId: String)
+
     suspend fun assignDriver(tripId: String, userId: String)
 
     suspend fun acceptMissedTrip()
@@ -90,6 +93,8 @@ class DefaultSessionRepository(private val api: TripSessionApi) : SessionReposit
     override suspend fun requestStop() = api.requestStop()
 
     override suspend fun keepRecording() = api.resume()
+
+    override suspend fun discardTrip(tripId: String) = api.discardTrip(tripId)
 
     override suspend fun assignDriver(tripId: String, userId: String) =
         api.assignDriver(tripId, userId, DriverSource.DRIVER_SELECTED)

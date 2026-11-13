@@ -26,6 +26,7 @@
 |---|---|---|---|
 | `SessionRepository` | `TripSessionApi`([기록 종료] = 주차 중 `requestStop` 5초 대기 · 정차·주행 중 `finalize`(D-34), 운행 결과 [저장하기] = `finalize` — 3.1) | `TripSessionManager` | 연결 |
 | (화면 보임) | `AppPresenceApi.setAppVisible`(2026-11-12 추가, D-37) — `AppGraph.setAppVisible`이 알약과 함께 알린다 | `NotificationPresence` → `TripRecordingService` | 보이는 동안 운행 알림 헤즈업 없음 |
+| (운행 삭제) | `TripSessionApi.discardTrip(tripId)`(2026-11-13 추가, D-39) — `SessionRepository.discardTrip`, 운행 결과 카드 [삭제하기] | `TripSessionManager`(`DISCARDED`, 종료 대기면 먼저 끝냄, 지운 운행엔 `confirmPurpose` 무시) | 연결 |
 | `VehicleUsageRepository`(사용 3단계) | `TripSessionApi.motion` + AAOS `CarUxRestrictions` | `DrivingJudge` + 프론트 `AndroidCarUxSource` | 연결 |
 | `ProfileRepository` | `PurposeEngine.orderedUsers` · `SettingsApi.users/addUser` · `TripSessionApi.currentDriver` | `DefaultPurposeEngine` · `SettingsService` | 연결(배차 순서는 G-02) |
 | `ContextRepository` | `ContextApi.destination` | `GatewayContext`(NaviGateway) | 연결 |

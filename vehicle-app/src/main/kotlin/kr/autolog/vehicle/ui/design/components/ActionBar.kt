@@ -12,13 +12,17 @@ import kr.autolog.vehicle.ui.design.Size
 import kr.autolog.vehicle.ui.design.Space
 import kr.autolog.vehicle.ui.design.twoColumns
 
-/** [ActionBar]의 버튼 하나. [primary] = 주 동작(파란 채움 — 자동 진행 화면이면 시간이 다 될 때 저절로 눌릴 버튼). */
+/**
+ * [ActionBar]의 버튼 하나. [primary] = 주 동작(파란 채움 — 자동 진행 화면이면 시간이 다 될 때 저절로 눌릴 버튼).
+ * [danger] = 되돌리기 어려운 동작(빨간 채움 — 운행 삭제, D-39). 누르면 바로 실행하지 말고 확인 팝업을 띄운다.
+ */
 data class BarAction(
     val label: String,
     val onClick: () -> Unit,
     val primary: Boolean = false,
     val enabled: Boolean = true,
     val loading: Boolean = false,
+    val danger: Boolean = false,
 )
 
 /**
@@ -51,7 +55,9 @@ fun ActionBar(actions: List<BarAction>, modifier: Modifier = Modifier) {
 
 @Composable
 private fun BarButton(action: BarAction, modifier: Modifier) {
-    if (action.primary) {
+    if (action.danger) {
+        DangerButton(action.label, onClick = action.onClick, modifier = modifier, enabled = action.enabled)
+    } else if (action.primary) {
         PrimaryButton(
             action.label,
             onClick = action.onClick,

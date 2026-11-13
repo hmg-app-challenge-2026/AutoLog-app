@@ -36,6 +36,7 @@ internal fun reduceTripResult(
         autoCloseTotalMs = interaction.autoCloseTotalMs,
         saving = interaction.saving,
         saved = interaction.saved,
+        confirmingDelete = interaction.confirmingDelete,
         canContinue = result.endsAt != null && !review,
         review = review,
         startedAt = if (review) tripWhenOf(result.startTime, now) else null,

@@ -15,6 +15,7 @@
     <string name="action_close">닫기</string>
     <string name="action_back">뒤로</string>
     <string name="action_confirm">확인</string>
+    <string name="action_cancel">취소</string>
     <string name="home_end">기록 종료</string>
     <string name="home_start_manual">기록 시작</string>
     <string name="status_ready">대기 중</string>
@@ -94,6 +95,9 @@
     <string name="result_driving_note">주차하면 운행 기록을 수정할 수 있어요</string>
     <string name="result_continue">기록 이어가기</string>
     <string name="result_edit">수정하기</string>
+    <!-- 운행 직후 카드 수정 모드의 빨간 버튼·확인 팝업(D-39) -->
+    <string name="result_delete">삭제하기</string>
+    <string name="result_delete_question">이 운행을 삭제할까요?</string>
     <string name="result_save">저장하기</string>
     <string name="result_saved">운행 기록을 저장했어요</string>
     <string name="result_home">메인 화면으로</string>

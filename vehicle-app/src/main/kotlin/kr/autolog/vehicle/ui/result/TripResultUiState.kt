@@ -34,6 +34,8 @@ data class TripResultUiState(
     val saving: Boolean = false,
     /** 저장을 마쳤다 — 결과 카드 대신 저장 완료 화면(체크 + "운행 기록을 저장했어요" + [확인]). */
     val saved: Boolean = false,
+    /** [삭제하기]를 눌러 "이 운행을 삭제할까요?" 팝업이 떠 있다(D-39). */
+    val confirmingDelete: Boolean = false,
     /** 종료 조건은 됐지만 아직 끝나기 전 — [기록 이어가기]로 되돌릴 수 있다(D-28). */
     val canContinue: Boolean = false,
     /** 운행 기록 조회에서 연 사후 확인(D-29) — 카운트다운 없음, 제목은 운행 시각, 오른쪽 버튼은 [닫기]. */
@@ -56,6 +58,7 @@ data class TripResultInteraction(
     val autoCloseTotalMs: Long = AUTO_CLOSE_MS,
     val saving: Boolean = false,
     val saved: Boolean = false,
+    val confirmingDelete: Boolean = false,
 )
 
 sealed interface TripResultAction {
@@ -67,6 +70,15 @@ sealed interface TripResultAction {
 
     /** 카운트다운을 멈추고 목적을 바꿀 수 있게 한다. */
     data object Edit : TripResultAction
+
+    /** 수정 모드의 빨간 [삭제하기] — "이 운행을 삭제할까요?" 팝업을 연다(D-39). */
+    data object Delete : TripResultAction
+
+    /** 삭제 팝업 [확인] — 운행을 지우고 들어온 화면으로. */
+    data object ConfirmDelete : TripResultAction
+
+    /** 삭제 팝업 [취소] — 수정 모드 그대로. */
+    data object CancelDelete : TripResultAction
 
     /**
      * [저장하기] — 지금 선택으로 저장하고 들어온 화면으로(보기·수정 어느 쪽에서든, 종료 대기면 바로 끝낸 뒤).

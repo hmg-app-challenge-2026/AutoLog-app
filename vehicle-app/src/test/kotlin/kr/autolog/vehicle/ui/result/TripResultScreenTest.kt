@@ -115,7 +115,27 @@ class TripResultScreenTest {
     }
 
     @Test
-    fun `수정 모드 — 수정하기가 빠져 버튼 둘, 라디오로 고르고 저장하기`() {
+    fun `수정 모드엔 빨간 삭제하기, 누르면 확인 팝업 — 확인·취소`() {
+        val actions = mutableListOf<TripResultAction>()
+        show(editing, actions)
+        compose.onNodeWithText("삭제하기").performClick()
+        assertEquals(listOf<TripResultAction>(TripResultAction.Delete), actions)
+    }
+
+    @Test
+    fun `삭제 확인 팝업 — 이 운행을 삭제할까요, 확인이면 삭제·취소면 닫기`() {
+        val actions = mutableListOf<TripResultAction>()
+        show(editing.copy(confirmingDelete = true), actions)
+
+        compose.onNodeWithText("이 운행을 삭제할까요?").assertIsDisplayed()
+        compose.onNodeWithText("취소").performClick()
+        compose.onNodeWithText("확인").performClick()
+
+        assertEquals(listOf(TripResultAction.CancelDelete, TripResultAction.ConfirmDelete), actions)
+    }
+
+    @Test
+    fun `수정 모드 — 수정하기가 빠지고 빨간 삭제하기가 생긴다, 라디오로 고르고 저장하기`() {
         val actions = mutableListOf<TripResultAction>()
         show(editing, actions)
 
@@ -147,6 +167,12 @@ class TripResultScreenshotTest {
 
     @Test
     fun ended() = captureAll("trip_result_ended") { TripResultScreen(ended, onAction = {}) }
+
+    /** 수정 모드 [삭제하기] → 확인 팝업(D-39): "이 운행을 삭제할까요?" + [확인](빨강) · [취소]. */
+    @Test
+    fun deleteConfirm() = captureAll("trip_result_delete_confirm") {
+        TripResultScreen(editing.copy(confirmingDelete = true), onAction = {})
+    }
 
     /** 정차·주행 중 [기록 종료]·자동 종료로 끝난 운행(D-35): 아래는 남은 시간 + 안내 두 줄 — 막대·분류 문구·버튼 없음. */
     @Test

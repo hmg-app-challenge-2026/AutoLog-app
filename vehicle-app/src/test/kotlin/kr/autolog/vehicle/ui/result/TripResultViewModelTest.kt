@@ -22,6 +22,7 @@ import kr.autolog.vehicle.nav.Route
 import kr.autolog.vehicle.nav.TripResultMode
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -165,6 +166,42 @@ class TripResultViewModelTest {
 
         assertEquals(listOf(Route.Home), g.navigator.backStack.value)
         assertEquals(PurposeCategory.BUSINESS, purposeOf(g)!!.category)
+    }
+
+    @Test
+    fun `수정 모드 삭제하기 — 팝업을 열고, 취소면 그대로, 확인이면 운행을 지우고 메인 화면으로`() = runTest {
+        val (g, vm) = open()
+        vm.uiState.first { !it.loading }
+        vm.onAction(TripResultAction.Delete)
+        assertFalse(vm.uiState.value.confirmingDelete) // 보기 모드에선 삭제 버튼이 없다
+
+        vm.onAction(TripResultAction.Edit)
+        vm.onAction(TripResultAction.Delete)
+        assertTrue(vm.uiState.first { it.confirmingDelete }.editing)
+        vm.onAction(TripResultAction.CancelDelete)
+        assertFalse(vm.uiState.first { !it.confirmingDelete }.confirmingDelete)
+        vm.onAction(TripResultAction.Delete)
+        vm.onAction(TripResultAction.ConfirmDelete)
+        runCurrent()
+
+        assertEquals(Route.Home, g.navigator.current)
+        assertNull(g.store.trip("t-s1")) // 목록에서 빠졌다(앱 A는 DISCARDED)
+        assertFalse(vm.uiState.value.saved) // 저장 완료 화면 없이
+    }
+
+    @Test
+    fun `종료 대기 중 삭제 — 앱 A가 끝낸 뒤 지우고, 목적은 저장하지 않는다`() = runTest {
+        val (g, vm, tripId) = ending()
+        vm.uiState.first { !it.loading }
+        vm.onAction(TripResultAction.Edit)
+        vm.onAction(TripResultAction.Delete)
+
+        vm.onAction(TripResultAction.ConfirmDelete)
+        runCurrent()
+
+        assertTrue(g.trip.state.value is SessionState.Idle)
+        assertNull(g.store.trip(tripId))
+        assertEquals(Route.Home, g.navigator.current)
     }
 
     @Test

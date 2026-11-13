@@ -46,6 +46,7 @@ import kr.autolog.vehicle.ui.design.components.BarAction
 import kr.autolog.vehicle.ui.design.components.ButtonNote
 import kr.autolog.vehicle.ui.design.components.ChoiceRow
 import kr.autolog.vehicle.ui.design.components.EdgeCountdownBar
+import kr.autolog.vehicle.ui.design.components.ModalHost
 import kr.autolog.vehicle.ui.design.components.PrimaryButton
 import kr.autolog.vehicle.ui.design.components.RouteFlow
 import kr.autolog.vehicle.ui.design.components.ScrollColumn
@@ -101,6 +102,12 @@ fun TripResultScreen(state: TripResultUiState, onAction: (TripResultAction) -> U
                 // 맨 위 가장자리에 붙는 남은 시간 막대 — 오른쪽 끝이 왼쪽으로 줄어든다(수정 중엔 없다). 정차·주행 중엔 없다(D-35)
                 shown.autoCloseRemainingMs?.takeUnless { LocalDrivingLocked.current }?.let {
                     EdgeCountdownBar(it, shown.autoCloseTotalMs, Modifier.align(Alignment.TopStart))
+                }
+                ModalHost(visible = shown.confirmingDelete) {
+                    DeleteTripDialog(
+                        onConfirm = { onAction(TripResultAction.ConfirmDelete) },
+                        onCancel = { onAction(TripResultAction.CancelDelete) },
+                    )
                 }
             }
         }
@@ -332,8 +339,13 @@ private fun ClassificationText(state: TripResultUiState) {
     }
 }
 
-/** 행동 버튼 하나 — 두 칸 배치·세로 창이 같은 목록([resultButtons])을 배치만 달리 그린다. */
-private data class ResultButton(@StringRes val label: Int, val action: TripResultAction, val primary: Boolean)
+/** 행동 버튼 하나 — 두 칸 배치·세로 창이 같은 목록([resultButtons])을 배치만 달리 그린다. [danger] = 빨간 [삭제하기](D-39). */
+private data class ResultButton(
+    @StringRes val label: Int,
+    val action: TripResultAction,
+    val primary: Boolean,
+    val danger: Boolean = false,
+)
 
 /**
  * 지금 보여 줄 행동 버튼(이 순서). 운행 직후: [기록 이어가기](종료 대기 중에만) · [수정하기](보기 모드에서만) · [저장하기](주 —
@@ -347,7 +359,13 @@ private fun resultButtons(state: TripResultUiState): List<ResultButton> = buildL
         add(if (state.editing) save else edit)
         add(ResultButton(R.string.result_close, TripResultAction.Close, primary = !state.editing))
     } else {
+        // 수정 모드: [기록 이어가기] · 빨간 [삭제하기] · [저장하기] 순 — 누르면 확인 팝업(D-39, 2026-11-13 사용자 결정)
         if (state.canContinue) add(ResultButton(R.string.result_continue, TripResultAction.Continue, primary = false))
+        if (state.editing) {
+            add(
+                ResultButton(R.string.result_delete, TripResultAction.Delete, primary = false, danger = true),
+            )
+        }
         if (!state.editing) add(edit)
         add(save)
     }
@@ -362,6 +380,7 @@ private fun resultActions(state: TripResultUiState, onAction: (TripResultAction)
             onClick = { onAction(button.action) },
             primary = button.primary,
             loading = button.primary && state.saving,
+            danger = button.danger,
         )
     }
 

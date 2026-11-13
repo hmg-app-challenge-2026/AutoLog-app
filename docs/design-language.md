@@ -463,7 +463,7 @@ M3 컴포넌트를 쓸 때 색이 어긋나지 않도록 `AutoLogTheme`이 `Colo
 | `PrimaryButton` | 높이 `buttonLg`(Home은 `buttonXl`), `radius.lg`, `accentFill` 바탕, `label` `onAccent`. 화면당 1개. 상태: 기본 / 눌림(0.97배) / 비활성(바탕 `surface3`, 글자 `textTertiary`) / 로딩(글자를 투명하게 남겨 폭 유지 + 진행 표시, 탭 무시). 로딩 회전은 무한 애니메이션이라 스크린샷 테스트에 넣지 않는다 |
 | `SecondaryButton` | 높이 `buttonMd`, `surface3` 바탕(팝업 `surface2` 위에서도 면이 보이게), `textPrimary` 글자 |
 | `TertiaryButton` | 바탕 없음, `accent` 글자, 최소 터치 76 dp 유지("나중에 선택" 등) |
-| `DangerButton` | `dangerFill` 바탕. 확인 다이얼로그 안에서만 |
+| `DangerButton` | `dangerFill` 바탕. 확인 다이얼로그 안, 그리고 되돌리기 어려운 동작을 여는 행동 줄 버튼(운행 결과 수정 모드 [삭제하기] — 누르면 확인 팝업, 스펙 D-39) |
 | `ProfileTile` | 정사각, `radius.xl`, 그라데이션 바탕 + 이니셜(흰색, 아바타 크기의 40%) + 아래 이름(`title`)·부서(`caption`). 배차면 3 dp `accent` 링 + 아바타 아래 가장자리에 걸친 "배차" 배지(`accentFill`, `caption`), 최근이면 "최근" 배지(`surface3`). 배지는 이니셜을 가리지 않는다. 크기: WIDE·NARROW 200 / TALL 160 dp. 누르면 `press` |
 | `HeroMetric` | 숫자(`hero`/`heroSmall`, tnum) + 단위(`headline`, `textTertiary`) + 아래 라벨(`body`, `textSecondary`). 값이 없으면 숫자 대신 상태 문장 |
 | `StatusLine` | 화면 맨 위 상태 한 줄. **배경 없는 점(12 dp) + 글자**: `● 기록 중 · 35분 경과`. 점 색이 상태(기록 중 `success`, 대기 `textTertiary`), 글자 `label` 본문색, 보조(`detail`)는 `body` 회색. 알약 배경이 없어 주인공 숫자와 경쟁하지 않는다. 누를 수 없다(Home — 주차·정차·주행 공통). 정차 중 종료 대기면 보조가 "2분 41초 후 기록 종료" |
@@ -488,6 +488,7 @@ M3 컴포넌트를 쓸 때 색이 어긋나지 않도록 `AutoLogTheme`이 `Colo
 | `ButtonNote` | **버튼 바로 위 설명글**(단계 안내·실패 이유·"먼저 차량을 연결해 주세요") — 칸 폭 전체에 **가운데 정렬**, 기본 `body`·`textSecondary`(실패는 `danger`). 화면마다 `Text`를 왼쪽 정렬로 두지 않는다(2026-11-10 사용자 지시, 전 화면 통일). 팝업 안은 같은 규칙의 `ModalText` |
 | `ConfidenceRow` | 고칠 수 있는 칸 한 줄(76 dp, 금액처럼 주인공이면 96 dp·값 `headline`): 왼쪽 이름(`body`, `textSecondary`) · 오른쪽 값(`title`). **정상은 조용히** — 믿을 만한 값엔 표시 없음(2026-11-12, 예전 칸마다 "확인됨"은 여섯 번 반복돼 정작 볼 칸을 묻었다). 노랑·빨강만 아이콘 + "확인 필요"/"다시 확인" 글자 + `warning`/`danger` 테두리. 빈 칸은 흐린 `body` "눌러서 입력" |
 | `ActionBar` | 화면 맨 아래 행동 버튼 줄(운행 결과·주유 입력 공용). 두 칸 배치는 같은 폭 버튼(하나당 최대 480 dp)을 한 줄에 가운데로, 세로 창은 셋이면 앞 둘 + 주 버튼 전체 폭. 주 버튼만 `PrimaryButton` |
+| `DeleteTripDialog` | 운행 삭제 확인(스펙 D-39): `ModalCard` 안 "이 운행을 삭제할까요?"(`title`, `textPrimary`) + [확인](`DangerButton`) · [취소](`SecondaryButton`) 같은 폭, 이 순서(2026-11-13 사용자 결정). X 없음 |
 | `ChoiceRow` | 여러 개 중 하나를 고르는 **선택형 행**(운행 결과의 운행 목적). 같은 폭 행을 8 dp 간격으로 쌓아 한 묶음으로 읽히게: `surface1` 면 · `radius.md` · 76 dp, 왼쪽 원 28 dp + 글자 `body`, 행 전체 터치. 선택 = `accent` 테두리 3 dp + 원 가운데 점, 고르지 않은 행 = `outline` 1 dp 테두리(바탕에 묻히지 않게). `onClick = null`이면 보기 전용(누를 수 없을 뿐 글자는 같은 색) |
 | `CheckRow` | 여러 개를 함께 고르는 체크 행(운행기록부 받는 사람). `ChoiceRow`와 같은 틀(면·테두리·76 dp) — 표시만 네모: 고름 = `accentFill` 네모 + 흰 ✓, 안 고름 = `textTertiary` 테두리. `detail` = 이름 아래 보조 줄(`caption`, `textSecondary`) |
 | `NavRow` | 다른 화면·상세로 들어가는 목록 줄(설정 섹션 목록): 왼쪽 아이콘(36 dp, `accent`) · 이름(`label`) + 지금 상태 한 줄(`caption`, `textSecondary`) · 오른쪽 ›. `surface1`, `radius.md`, 76 dp. `selected`(넓은 창에서 오른쪽에 열린 것) = `accent` 3 dp 테두리, › 숨김 |
@@ -621,3 +622,4 @@ M3 컴포넌트를 쓸 때 색이 어긋나지 않도록 `AutoLogTheme`이 `Colo
 | 1.54 | 2026-11-12 | 운행 직후 결과 카드는 정차·주행 중에도 버튼 없이(스펙 D-35, 막대 없음) — 8장 단계별 모션 표에 화면 전환·막대·체크 행 갱신 |
 | 1.55 | 2026-11-12 | 정차·주행 중 [기록 시작]도 눌림(스펙 D-36) — 2장 단계 표·원칙 6·11장 정차 행 |
 | 1.56 | 2026-11-12 | 주유 입력 창 다시 짜기(스펙 D-38): 레이아웃 표 "Summary + Choice", `ConfidenceRow` 한 줄·정상은 표시 없음, `ActionBar` 공용 부품 |
+| 1.57 | 2026-11-13 | 운행 삭제(스펙 D-39): `DangerButton`을 행동 줄에도(누르면 확인 팝업), `ActionBar` 빨간 버튼(`BarAction.danger`), `DeleteTripDialog` |
