@@ -17,10 +17,12 @@ import kr.autolog.vehicle.core.RecoveryChoice
 import kr.autolog.vehicle.core.SessionState
 import kr.autolog.vehicle.core.StartResult
 import kr.autolog.vehicle.core.StopReason
+import kr.autolog.vehicle.core.TripLimits
 import kr.autolog.vehicle.core.TripRow
 import kr.autolog.vehicle.core.TripSessionApi
 import kr.autolog.vehicle.core.UploadState
 import kr.autolog.vehicle.core.VehicleMotion
+import kr.autolog.vehicle.fake.FakeTripSession as CoreFakeSession
 
 /** 기어 P 자동 종료 대기 (사용자 결정 2026-11-09, 스펙 D-18). 실제 값은 앱 A 소유. */
 const val GEAR_P_WAIT_MS = 5_000L
@@ -60,7 +62,17 @@ class FakeTripSession(
     override suspend fun startSession(): StartResult {
         if (!_state.value.canStart()) return StartResult.Failed("이미 기록 중입니다")
         val now = clock.nowMs()
-        val trip = LiveTrip("trip-$now", now, _totalOdometerKm.value, "판교 테크노밸리 거래처", _currentDriver.value, "본사")
+        val trip =
+            LiveTrip(
+                "trip-$now",
+                now,
+                _totalOdometerKm.value,
+                "판교 테크노밸리 거래처",
+                _currentDriver.value,
+                originLabel = "본사",
+                originAddress = CoreFakeSession.SAMPLE_ORIGIN_ADDRESS,
+                destinationAddress = CoreFakeSession.SAMPLE_DESTINATION_ADDRESS,
+            )
         _state.value =
             SessionState.Recording(trip, liveKm = if (_totalOdometerKm.value == null) null else 0.0, lastSavedAt = now)
         return StartResult.Started(trip.tripId)
@@ -108,6 +120,15 @@ class FakeTripSession(
         store?.confirm(tripId, detail, note, destinationLabel)
         val s = _state.value as? SessionState.PendingReview ?: return
         if (s.trip.tripId == tripId) _state.value = SessionState.Idle
+    }
+
+    /** 거리 수정(F-05): 실구현처럼 0 초과 1,500 km 이하만, 기록 중인 운행은 거절. */
+    override suspend fun editDistance(tripId: String, km: Double): Boolean {
+        if (!(km > 0.0 && km <= TripLimits.MAX_TRIP_KM)) return false
+        val s = _state.value
+        if (s is SessionState.Recording && s.trip.tripId == tripId) return false
+        if (s is SessionState.PendingReview && s.trip.tripId == tripId) _state.value = s.copy(distanceKm = km)
+        return store?.editDistance(tripId, km) ?: (s is SessionState.PendingReview && s.trip.tripId == tripId)
     }
 
     override suspend fun assignDriver(tripId: String, userId: String, source: DriverSource) {
@@ -216,6 +237,8 @@ class FakeTripSession(
                 distanceKm = km,
                 purpose = null,
                 upload = UploadState.PENDING,
+                originAddress = trip.originAddress ?: CoreFakeSession.SAMPLE_ORIGIN_ADDRESS,
+                destinationAddress = trip.destinationAddress,
             ),
         )
     }

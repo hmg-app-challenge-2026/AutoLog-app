@@ -87,6 +87,14 @@ class DefaultPurposeEngine(
         return PlaceMatcher.match(lat, lng, places.map { it.toPlace() }) == null
     }
 
+    override suspend fun placeAt(lat: Double, lng: Double): PlaceInfo? = try {
+        val places = store.places()
+        PlaceMatcher.match(lat, lng, places.map { it.toPlace() })?.let { m -> places.first { it.placeId == m.placeId } }
+    } catch (e: Exception) {
+        log("등록 장소 찾기 실패: ${e.message}")
+        null
+    }
+
     override suspend fun registerClientPlace(trip: TripFacts, label: String): SettingsResult {
         val name = label.trim()
         if (name.isEmpty()) return SettingsResult.Invalid("거래처 이름을 입력해 주세요")

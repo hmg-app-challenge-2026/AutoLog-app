@@ -86,6 +86,9 @@ data class TripSummary(
     val destinationLabel: String? = null,
     val endLat: Double? = null,
     val endLng: Double? = null,
+    /** 출발·도착 주소(`광역 기초 읍면동 도로명 번호`). 이름([originLabel])이 없을 때 표시용. 모르면 null. */
+    val originAddress: String? = null,
+    val destinationAddress: String? = null,
     /** 확정된 세부 목적. 추천만 됐거나 미확정이면 null. */
     val confirmedPurpose: PurposeDetail? = null,
     /** 운행 중 정차 라벨들(StopEntity.label). 주유소 정차 판단에 쓴다. */
@@ -160,6 +163,18 @@ data class LocationFix(
 
 /** 내비가 알려 준 현재 위치. 주소가 없을 수도 있다. */
 data class NaviCurrentLocation(val lat: Double, val lng: Double, val address: String?)
+
+/** 주소를 어디서 얻었는지 (TripEntity.*AddressSource, CONVENTIONS 7.1 출처). */
+enum class AddressSource {
+    /** 중계 서버 → 카카오 coord2address. 읍면동까지 정확하다. */
+    KAKAO_RELAY,
+
+    /** 서버에 닿지 않아 내비 현재 위치 주소 문자열을 줄여 썼다. 형식은 내비가 주는 대로다. */
+    NAVI_HELPER,
+}
+
+/** 좌표 → 주소 결과 ([GeocodeApi]). [address]는 `광역 기초 읍면동 도로명 번호`, [placeName]은 건물 이름(없으면 null). */
+data class GeocodeResult(val address: String, val placeName: String?, val source: AddressSource)
 
 // ===== 앱 B 제공: 목적·운전자 (F-08, F-15, F-20) =====
 
@@ -342,6 +357,12 @@ object TripTiming {
     const val T_STOP_SEC = 180L
 }
 
+/** 운행 값의 한계. 앱 A(계기판 검증)와 프론트(거리 입력 검사)가 같은 값을 쓴다. */
+object TripLimits {
+    /** 1회 운행 거리 상한(km). 계기판 차이가 이보다 크면 이상값, 사람이 고친 거리도 이 이하만 받는다. */
+    const val MAX_TRIP_KM = 1_500.0
+}
+
 /** 차의 움직임 판정 결과. 화면 사용 3단계와 입력 차단(F-13)의 기준. 판정 불가는 null로 표현한다. */
 enum class VehicleMotion {
     /** 기어 P. 전체 앱. */
@@ -382,8 +403,12 @@ data class LiveTrip(
     /** 내비 목적지 이름. 없으면 null. */
     val destinationLabel: String?,
     val driverUserId: String?,
-    /** 출발지 이름(등록 장소 이름, 없으면 동 단위 주소). 모르면 null (R-9). */
+    /** 출발지 이름(등록 장소 이름, 없으면 건물 이름). 모르면 null (R-9). 주소는 [originAddress]. */
     val originLabel: String? = null,
+    /** 출발지 주소(`광역 기초 읍면동 도로명 번호`). 운행 시작 직후 비동기로 채워진다. 모르면 null. */
+    val originAddress: String? = null,
+    /** 내비 목적지 주소. 없으면 null. */
+    val destinationAddress: String? = null,
 )
 
 sealed interface SessionState {
@@ -434,6 +459,7 @@ enum class UploadState { PENDING, DONE, FAILED }
 /**
  * 운행 기록 한 줄. 비어 있는 값은 "미확정"이다 — [purpose] null = 목적 확인 필요,
  * [driverUserId] null = 운전자 미확정, [distanceKm] null = 거리 미확정(추정 금지).
+ * 출발지·도착지는 이름([originLabel]: 등록 장소·내비 목적지·건물 이름)과 주소([originAddress])를 따로 준다 — 화면은 이름 + 주소 2줄.
  */
 data class TripRow(
     val tripId: String,
@@ -442,10 +468,15 @@ data class TripRow(
     val driverUserId: String?,
     val originLabel: String?,
     val destinationLabel: String?,
+    /** 사람이 고친 거리가 있으면 그 값, 없으면 계기판 차이. */
     val distanceKm: Double?,
     val purpose: PurposeDetail?,
     val note: String? = null,
     val upload: UploadState? = null,
+    val originAddress: String? = null,
+    val destinationAddress: String? = null,
+    /** [distanceKm]가 사람이 고친 값이면 true. 화면은 "수정됨"을 붙인다. */
+    val isDistanceEdited: Boolean = false,
 )
 
 sealed interface ReportBuildResult {

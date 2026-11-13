@@ -16,6 +16,7 @@ import kr.autolog.vehicle.core.RecoveryChoice
 import kr.autolog.vehicle.core.SessionState
 import kr.autolog.vehicle.core.StartResult
 import kr.autolog.vehicle.core.StopReason
+import kr.autolog.vehicle.core.TripLimits
 import kr.autolog.vehicle.core.TripRow
 import kr.autolog.vehicle.core.TripSessionApi
 import kr.autolog.vehicle.core.TripTiming
@@ -58,7 +59,16 @@ class FakeTripSession(
         if (_state.value !is SessionState.Idle) return StartResult.Failed("이미 기록 중입니다")
         val now = clock.millis()
         val odo = _totalOdometerKm.value
-        val trip = LiveTrip("trip-$now", now, odo, "판교 테크노밸리 거래처", _currentDriver.value, "본사")
+        val trip = LiveTrip(
+            "trip-$now",
+            now,
+            odo,
+            "판교 테크노밸리 거래처",
+            _currentDriver.value,
+            originLabel = "본사",
+            originAddress = SAMPLE_ORIGIN_ADDRESS,
+            destinationAddress = SAMPLE_DESTINATION_ADDRESS,
+        )
         _state.value = SessionState.Recording(trip, liveKm = if (odo == null) null else 0.0, lastSavedAt = now)
         return StartResult.Started(trip.tripId)
     }
@@ -103,6 +113,14 @@ class FakeTripSession(
         store?.confirm(tripId, detail, note, destinationLabel)
         val s = _state.value as? SessionState.PendingReview ?: return
         if (s.trip.tripId == tripId) _state.value = SessionState.Idle
+    }
+
+    override suspend fun editDistance(tripId: String, km: Double): Boolean {
+        if (!(km > 0.0 && km <= TripLimits.MAX_TRIP_KM)) return false
+        val s = _state.value
+        if (s is SessionState.Recording && s.trip.tripId == tripId) return false
+        if (s is SessionState.PendingReview && s.trip.tripId == tripId) _state.value = s.copy(distanceKm = km)
+        return store?.editDistance(tripId, km) ?: (s is SessionState.PendingReview && s.trip.tripId == tripId)
     }
 
     override suspend fun assignDriver(tripId: String, userId: String, source: DriverSource) {
@@ -206,7 +224,14 @@ class FakeTripSession(
                 destinationLabel = trip.destinationLabel,
                 distanceKm = km,
                 purpose = null,
+                originAddress = trip.originAddress,
+                destinationAddress = trip.destinationAddress,
             ),
         )
+    }
+
+    companion object {
+        const val SAMPLE_ORIGIN_ADDRESS = "서울 서대문구 연희동 연희로 11-1"
+        const val SAMPLE_DESTINATION_ADDRESS = "경기 성남시 분당구 삼평동 판교역로 166"
     }
 }

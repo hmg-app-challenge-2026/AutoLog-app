@@ -56,6 +56,16 @@ class DefaultPurposeEngineTest {
     }
 
     @Test
+    fun `등록 장소 반경 안의 좌표면 그 장소를 돌려준다`() = runTest {
+        assertEquals("본사", engine.placeAt(office.first, office.second)?.label)
+    }
+
+    @Test
+    fun `어느 등록 장소에도 속하지 않으면 null이다`() = runTest {
+        assertEquals(null, engine.placeAt(35.1, 129.0))
+    }
+
+    @Test
     fun `이 차의 배차를 읽어 배차 목적을 추천한다`() = runTest {
         store.scheduleList += "car-1" to ScheduleInfo("s-1", "u-kim", kst(14), kst(15), "client", "MEETING")
 

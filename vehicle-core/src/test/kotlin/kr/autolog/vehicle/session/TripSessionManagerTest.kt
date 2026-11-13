@@ -286,6 +286,73 @@ class TripSessionManagerTest {
     }
 
     @Test
+    fun `끝난 운행의 거리를 고치면 수정값만 따로 남고 계기판 원본은 그대로다`() = runTest {
+        val rig = Rig(this)
+        val id = startedTrip(rig)
+        rig.car.drive(23.4)
+        runCurrent()
+        rig.session.finalize()
+        val before = rig.dao.trip(id)!!
+
+        val saved = rig.session.editDistance(id, 25.0)
+
+        val row = rig.dao.trip(id)!!
+        assertTrue(saved)
+        assertEquals(25.0, row.editedDistanceKm!!, 0.0)
+        assertEquals(23.4, row.distanceKm!!, 0.0)
+        assertEquals(DistanceSource.VEHICLE_ODOMETER, row.distanceSource)
+        assertEquals(before.rawSnapshotJson, row.rawSnapshotJson)
+        assertEquals(before.revision + 1, row.revision)
+        assertEquals(25.0, (rig.stateValue as SessionState.PendingReview).distanceKm!!, 0.0)
+    }
+
+    @Test
+    fun `계기판 값과 같게 되돌리면 수정 표시를 지운다`() = runTest {
+        val rig = Rig(this)
+        val id = startedTrip(rig)
+        rig.car.drive(23.4)
+        runCurrent()
+        rig.session.finalize()
+        rig.session.editDistance(id, 25.0)
+
+        rig.session.editDistance(id, 23.4)
+
+        assertNull(rig.dao.trip(id)!!.editedDistanceKm)
+    }
+
+    @Test
+    fun `거리 미확정 운행도 사람이 거리를 채울 수 있다`() = runTest {
+        val rig = Rig(this)
+        rig.car.readable = false
+        val id = startedTrip(rig)
+        rig.session.requestStop()
+        rig.session.finalize()
+
+        assertTrue(rig.session.editDistance(id, 12.3))
+
+        val row = rig.dao.trip(id)!!
+        assertNull(row.distanceKm)
+        assertEquals(DistanceSource.UNAVAILABLE, row.distanceSource)
+        assertEquals(12.3, row.editedDistanceKm!!, 0.0)
+    }
+
+    @Test
+    fun `0 이하·1500 km 초과·기록 중인 운행의 거리는 고치지 않는다`() = runTest {
+        val rig = Rig(this)
+        val id = startedTrip(rig)
+
+        assertTrue(!rig.session.editDistance(id, 10.0))
+        rig.car.drive(23.4)
+        runCurrent()
+        rig.session.finalize()
+        assertTrue(!rig.session.editDistance(id, 0.0))
+        assertTrue(!rig.session.editDistance(id, 1_500.1))
+        assertTrue(!rig.session.editDistance(id, Double.NaN))
+        assertNull(rig.dao.trip(id)!!.editedDistanceKm)
+        assertTrue(rig.session.editDistance(id, 1_500.0))
+    }
+
+    @Test
     fun `목적을 확정하면 확정 상태로 저장하고 Idle로 돌아간다`() = runTest {
         val rig = Rig(this)
         val id = startedTrip(rig)

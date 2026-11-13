@@ -192,6 +192,19 @@ class TripSessionManager(
         if (s is SessionState.PendingReview && s.trip.tripId == tripId) _state.value = SessionState.Idle
     }
 
+    override suspend fun editDistance(tripId: String, km: Double): Boolean = mutex.withLock {
+        if (!DistancePolicy.isEditableKm(km)) return@withLock false
+        val t = dao.trip(tripId)
+            ?.takeIf { it.status != TripStatus.RECORDING && it.status != TripStatus.DISCARDED }
+            ?: return@withLock false
+        // 계기판 값과 같게 되돌리면 수정 표시를 지운다. 원본 distanceKm·rawSnapshotJson은 그대로(CONVENTIONS 7.1-2)
+        save(t.copy(editedDistanceKm = km.takeIf { it != t.distanceKm }))
+        val s = _state.value
+        if (s is SessionState.PendingReview && s.trip.tripId == tripId) _state.value = s.copy(distanceKm = km)
+        log("edit distance $tripId: ${t.distanceKm} → $km")
+        true
+    }
+
     override suspend fun assignDriver(tripId: String, userId: String, source: DriverSource) = mutex.withLock {
         val t = dao.trip(tripId) ?: return@withLock
         save(t.copy(userId = userId, driverSource = source))
