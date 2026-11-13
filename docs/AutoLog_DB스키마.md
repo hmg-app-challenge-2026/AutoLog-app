@@ -53,7 +53,7 @@
 ## 1. 차 안 로컬 DB — Room `AutoLogDb` (앱 A)
 
 - 파일: `data/AutoLogDb.kt`, 현재 **version 3**, `exportSchema = true`
-- 마이그레이션: v1 → v2 `AutoMigration` (receipt_inbox에 `inboxId`·`confirmedAt` 추가), v2 → v3 `AutoMigration` (trips에 출발·도착 주소와 출처 4열 추가 + `MoveNaviOriginToAddress`: v2가 출발지 이름에 넣던 내비 주소를 주소 칸으로 옮김, 2026-11-13 에뮬레이터 업그레이드 확인)
+- 마이그레이션: v1 → v2 `AutoMigration` (receipt_inbox에 `inboxId`·`confirmedAt` 추가), v2 → v3 `AutoMigration` (trips에 출발·도착 주소와 출처 4열 추가 + `MoveNaviOriginToAddress`: v2가 출발지 이름에 넣던 내비 주소를 주소 칸으로 옮기고, 경로 없이 받은 빈 내비 목적지(이름 "", 좌표 0,0)를 지움, 2026-11-13 에뮬레이터 업그레이드 확인)
 - 운행 기록은 원본이라 **destructive migration을 쓰지 않는다.** 컬럼을 바꾸면 버전을 올리고 Migration을 단다.
 - 아래 표의 "NULL"은 NULL 허용 여부다(Kotlin 타입이 `?`이면 허용).
 

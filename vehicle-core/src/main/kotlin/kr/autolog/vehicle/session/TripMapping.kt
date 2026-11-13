@@ -43,6 +43,12 @@ internal fun TripEntity.toFacts() = TripFacts(
 )
 
 /**
+ * 경로가 없을 때 내비는 이름 "", 좌표 (0, 0)인 목적지를 보낸다(2026-11-13 에뮬레이터 확인).
+ * 그것을 목적지로 저장하면 목록에 빈 도착지가 보이고, (0, 0)으로 주소를 찾는다 — 목적지 없음으로 본다.
+ */
+internal fun DestinationInfo.isSet(): Boolean = label.isNotBlank() && !(lat == 0.0 && lng == 0.0)
+
+/**
  * 내비 목적지를 운행에 붙인다(F-06). 마지막 값이 남는다. 내비가 준 목적지 주소도 남겨 두고(서버에 닿지 않을 때 폴백),
  * 운행이 끝나면 실제 도착 위치로 다시 정한다([PlacePolicy.mergeDestination]).
  */

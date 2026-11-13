@@ -419,7 +419,7 @@ class TripSessionManager(
 
     private suspend fun onDestination(d: DestinationInfo?) = mutex.withLock {
         val s = _state.value as? SessionState.Recording ?: return@withLock
-        if (d == null || d.label == s.trip.destinationLabel) return@withLock
+        if (d == null || !d.isSet() || d.label == s.trip.destinationLabel) return@withLock
         val trip = dao.trip(s.trip.tripId) ?: return@withLock
         val updated = trip.withDestination(d)
         dao.upsert(updated)
@@ -494,7 +494,7 @@ class TripSessionManager(
                 else -> null
             },
             rawSnapshotJson = "{\"start\":{\"km\":${odo?.km},\"at\":${odo?.at}}}",
-        ).let { t -> context.destination.value?.let { t.withDestination(it) } ?: t }
+        ).let { t -> context.destination.value?.takeIf { it.isSet() }?.let { t.withDestination(it) } ?: t }
         dao.upsert(trip)
         watchFrom = now
         _state.value = SessionState.Recording(trip.toLive(), liveKm = odo?.let { 0.0 }, lastSavedAt = now)

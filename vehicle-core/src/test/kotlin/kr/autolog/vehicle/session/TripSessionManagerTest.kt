@@ -6,6 +6,7 @@ import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kr.autolog.shared.PlaceKind
 import kr.autolog.vehicle.core.AddressSource
+import kr.autolog.vehicle.core.DestinationInfo
 import kr.autolog.vehicle.core.GeocodeResult
 import kr.autolog.vehicle.core.InputMode
 import kr.autolog.vehicle.core.NaviCurrentLocation
@@ -188,6 +189,21 @@ class TripSessionManagerTest {
         assertEquals("서울시청", row.destinationLabel)
         assertEquals("서울 중구 태평로1가 세종대로 110", row.destinationAddress)
         assertEquals(37.5663, row.destinationLat!!, 0.0)
+    }
+
+    @Test
+    fun `경로가 없을 때 내비가 보내는 빈 목적지(이름 없음, 0·0)는 목적지로 저장하지 않는다`() = runTest {
+        val rig = Rig(this)
+        rig.ctx.setDestination(DestinationInfo("", null, 0.0, 0.0))
+
+        val id = startedTrip(rig)
+        rig.ctx.setDestination(DestinationInfo(" ", null, 0.0, 0.0))
+        runCurrent()
+
+        val row = rig.dao.trip(id)!!
+        assertNull(row.destinationLabel)
+        assertNull(row.destinationLat)
+        assertNull(row.destinationSource)
     }
 
     @Test

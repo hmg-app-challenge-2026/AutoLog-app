@@ -38,6 +38,7 @@ import kr.autolog.vehicle.report.ReportBuilder
 import kr.autolog.vehicle.session.NotificationPresence
 import kr.autolog.vehicle.session.TripRecordingService
 import kr.autolog.vehicle.session.TripSessionManager
+import kr.autolog.vehicle.session.isSet
 import kr.autolog.vehicle.speech.SpeechGateway
 import kr.autolog.vehicle.speech.VoiceService
 import kr.autolog.vehicle.vehicle.VehicleGateway
@@ -180,7 +181,7 @@ private class GatewayContext(
     scope: CoroutineScope,
 ) : ContextApi {
     override val destination: StateFlow<DestinationInfo?> = navi.destination
-        .map { d -> d?.let { DestinationInfo(it.label, it.address, it.lat, it.lng, it.poiId) } }
+        .map { d -> d?.let { DestinationInfo(it.label, it.address, it.lat, it.lng, it.poiId) }?.takeIf { it.isSet() } }
         .stateIn(scope, SharingStarted.Eagerly, null)
 
     override val latestFix: StateFlow<LocationFix?> = location.latestFix
