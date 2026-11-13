@@ -10,9 +10,12 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kr.autolog.shared.KoreanAddress
+import kr.autolog.vehicle.core.AddressSource
 import kr.autolog.vehicle.core.ContextApi
 import kr.autolog.vehicle.core.DestinationInfo
 import kr.autolog.vehicle.core.DriverSource
+import kr.autolog.vehicle.core.GeocodeApi
 import kr.autolog.vehicle.core.InputMode
 import kr.autolog.vehicle.core.LiveTrip
 import kr.autolog.vehicle.core.MissedTrip
@@ -60,6 +63,8 @@ class TripSessionManager(
     private val vehicleId: () -> String = { UNREGISTERED_VEHICLE },
     private val newId: () -> String = { UUID.randomUUID().toString() },
     private val log: (String) -> Unit = {},
+    /** 출발·도착 좌표 → 주소(서버 카카오 → 내비 폴백). null이면 내비가 시작 때 준 주소만 쓴다. */
+    private val geocode: GeocodeApi? = null,
 ) : TripSessionApi {
     private val mutex = Mutex()
     private val _state = MutableStateFlow<SessionState>(SessionState.Idle)
@@ -416,8 +421,9 @@ class TripSessionManager(
         val s = _state.value as? SessionState.Recording ?: return@withLock
         if (d == null || d.label == s.trip.destinationLabel) return@withLock
         val trip = dao.trip(s.trip.tripId) ?: return@withLock
-        dao.upsert(trip.withDestination(d))
-        _state.value = s.copy(trip = s.trip.copy(destinationLabel = d.label))
+        val updated = trip.withDestination(d)
+        dao.upsert(updated)
+        _state.value = s.copy(trip = s.trip.withPlacesOf(updated))
     }
 
     private suspend fun onTick() {
@@ -477,7 +483,9 @@ class TripSessionManager(
             lastOdometerKm = odo?.km,
             lastSeenAt = now,
             distanceSource = if (odo == null) DistanceSource.UNAVAILABLE else DistanceSource.VEHICLE_ODOMETER,
-            originLabel = naviLocation?.address?.trim()?.takeIf { it.isNotEmpty() },
+            // 이름(등록 장소·건물)과 서버 주소는 enrichOrigin이 곧 채운다. 그 전까지는 내비 주소
+            originAddress = KoreanAddress.shortenRegion(naviLocation?.address),
+            originAddressSource = naviLocation?.address?.takeIf { it.isNotBlank() }?.let { AddressSource.NAVI_HELPER },
             originLat = naviLocation?.lat ?: fix?.lat,
             originLng = naviLocation?.lng ?: fix?.lng,
             originSource = when {
@@ -491,6 +499,7 @@ class TripSessionManager(
         watchFrom = now
         _state.value = SessionState.Recording(trip.toLive(), liveKm = odo?.let { 0.0 }, lastSavedAt = now)
         log("start ${trip.tripId} odo=${odo?.km}")
+        scope.launch { enrichOrigin(trip.tripId) }
         return StartResult.Started(trip.tripId)
     }
 
@@ -550,6 +559,7 @@ class TripSessionManager(
         endKm?.let { saveLastKnown(it, endTime) }
         _state.value = SessionState.PendingReview(done.toLive(), distance, suggestion)
         log("finish ${trip.tripId} distance=$distance")
+        scope.launch { enrichDestination(trip.tripId, current = true) }
     }
 
     private fun enterStopLocked(trip: LiveTrip, liveKm: Double?, reason: StopReason, since: Long?) {
@@ -589,6 +599,97 @@ class TripSessionManager(
     private fun continueRecording(trip: TripEntity) {
         watchFrom = clock.millis()
         _state.value = SessionState.Recording(trip.toLive(), liveKm(trip, lastKm), clock.millis())
+    }
+
+    // ===== 출발·도착 주소 (F-06, F-07, I-05) — 네트워크는 락 밖, 쓰기는 락 안 =====
+
+    /**
+     * 서버(카카오) 주소가 없는 최근 [BACKFILL_DAYS]일 운행을 최대 [limit]건 채운다. 동기화가 끝날 때마다 부른다(InboxSync).
+     * 지난 좌표라 내비 폴백은 쓰지 않는다. 서버가 연속으로 답하지 않으면 멈춘다. 채운 건수를 돌려준다.
+     */
+    suspend fun fillMissingAddresses(limit: Int = BACKFILL_LIMIT): Int {
+        if (geocode == null) return 0
+        val since = clock.millis() - BACKFILL_DAYS * DAY_MS
+        var filled = 0
+        var misses = 0
+        for (t in dao.tripsNeedingAddress(since, limit)) {
+            if (misses >= BACKFILL_MAX_MISSES) break
+            val ok = (needsKakao(t.originLat, t.originAddressSource) && enrichOrigin(t.tripId)) or
+                (
+                    needsKakao(t.destinationLat, t.destinationAddressSource) &&
+                        enrichDestination(t.tripId, current = false)
+                    )
+            if (ok) filled++ else misses++
+        }
+        if (filled > 0) log("address backfill: $filled")
+        return filled
+    }
+
+    private fun needsKakao(lat: Double?, source: AddressSource?) = lat != null && source != AddressSource.KAKAO_RELAY
+
+    /** 출발지 이름·주소를 붙인다. 서버 주소를 받았으면 true. */
+    private suspend fun enrichOrigin(tripId: String): Boolean {
+        val t = dao.trip(tripId) ?: return false
+        val lat = t.originLat ?: return false
+        val lng = t.originLng ?: return false
+        val place = purpose.placeAt(lat, lng)
+        // 시작 때 내비 주소는 이미 넣었다 → 여기선 서버만
+        val geo = geocode?.reverse(lat, lng, isCurrentPosition = false)
+        mutex.withLock {
+            val fresh = dao.trip(tripId) ?: return false
+            val m = PlacePolicy.mergeOrigin(fresh, place, geo)
+            if (m != fresh) dao.setOriginPlace(tripId, m.originLabel, m.originAddress, m.originAddressSource)
+            refreshLiveLocked(tripId)
+        }
+        return geo?.source == AddressSource.KAKAO_RELAY
+    }
+
+    /**
+     * 도착지 이름·좌표·주소를 붙인다. [current]면 운행이 막 끝난 때라 차의 지금 위치(내비 → 위치 SDK)를 실제 도착 위치로 보고,
+     * 서버에 닿지 않으면 내비 주소로 대신한다. 서버 주소를 받았으면 true.
+     */
+    private suspend fun enrichDestination(tripId: String, current: Boolean): Boolean {
+        val t = dao.trip(tripId) ?: return false
+        val end = if (current) endPosition() else null
+        val lat = end?.lat ?: t.destinationLat ?: return false
+        val lng = end?.lng ?: t.destinationLng ?: return false
+        val place = purpose.placeAt(lat, lng)
+        val geo = geocode?.reverse(lat, lng, isCurrentPosition = current)
+        mutex.withLock {
+            val fresh = dao.trip(tripId)?.takeIf { it.status != TripStatus.DISCARDED } ?: return false
+            val m = PlacePolicy.mergeDestination(fresh, end, place, geo)
+            if (m != fresh) {
+                dao.setDestinationPlace(
+                    tripId,
+                    m.destinationLabel,
+                    m.destinationLat,
+                    m.destinationLng,
+                    m.destinationSource,
+                    m.destinationAddress,
+                    m.destinationAddressSource,
+                )
+            }
+            refreshLiveLocked(tripId)
+        }
+        return geo?.source == AddressSource.KAKAO_RELAY
+    }
+
+    /** 운행이 끝난 직후 차의 실제 위치. 내비 현재 위치 → 30초 이내 위치 SDK 좌표 → 모름. */
+    private suspend fun endPosition(): EndPosition? {
+        context.currentNaviLocation()?.let { return EndPosition(it.lat, it.lng, PlaceSource.NAVI_CURRENT) }
+        return context.freshFix()?.let { EndPosition(it.lat, it.lng, PlaceSource.FUSED_LOCATION) }
+    }
+
+    /** 화면에 보이는 운행이면 장소 표시를 Room 최신 값으로 바꾼다. */
+    private suspend fun refreshLiveLocked(tripId: String) {
+        val t = dao.trip(tripId) ?: return
+        _state.value = when (val s = _state.value) {
+            is SessionState.Recording -> if (s.trip.tripId == tripId) s.copy(trip = s.trip.withPlacesOf(t)) else s
+            is SessionState.StopCandidate -> if (s.trip.tripId == tripId) s.copy(trip = s.trip.withPlacesOf(t)) else s
+            is SessionState.PendingReview -> if (s.trip.tripId == tripId) s.copy(trip = s.trip.withPlacesOf(t)) else s
+            is SessionState.NeedsRecovery -> if (s.trip.tripId == tripId) s.copy(trip = s.trip.withPlacesOf(t)) else s
+            SessionState.Idle -> s
+        }
     }
 
     // ===== 도우미 =====
@@ -638,5 +739,11 @@ class TripSessionManager(
         const val AUTO_DRIVER_CONFIDENCE = 0.95
         const val READY_ATTEMPTS = 12
         const val READY_INTERVAL_MS = 5_000L
+
+        /** 주소 나중 채우기: 최근 30일, 한 번에 20건, 서버가 3번 연속 답이 없으면 멈춤. */
+        const val BACKFILL_DAYS = 30L
+        const val BACKFILL_LIMIT = 20
+        const val BACKFILL_MAX_MISSES = 3
+        private const val DAY_MS = 86_400_000L
     }
 }

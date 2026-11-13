@@ -52,8 +52,8 @@
 
 ## 1. 차 안 로컬 DB — Room `AutoLogDb` (앱 A)
 
-- 파일: `data/AutoLogDb.kt`, 현재 **version 2**, `exportSchema = true`
-- 마이그레이션: v1 → v2 `AutoMigration` (receipt_inbox에 `inboxId`·`confirmedAt` 추가)
+- 파일: `data/AutoLogDb.kt`, 현재 **version 3**, `exportSchema = true`
+- 마이그레이션: v1 → v2 `AutoMigration` (receipt_inbox에 `inboxId`·`confirmedAt` 추가), v2 → v3 `AutoMigration` (trips에 출발·도착 주소와 출처 4열 추가, 2026-11-13)
 - 운행 기록은 원본이라 **destructive migration을 쓰지 않는다.** 컬럼을 바꾸면 버전을 올리고 Migration을 단다.
 - 아래 표의 "NULL"은 NULL 허용 여부다(Kotlin 타입이 `?`이면 허용).
 
@@ -76,13 +76,15 @@
 | `lastSeenAt` | INTEGER | ✓ | 마지막 체크포인트 시각 |
 | `distanceKm` | REAL | ✓ | `end − start`. 조회 실패면 null (**추정 금지**) |
 | `distanceSource` | TEXT | | `DistanceSource`: VEHICLE_ODOMETER · UNAVAILABLE |
-| `editedDistanceKm` | REAL | ✓ | 사용자가 고친 거리. 원본(`distanceKm`)은 덮지 않는다 |
-| `originLabel` | TEXT | ✓ | 출발지 이름 |
+| `editedDistanceKm` | REAL | ✓ | 사용자가 고친 거리(운행 결과 카드 수정 모드, 0 초과 1,500 이하). 원본(`distanceKm`)은 덮지 않는다. 목록·엑셀은 이 값을 쓰고 엑셀 비고에 계기판 값을 남긴다 |
+| `originLabel` | TEXT | ✓ | 출발지 이름 — 등록 장소 > 건물 이름(카카오). 주소는 `originAddress` |
 | `originLat`, `originLng` | REAL | ✓ | 출발 좌표 |
 | `originSource` | TEXT | ✓ | `PlaceSource`: NAVI_HELPER · FUSED_LOCATION · NAVI_CURRENT · PREVIOUS_TRIP_END · USER_SELECTED |
-| `destinationLabel` | TEXT | ✓ | 도착지(내비 목적지) 이름 |
-| `destinationLat`, `destinationLng` | REAL | ✓ | 도착 좌표 |
+| `destinationLabel` | TEXT | ✓ | 도착지 이름 — 사람이 고른 이름 > 등록 장소 > 실제로 도착한(300 m 안) 내비 목적지 > 건물 이름 |
+| `destinationLat`, `destinationLng` | REAL | ✓ | 도착 좌표. 운행이 끝난 직후 차의 실제 위치(내비 현재 위치 → 위치 SDK)로 다시 정한다 |
 | `destinationSource` | TEXT | ✓ | `PlaceSource` |
+| `originAddress`, `destinationAddress` | TEXT | ✓ | v3. `광역 기초 읍면동 도로명 번호`(예: `경기 성남시 분당구 정자동 정자일로 1`). 시작·종료 직후 비동기로 채운다 |
+| `originAddressSource`, `destinationAddressSource` | TEXT | ✓ | v3. `AddressSource`: KAKAO_RELAY(서버 `/v1/geo/reverse`) · NAVI_HELPER(서버 실패 때 내비 주소). NAVI_HELPER·NULL은 동기화 뒤 서버로 다시 채운다(최근 30일, 20건씩) |
 | `purposeDetail` | TEXT | ✓ | 확정된 세부 목적 `PurposeDetail.name` (CLIENT_VISIT, COMMUTE_IN …) |
 | `purposeNote` | TEXT | ✓ | 메모 또는 음성 원문(F-09) |
 | `purposeInputMode` | TEXT | ✓ | TAP · VOICE |

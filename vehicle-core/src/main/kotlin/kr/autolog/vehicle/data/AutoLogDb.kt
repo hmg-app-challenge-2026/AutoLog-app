@@ -26,9 +26,12 @@ import androidx.room.RoomDatabase
         InboxSeenEntity::class,
         ReportEntity::class,
     ],
-    version = 2,
+    version = 3,
     exportSchema = true,
-    autoMigrations = [AutoMigration(from = 1, to = 2)], // v2: receipt_inbox.inboxId·confirmedAt
+    autoMigrations = [
+        AutoMigration(from = 1, to = 2), // v2: receipt_inbox.inboxId·confirmedAt
+        AutoMigration(from = 2, to = 3), // v3: trips 출발·도착 주소와 출처(I-05)
+    ],
 )
 abstract class AutoLogDb : RoomDatabase() {
     abstract fun tripDao(): TripDao

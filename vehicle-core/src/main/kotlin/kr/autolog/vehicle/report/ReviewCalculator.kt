@@ -16,7 +16,7 @@ data class ReportTrip(
     val destinationLabel: String? = null,
     val startKm: Double? = null,
     val endKm: Double? = null,
-    /** 계기판 차이. null = 거리 미확정. */
+    /** 보고 거리 — 사람이 고친 값이 있으면 그것, 없으면 계기판 차이. null = 거리 미확정. */
     val distanceKm: Double? = null,
     /** 사람이 확정한 목적. null = 미확정. */
     val purpose: PurposeDetail? = null,
@@ -24,6 +24,12 @@ data class ReportTrip(
     /** 시각이 추정인 운행(앱 미실행 중). */
     val timeEstimated: Boolean = false,
     val stopLabels: List<String> = emptyList(),
+    /** 출발·도착 주소(`광역 기초 읍면동 도로명 번호`). 모르면 null. */
+    val originAddress: String? = null,
+    val destinationAddress: String? = null,
+    /** [distanceKm]가 사람이 고친 값이면 계기판 차이 원본(미확정이면 null). 고치지 않았으면 [isDistanceEdited] = false. */
+    val isDistanceEdited: Boolean = false,
+    val odometerDistanceKm: Double? = null,
 )
 
 data class ReportExpense(

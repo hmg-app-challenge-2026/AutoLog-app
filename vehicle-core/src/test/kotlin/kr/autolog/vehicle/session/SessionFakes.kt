@@ -5,6 +5,8 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.test.TestScope
+import kr.autolog.vehicle.core.AddressSource
+import kr.autolog.vehicle.data.PlaceSource
 import kr.autolog.vehicle.data.RecentUserEntity
 import kr.autolog.vehicle.data.StopEntity
 import kr.autolog.vehicle.data.TripDao
@@ -109,6 +111,56 @@ class InMemoryTripDao : TripDao {
         m.values.filter { it.status == TripStatus.PENDING_REVIEW || it.status == TripStatus.NEEDS_RECOVERY }
             .sortedByDescending { it.startTime }
     }
+
+    override suspend fun setOriginPlace(tripId: String, label: String?, address: String?, source: AddressSource?): Int {
+        val t = trips.value[tripId] ?: return 0
+        upsert(
+            t.copy(
+                originLabel = label,
+                originAddress = address,
+                originAddressSource = source,
+                revision =
+                t.revision + 1,
+            ),
+        )
+        return 1
+    }
+
+    override suspend fun setDestinationPlace(
+        tripId: String,
+        label: String?,
+        lat: Double?,
+        lng: Double?,
+        placeSource: PlaceSource?,
+        address: String?,
+        source: AddressSource?,
+    ): Int {
+        val t = trips.value[tripId] ?: return 0
+        upsert(
+            t.copy(
+                destinationLabel = label,
+                destinationLat = lat,
+                destinationLng = lng,
+                destinationSource = placeSource,
+                destinationAddress = address,
+                destinationAddressSource = source,
+                revision = t.revision + 1,
+            ),
+        )
+        return 1
+    }
+
+    override suspend fun tripsNeedingAddress(since: Long, limit: Int) = trips.value.values
+        .filter { t ->
+            t.startTime >= since &&
+                t.status != TripStatus.RECORDING &&
+                t.status != TripStatus.DISCARDED &&
+                (
+                    (t.originLat != null && t.originAddressSource != AddressSource.KAKAO_RELAY) ||
+                        (t.destinationLat != null && t.destinationAddressSource != AddressSource.KAKAO_RELAY)
+                    )
+        }.sortedByDescending { it.startTime }
+        .take(limit)
 
     override suspend fun setReviewFlags(tripId: String, flags: String?) {
         trips.value[tripId]?.let { upsert(it.copy(reviewFlags = flags)) }

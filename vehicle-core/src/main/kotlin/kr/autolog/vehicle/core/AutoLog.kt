@@ -17,6 +17,7 @@ import kr.autolog.vehicle.data.DeviceRepository
 import kr.autolog.vehicle.data.EncryptedDeviceStore
 import kr.autolog.vehicle.data.InboxSync
 import kr.autolog.vehicle.data.InboxSyncWorker
+import kr.autolog.vehicle.data.RelayGeocode
 import kr.autolog.vehicle.data.RelayHttp
 import kr.autolog.vehicle.data.RelayResult
 import kr.autolog.vehicle.data.RoomDomainStore
@@ -123,7 +124,14 @@ object AutoLog {
             scope = scope,
             vehicleId = { device.vehicleId ?: TripSessionManager.UNREGISTERED_VEHICLE },
             log = { Log.i("AutoLog/session", it) },
+            // 출발·도착 주소: 중계 서버(카카오) → 실패하면 내비 현재 위치 주소 (F-06, F-07)
+            geocode = RelayGeocode(
+                relay = { lat, lng -> device.call { url, token -> reverseGeocode(url, token, lat, lng) } },
+                context = ctx,
+                log = { Log.i("AutoLog/data", it) },
+            ),
         )
+        inbox.onSynced = { session.fillMissingAddresses() }
         val report = ReportBuilder(
             RoomReportSource(db.tripDao(), db.referenceDao(), db.expenseDao()) { device.vehicleId },
             outputDir = { File(app.filesDir, "reports") },

@@ -12,6 +12,7 @@ import kr.autolog.shared.DeviceRegisterRequest
 import kr.autolog.shared.DeviceRegisterResponse
 import kr.autolog.shared.InboxItem
 import kr.autolog.shared.QrTokenResponse
+import kr.autolog.shared.ReverseGeocodeResponse
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -55,24 +56,50 @@ class RelayHttp(
     suspend fun qrToken(baseUrl: String, token: String): RelayResult<QrTokenResponse> =
         call(Request.Builder().url("$baseUrl/v1/qr-tokens").post(EMPTY).bearer(token), QrTokenResponse.serializer())
 
+    /**
+     * 운행 좌표 → 주소 (F-06, F-07). 차는 짧게만 기다리고 내비 주소로 넘어가야 해서 이 호출만 3초 타임아웃.
+     * 정밀 좌표는 URL에만 실리고 로그에는 남기지 않는다(CONVENTIONS 7.6).
+     */
+    suspend fun reverseGeocode(
+        baseUrl: String,
+        token: String,
+        lat: Double,
+        lng: Double,
+    ): RelayResult<ReverseGeocodeResponse> = call(
+        Request.Builder().url("$baseUrl/v1/geo/reverse?lat=$lat&lng=$lng").get().bearer(token),
+        ReverseGeocodeResponse.serializer(),
+        quickClient,
+    )
+
+    private val quickClient: OkHttpClient by lazy {
+        client.newBuilder()
+            .connectTimeout(QUICK_TIMEOUT_SEC, TimeUnit.SECONDS)
+            .readTimeout(QUICK_TIMEOUT_SEC, TimeUnit.SECONDS)
+            .callTimeout(QUICK_TIMEOUT_SEC + 1, TimeUnit.SECONDS)
+            .build()
+    }
+
     @Suppress("UNCHECKED_CAST")
-    private suspend fun <T> call(builder: Request.Builder, serializer: KSerializer<T>?): RelayResult<T> =
-        withContext(io) {
-            try {
-                client.newCall(builder.build()).execute().use { res ->
-                    val body = res.body?.string().orEmpty()
-                    if (res.isSuccessful) {
-                        RelayResult.Ok(serializer?.let { AutoLogJson.decodeFromString(it, body) } ?: Unit as T)
-                    } else {
-                        errorOf(res.code, body)
-                    }
+    private suspend fun <T> call(
+        builder: Request.Builder,
+        serializer: KSerializer<T>?,
+        http: OkHttpClient = client,
+    ): RelayResult<T> = withContext(io) {
+        try {
+            http.newCall(builder.build()).execute().use { res ->
+                val body = res.body?.string().orEmpty()
+                if (res.isSuccessful) {
+                    RelayResult.Ok(serializer?.let { AutoLogJson.decodeFromString(it, body) } ?: Unit as T)
+                } else {
+                    errorOf(res.code, body)
                 }
-            } catch (e: IOException) {
-                RelayResult.Failure(null, null, e.message ?: "network error")
-            } catch (e: IllegalArgumentException) { // 잘못된 URL·응답 JSON
-                RelayResult.Failure(null, "BAD_RESPONSE", e.message ?: "bad response")
             }
+        } catch (e: IOException) {
+            RelayResult.Failure(null, null, e.message ?: "network error")
+        } catch (e: IllegalArgumentException) { // 잘못된 URL·응답 JSON
+            RelayResult.Failure(null, "BAD_RESPONSE", e.message ?: "bad response")
         }
+    }
 
     private fun errorOf(status: Int, body: String): RelayResult.Failure {
         val json = runCatching { AutoLogJson.parseToJsonElement(body).jsonObject }.getOrNull()
@@ -87,6 +114,7 @@ class RelayHttp(
 
     companion object {
         private val JSON = "application/json".toMediaType()
+        private const val QUICK_TIMEOUT_SEC = 3L
         private val EMPTY = ByteArray(0).toRequestBody(null)
 
         private fun String.toJsonBody() = toRequestBody(JSON)

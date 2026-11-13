@@ -86,6 +86,29 @@ class ReportBuilderTest {
     }
 
     @Test
+    fun `출발·도착 주소를 따로 적고 고친 거리는 비고에 계기판 값을 남긴다`() = runTest {
+        val edited = trip("a", nov3, 25.0, PurposeDetail.CLIENT_VISIT).copy(
+            originLabel = null,
+            originAddress = "서울 서대문구 연희동 연희로 11-1",
+            destinationAddress = "경기 성남시 분당구 삼평동 판교역로 166",
+            isDistanceEdited = true,
+            odometerDistanceKm = 23.4,
+        )
+        val filled = trip("b", nov3 + 86_400_000, 12.0, PurposeDetail.CLIENT_VISIT)
+            .copy(isDistanceEdited = true, odometerDistanceKm = null)
+
+        val r = builder(Source(listOf(edited, filled))).build(YearMonth.of(2026, 11)) as ReportBuildResult.Built
+
+        val log = ReviewAndXlsxTest.unzip(r.file.file.readBytes()).getValue("xl/worksheets/sheet1.xml")
+        assertTrue("출발지 주소" in log && "도착지 주소" in log)
+        assertTrue("서울 서대문구 연희동 연희로 11-1 → 판교" in log) // 이름이 없으면 주소
+        assertTrue("경기 성남시 분당구 삼평동 판교역로 166" in log)
+        assertTrue("거리 수정(계기판 23.4 km)" in log)
+        assertTrue("거리 수정(계기판 미확정)" in log)
+        assertEquals(37.0, r.file.totalKm, 1e-9)
+    }
+
+    @Test
     fun `서버에 연결 전이면 번호판 자리에 미등록을 쓴다`() = runTest {
         val r = builder(Source(emptyList()), plate = null).build(YearMonth.of(2026, 11)) as ReportBuildResult.Built
 

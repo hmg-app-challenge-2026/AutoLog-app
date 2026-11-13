@@ -4,8 +4,12 @@ import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
+import kr.autolog.shared.PlaceKind
+import kr.autolog.vehicle.core.AddressSource
+import kr.autolog.vehicle.core.GeocodeResult
 import kr.autolog.vehicle.core.InputMode
 import kr.autolog.vehicle.core.NaviCurrentLocation
+import kr.autolog.vehicle.core.PlaceInfo
 import kr.autolog.vehicle.core.PurposeDetail
 import kr.autolog.vehicle.core.RecoveryChoice
 import kr.autolog.vehicle.core.SessionState
@@ -19,6 +23,7 @@ import kr.autolog.vehicle.data.TripEntity
 import kr.autolog.vehicle.data.TripStatus
 import kr.autolog.vehicle.data.VehicleStateEntity
 import kr.autolog.vehicle.fake.FakeContext
+import kr.autolog.vehicle.fake.FakeGeocode
 import kr.autolog.vehicle.fake.FakePurposeEngine
 import kr.autolog.vehicle.vehicle.Gear
 import org.junit.Assert.assertEquals
@@ -27,7 +32,11 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class TripSessionManagerTest {
-    private class Rig(scope: TestScope, setup: (InMemoryTripDao, FakeVehicle) -> Unit = { _, _ -> }) {
+    private class Rig(
+        scope: TestScope,
+        val geo: FakeGeocode? = null,
+        setup: (InMemoryTripDao, FakeVehicle) -> Unit = { _, _ -> },
+    ) {
         val clock = scope.virtualClock()
         val car = FakeVehicle(clock)
         val dao = InMemoryTripDao()
@@ -39,7 +48,17 @@ class TripSessionManagerTest {
         init {
             setup(dao, car)
             session =
-                TripSessionManager(car, dao, ctx, engine, scope.backgroundScope, clock, { "car-1" }, { "t-${++ids}" })
+                TripSessionManager(
+                    car,
+                    dao,
+                    ctx,
+                    engine,
+                    scope.backgroundScope,
+                    clock,
+                    { "car-1" },
+                    { "t-${++ids}" },
+                    geocode = geo,
+                )
             session.start()
             scope.runCurrent()
         }
@@ -67,17 +86,172 @@ class TripSessionManagerTest {
     }
 
     @Test
-    fun `운행 시작 시 내비 현재 위치 주소를 출발지로 저장한다`() = runTest {
+    fun `운행 시작 시 내비 현재 위치 주소를 출발지 주소로 저장한다 — 서버가 없으면 그대로 남는다`() = runTest {
         val rig = Rig(this)
-        rig.ctx.setNaviLocation(NaviCurrentLocation(37.4, 127.1, " 서울 강남구 테헤란로 1 "))
+        rig.ctx.setNaviLocation(NaviCurrentLocation(37.4, 127.1, " 서울특별시 강남구 테헤란로 1 "))
 
         val row = rig.dao.trip(startedTrip(rig))!!
 
-        assertEquals("서울 강남구 테헤란로 1", row.originLabel)
+        assertNull(row.originLabel)
+        assertEquals("서울 강남구 테헤란로 1", row.originAddress)
+        assertEquals(AddressSource.NAVI_HELPER, row.originAddressSource)
         assertEquals(37.4, row.originLat!!, 0.0)
         assertEquals(127.1, row.originLng!!, 0.0)
         assertEquals(PlaceSource.NAVI_CURRENT, row.originSource)
-        assertEquals("서울 강남구 테헤란로 1", (rig.stateValue as SessionState.Recording).trip.originLabel)
+        assertEquals("서울 강남구 테헤란로 1", (rig.stateValue as SessionState.Recording).trip.originAddress)
+    }
+
+    @Test
+    fun `운행을 시작하면 서버 주소와 건물 이름이 곧 출발지에 붙는다`() = runTest {
+        val rig = Rig(this, geo = FakeGeocode())
+        rig.ctx.setNaviLocation(NaviCurrentLocation(37.566, 126.93, "서울특별시 서대문구 연희로 11-1"))
+
+        val id = startedTrip(rig)
+        runCurrent()
+
+        val row = rig.dao.trip(id)!!
+        assertEquals("서울 서대문구 연희동 연희로 11-1", row.originAddress)
+        assertEquals(AddressSource.KAKAO_RELAY, row.originAddressSource)
+        assertEquals("연희빌딩", row.originLabel)
+        val live = (rig.stateValue as SessionState.Recording).trip
+        assertEquals("연희빌딩", live.originLabel)
+        assertEquals("서울 서대문구 연희동 연희로 11-1", live.originAddress)
+    }
+
+    @Test
+    fun `등록 장소 안에서 출발하면 장소 이름이 건물 이름보다 먼저다`() = runTest {
+        val rig = Rig(this, geo = FakeGeocode())
+        rig.engine.place = PlaceInfo("office", "본사", PlaceKind.OFFICE, 37.395, 127.111)
+
+        val id = startedTrip(rig)
+        runCurrent()
+
+        assertEquals("본사", rig.dao.trip(id)!!.originLabel)
+    }
+
+    @Test
+    fun `목적지 없이 끝나면 지금 위치로 도착지 주소를 채운다 — 서버가 꺼져 있으면 내비 주소`() = runTest {
+        val geo = FakeGeocode(serverDown = true, naviAddress = "경기 성남시 분당구 정자일로 1")
+        val rig = Rig(this, geo = geo)
+        rig.ctx.setDestination(null)
+        val id = startedTrip(rig)
+        rig.car.drive(5.0)
+        runCurrent()
+
+        rig.session.finalize()
+        runCurrent()
+
+        val row = rig.dao.trip(id)!!
+        assertNull(row.destinationLabel)
+        assertEquals("경기 성남시 분당구 정자일로 1", row.destinationAddress)
+        assertEquals(AddressSource.NAVI_HELPER, row.destinationAddressSource)
+        assertEquals(FakeContext.SAMPLE_FIX.lat, row.destinationLat!!, 0.0)
+        assertEquals(PlaceSource.FUSED_LOCATION, row.destinationSource)
+        assertEquals("경기 성남시 분당구 정자일로 1", (rig.stateValue as SessionState.PendingReview).trip.destinationAddress)
+    }
+
+    @Test
+    fun `내비 목적지 근처에서 끝나면 목적지 이름을 남기고 주소는 서버 주소로`() = runTest {
+        val dest = FakeContext.SAMPLE_DESTINATION
+        val geo = FakeGeocode(result = GeocodeResult("경기 성남시 분당구 삼평동 판교역로 1", null, AddressSource.KAKAO_RELAY))
+        val rig = Rig(this, geo = geo)
+        val id = startedTrip(rig)
+        rig.car.drive(5.0)
+        runCurrent()
+        rig.ctx.setNaviLocation(NaviCurrentLocation(dest.lat + 0.001, dest.lng, null))
+
+        rig.session.finalize()
+        runCurrent()
+
+        val row = rig.dao.trip(id)!!
+        assertEquals("판교 테크노밸리 거래처", row.destinationLabel)
+        assertEquals("경기 성남시 분당구 삼평동 판교역로 1", row.destinationAddress)
+        assertEquals(PlaceSource.NAVI_CURRENT, row.destinationSource)
+    }
+
+    @Test
+    fun `내비 목적지와 먼 곳에서 끝나면 목적지 이름을 버리고 실제 위치를 쓴다`() = runTest {
+        val rig =
+            Rig(
+                this,
+                geo = FakeGeocode(result = GeocodeResult("서울 중구 태평로1가 세종대로 110", "서울시청", AddressSource.KAKAO_RELAY)),
+            )
+        val id = startedTrip(rig)
+        rig.car.drive(30.0)
+        runCurrent()
+        rig.ctx.setNaviLocation(NaviCurrentLocation(37.5663, 126.9779, null))
+
+        rig.session.finalize()
+        runCurrent()
+
+        val row = rig.dao.trip(id)!!
+        assertEquals("서울시청", row.destinationLabel)
+        assertEquals("서울 중구 태평로1가 세종대로 110", row.destinationAddress)
+        assertEquals(37.5663, row.destinationLat!!, 0.0)
+    }
+
+    @Test
+    fun `사람이 고른 도착지 이름은 늦게 온 주소가 덮지 않는다`() = runTest {
+        val rig = Rig(this, geo = FakeGeocode())
+        rig.ctx.setDestination(null)
+        val id = startedTrip(rig)
+        rig.car.drive(5.0)
+        runCurrent()
+        rig.session.finalize()
+        rig.session.confirmPurpose(id, PurposeDetail.CLIENT_VISIT, null, InputMode.TAP, "판교 A고객사")
+
+        runCurrent()
+
+        val row = rig.dao.trip(id)!!
+        assertEquals("판교 A고객사", row.destinationLabel)
+        assertEquals(PlaceSource.USER_SELECTED, row.destinationSource)
+        assertEquals(FakeGeocode.SAMPLE.address, row.destinationAddress)
+    }
+
+    @Test
+    fun `서버가 꺼졌던 운행은 동기화 때 서버 주소로 다시 채운다 — 지난 좌표라 내비는 쓰지 않는다`() = runTest {
+        val geo = FakeGeocode(serverDown = true, naviAddress = "내비 주소")
+        val rig = Rig(this, geo = geo)
+        rig.ctx.setDestination(null)
+        val id = startedTrip(rig)
+        rig.car.drive(5.0)
+        runCurrent()
+        rig.session.finalize()
+        runCurrent()
+        assertEquals(AddressSource.NAVI_HELPER, rig.dao.trip(id)!!.destinationAddressSource)
+
+        geo.serverDown = false
+        val filled = rig.session.fillMissingAddresses()
+
+        val row = rig.dao.trip(id)!!
+        assertEquals(1, filled)
+        assertEquals(AddressSource.KAKAO_RELAY, row.originAddressSource)
+        assertEquals(AddressSource.KAKAO_RELAY, row.destinationAddressSource)
+        assertEquals(FakeGeocode.SAMPLE.address, row.destinationAddress)
+        assertEquals(0, rig.session.fillMissingAddresses())
+    }
+
+    @Test
+    fun `서버가 계속 답하지 않으면 나중 채우기를 멈춘다`() = runTest {
+        val geo = FakeGeocode(serverDown = true)
+        val rig = Rig(this, geo = geo) { dao, _ ->
+            dao.trips.value = (0 until 5).associate { i ->
+                "old-$i" to TripEntity(
+                    tripId = "old-$i",
+                    vehicleId = "car-1",
+                    userId = null,
+                    startTime = 1_000L + i,
+                    startOdometerKm = 1.0,
+                    originLat = 37.0,
+                    originLng = 127.0,
+                    status = TripStatus.CONFIRMED,
+                )
+            }
+        }
+        geo.calls.clear()
+
+        assertEquals(0, rig.session.fillMissingAddresses())
+        assertEquals(TripSessionManager.BACKFILL_MAX_MISSES, geo.calls.size)
     }
 
     @Test

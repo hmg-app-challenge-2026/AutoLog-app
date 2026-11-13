@@ -35,6 +35,10 @@ class RoomReportSource(
                 note = t.purposeNote,
                 timeEstimated = t.timeEstimated,
                 stopLabels = trips.stops(t.tripId).mapNotNull { it.label },
+                originAddress = t.originAddress,
+                destinationAddress = t.destinationAddress,
+                isDistanceEdited = t.editedDistanceKm != null,
+                odometerDistanceKm = t.distanceKm,
             )
         }
     }

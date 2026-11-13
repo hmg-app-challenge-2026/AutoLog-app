@@ -1,5 +1,6 @@
 package kr.autolog.vehicle.data
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kr.autolog.shared.AutoLogJson
@@ -35,9 +36,26 @@ class InboxSync(
 ) : RelayClient {
     private val mutex = Mutex()
 
+    /** 동기화가 성공한 뒤 한 번 부른다(주소 없는 운행을 서버로 채우기 — 세션이 연결). 실패해도 동기화 결과는 그대로. */
+    @Volatile var onSynced: (suspend () -> Unit)? = null
+
     override suspend fun issueQrToken(): QrResult = device.issueQr()
 
-    override suspend fun syncNow(): SyncResult = mutex.withLock {
+    override suspend fun syncNow(): SyncResult {
+        val r = syncLocked()
+        if (r is SyncResult.Ok) {
+            try {
+                onSynced?.invoke()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                log("after sync failed: ${e.message}")
+            }
+        }
+        return r
+    }
+
+    private suspend fun syncLocked(): SyncResult = mutex.withLock {
         val items = when (val r = device.call { url, token -> inbox(url, token) }) {
             is RelayResult.Ok -> r.value
             is RelayResult.Failure -> return@withLock SyncResult.Failed(r.message)
