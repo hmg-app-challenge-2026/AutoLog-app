@@ -18,6 +18,8 @@ import java.time.Instant
 
 /**
  * 운행 결과 카드에 보일 한 운행(스펙 7.3, D-27). [category] = 저장된 분류, 아직 없으면 [DefaultPurposePolicy]의 기본값.
+ * 장소는 이름([origin]: 등록 장소·내비 목적지·건물)과 주소([originAddress])를 따로 — 카드는 이름 + 주소 2줄(I-05). 주소는 늦게 올 수 있다.
+ * [distanceEdited] = 거리가 사람이 고친 값(F-05).
  * [classified] = 분류가 이미 저장돼 있는지(운행 기록 조회에서 다시 열었을 때 true).
  * [endsAt] = 종료 조건은 됐지만 아직 끝나지 않은 운행(앱 A `StopCandidate`)의 종료 시각 — 그 전엔 [기록 이어가기]로 되돌릴 수 있다.
  * null이면 이미 끝나 저장된 운행. 끝나기 전 [endTime]은 지금 시각(경과 시간 표시용).
@@ -32,6 +34,9 @@ data class TripResult(
     val category: PurposeCategory,
     val classified: Boolean,
     val endsAt: Long? = null,
+    val originAddress: String? = null,
+    val destinationAddress: String? = null,
+    val distanceEdited: Boolean = false,
 )
 
 /**
@@ -55,6 +60,9 @@ interface TripResultRepository {
 
     /** [category]로 분류해 저장한다(다시 부르면 바꾼다). 아직 끝나지 않은 운행이면 아무것도 하지 않는다. */
     suspend fun classify(tripId: String, category: PurposeCategory)
+
+    /** 사람이 고친 거리를 저장한다(F-05 — 계기판 원본은 앱 A가 따로 남긴다). 저장했으면 true, 끝나지 않은 운행·범위 밖이면 false. */
+    suspend fun editDistance(tripId: String, km: Double): Boolean
 }
 
 class DefaultTripResultRepository(
@@ -75,6 +83,8 @@ class DefaultTripResultRepository(
         session.confirmPurpose(tripId, detailFor(category, row.purpose, suggested, row.startTime), null, InputMode.TAP)
     }
 
+    override suspend fun editDistance(tripId: String, km: Double): Boolean = session.editDistance(tripId, km)
+
     /** 종료 대기 중인 운행 — 아직 저장소에 없다. 경과 시간은 지금까지. */
     private suspend fun SessionState.StopCandidate.toResult() = TripResult(
         tripId = trip.tripId,
@@ -83,6 +93,8 @@ class DefaultTripResultRepository(
         distanceKm = liveKm,
         origin = trip.originLabel,
         destination = trip.destinationLabel,
+        originAddress = trip.originAddress,
+        destinationAddress = trip.destinationAddress,
         category = defaults.defaultFor(
             TripFacts(
                 tripId = trip.tripId,
@@ -107,6 +119,9 @@ class DefaultTripResultRepository(
             destination = destinationLabel,
             category = saved ?: defaults.defaultFor(facts()),
             classified = saved != null,
+            originAddress = originAddress,
+            destinationAddress = destinationAddress,
+            distanceEdited = isDistanceEdited,
         )
     }
 

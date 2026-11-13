@@ -37,6 +37,8 @@
     <string name="trip_km">%1$s km</string>
     <string name="trip_km_unknown">거리 미확정</string>
     <string name="trip_km_unknown_reason">계기판 거리를 읽지 못하고 있어요</string>
+    <!-- 사람이 고친 거리 옆 표시. 계기판 값은 엑셀 비고에 남는다 -->
+    <string name="trip_km_edited">수정됨</string>
     <string name="trip_no_purpose">목적 미입력</string>
     <!-- 앞뒤 공백은 따옴표로 지킨다(aapt가 맨 앞·뒤 공백을 지운다) -->
     <string name="meta_separator">" · "</string>
@@ -97,6 +99,11 @@
     <!-- 운행 직후 카드 수정 모드의 빨간 버튼·확인 팝업(D-39) -->
     <string name="result_delete">삭제하기</string>
     <string name="result_delete_question">이 운행을 삭제할까요?</string>
+    <!-- 거리 고치기(F-05): 수정 모드 [거리 수정하기] → 숫자판 팝업 -->
+    <string name="result_edit_distance">거리 수정하기</string>
+    <string name="result_distance_title">운행 거리</string>
+    <string name="result_distance_error_zero">0보다 큰 거리를 입력해 주세요</string>
+    <string name="result_distance_error_long">1,500 km 이하로 입력해 주세요</string>
     <string name="result_save">저장하기</string>
     <string name="result_saved">운행 기록을 저장했어요</string>
     <string name="result_home">메인 화면으로</string>

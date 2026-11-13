@@ -315,6 +315,83 @@ class TripResultViewModelTest {
         assertNull(g.store.trip(tripId)!!.purpose)
     }
 
+    @Test
+    fun `거리 수정 — 지금 거리로 팝업이 열리고, 고쳐 완료하면 화면에 수정됨, 저장하면 목적과 함께 저장된다`() = runTest {
+        val (g, vm) = open()
+        vm.uiState.first { !it.loading }
+        vm.onAction(TripResultAction.Edit)
+
+        vm.onAction(TripResultAction.EditDistance)
+        assertEquals("23.4", vm.uiState.first { it.distanceEditor != null }.distanceEditor!!.draft)
+        repeat(4) { vm.onAction(TripResultAction.DistanceDelete) }
+        "25.5".forEach { vm.onAction(TripResultAction.DistanceKey(it)) }
+        vm.onAction(TripResultAction.ConfirmDistance)
+
+        val state = vm.uiState.first { it.distanceEditor == null }
+        assertEquals("25.5", state.km)
+        assertTrue(state.distanceEdited)
+        assertFalse(g.store.trip("t-s1")!!.isDistanceEdited) // 아직 저장 전
+        vm.onAction(TripResultAction.Save)
+        runCurrent()
+
+        acknowledgeSaved(g, vm)
+        val row = g.store.trip("t-s1")!!
+        assertEquals(25.5, row.distanceKm!!, 0.0)
+        assertTrue(row.isDistanceEdited)
+        assertEquals(PurposeCategory.BUSINESS, row.purpose!!.category)
+    }
+
+    @Test
+    fun `거리 수정 — 0이나 1500 km 넘는 값은 이유를 보여 주고 팝업이 남는다, X는 고치지 않고 닫는다`() = runTest {
+        val (g, vm) = open()
+        vm.uiState.first { !it.loading }
+        vm.onAction(TripResultAction.Edit)
+        vm.onAction(TripResultAction.EditDistance)
+        repeat(4) { vm.onAction(TripResultAction.DistanceDelete) }
+
+        vm.onAction(TripResultAction.ConfirmDistance)
+        assertEquals(DistanceEntryError.EMPTY_OR_ZERO, vm.uiState.first().distanceEditor!!.error)
+        "1501".forEach { vm.onAction(TripResultAction.DistanceKey(it)) }
+        vm.onAction(TripResultAction.ConfirmDistance)
+        assertEquals(DistanceEntryError.TOO_LONG, vm.uiState.first().distanceEditor!!.error)
+        vm.onAction(TripResultAction.CancelDistance)
+
+        val state = vm.uiState.first { it.distanceEditor == null }
+        assertEquals("23.4", state.km)
+        assertFalse(state.distanceEdited)
+        assertFalse(g.store.trip("t-s1")!!.isDistanceEdited)
+    }
+
+    @Test
+    fun `거리 수정은 수정 모드에서만 열리고, 출발하면 팝업이 닫힌다`() = runTest {
+        val parked = MutableStateFlow(true)
+        val g = TestAppGraph(backgroundScope, AppClock { testScheduler.currentTime }, start = Route.Home)
+        g.navigator.push(Route.TripResult("t-s1"))
+        val vm = TripResultViewModel("t-s1", g.tripResults, g.session, g.navigator, g.clock, parked = parked)
+        vm.uiState.first { !it.loading }
+
+        vm.onAction(TripResultAction.EditDistance)
+        assertNull(vm.uiState.first().distanceEditor)
+        vm.onAction(TripResultAction.Edit)
+        vm.onAction(TripResultAction.EditDistance)
+        assertTrue(vm.uiState.first().distanceEditor != null)
+        parked.value = false
+        runCurrent()
+
+        assertNull(vm.uiState.first().distanceEditor)
+    }
+
+    @Test
+    fun `카드는 장소 이름과 주소를 함께 보여 준다`() = runTest {
+        val (_, vm) = open()
+
+        val state = vm.uiState.first { !it.loading }
+
+        assertEquals("본사", state.origin)
+        assertEquals("서울 서대문구 연희동 연희로 11-1", state.originAddress)
+        assertEquals("경기 성남시 분당구 삼평동 판교역로 166", state.destinationAddress)
+    }
+
     /** 기록 중 → 기어 P(종료 대기, 5초 뒤 종료) → Home 위 운행 결과 카드. */
     private fun TestScope.ending(): Triple<TestAppGraph, TripResultViewModel, String> {
         val g = TestAppGraph(backgroundScope, AppClock { testScheduler.currentTime }, start = Route.Home)

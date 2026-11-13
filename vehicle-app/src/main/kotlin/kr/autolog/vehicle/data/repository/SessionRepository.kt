@@ -33,7 +33,7 @@ sealed interface TripSession {
     data class NeedsRecovery(val extraKm: Double?) : TripSession
 }
 
-/** 진행 중 운행에서 화면이 쓰는 값. [origin] null = 출발지 모름. */
+/** 진행 중 운행에서 화면이 쓰는 값. [origin] = 출발지 이름, 없으면 주소(I-05). null = 출발지 모름. */
 data class ActiveTrip(val tripId: String, val startTime: Long, val origin: String?)
 
 enum class AutoEndReason { GEAR_P, NO_MOVEMENT, NAVI_ARRIVED, USER_REQUEST }
@@ -127,7 +127,7 @@ internal fun SessionState.toTripSession(): TripSession = when (this) {
     is SessionState.NeedsRecovery -> TripSession.NeedsRecovery(extraKm)
 }
 
-private fun LiveTrip.toActive() = ActiveTrip(tripId, startTime, originLabel)
+private fun LiveTrip.toActive() = ActiveTrip(tripId, startTime, originLabel ?: originAddress)
 
 private fun StopReason.toAutoEnd(): AutoEndReason = when (this) {
     StopReason.GEAR_P -> AutoEndReason.GEAR_P

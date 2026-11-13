@@ -496,7 +496,7 @@ M3 컴포넌트를 쓸 때 색이 어긋나지 않도록 `AutoLogTheme`이 `Colo
 | `SuccessCheck` | "끝났다"를 한 번에 알리는 완료 표시: `accentFill` 원(200 dp) 안에 흰 체크(`onAccent`, 둥근 끝, 굵기 반지름의 17%). `motion.success` 순서로 원이 튀어 오르고 → 테두리가 한 번 퍼지고 → 체크가 손으로 긋듯 그려지고 → 톡, 그 순간 `onDrawn`. 진동은 넣지 않는다(차량 디스플레이에 진동 장치가 없는 경우가 많고, 완료 알림엔 필요 없다 — 사용자 결정). 정지형(정차·애니메이션 줄이기·스크린샷)이면 완성된 모양을 바로 그리고 `onDrawn`도 바로. 운행 결과 저장 완료 화면에서 쓴다 |
 | `TopLine` · `ScrollColumn` | 전체 화면 공용 뼈대. `TopLine` = 맨 위 76 dp 줄(상태 줄·화면 제목), 오른쪽은 운전자 배지 자리로 비운다. `ScrollColumn` = 위쪽 정렬 + 넘치면 스크롤 + 가장자리 흐림 |
 | `EmptyState` | 아이콘(`iconLg`, `textTertiary`) + 문장(`body`) + 선택 버튼 1개 |
-| `RouteFlow` | 출발 ○ → 갈매기 화살표(기록 중) 또는 정지 연결선(완료) → 도착 ●를 왼쪽에, 장소 이름을 오른쪽에 둔다. 출발지 보통·회색, 목적지 굵게·기본색 — 둘 다 같은 크기(`textStyle`, 기본 `title` 44 sp. Home 분할 화면은 `windowType.homeRoute`). 목적지는 두 줄까지 표시한다. 크기 모드는 하나뿐(예전 좁은 칸용 `dense` 모드는 쓰는 곳이 없어져 삭제) | 화살표 흐름은 **차가 달리는 동안만**(`LocalVehicleMoving`, D-32) — 주차·정차 중엔 정지 그림(흐름은 "지금 움직이는 중"이라는 뜻). |
+| `RouteFlow` | 출발 ○ → 갈매기 화살표(기록 중) 또는 정지 연결선(완료) → 도착 ●를 왼쪽에, 장소 이름을 오른쪽에 둔다. 출발지 보통·회색, 목적지 굵게·기본색 — 둘 다 같은 크기(`textStyle`, 기본 `title` 44 sp. Home 분할 화면은 `windowType.homeRoute`). 목적지는 두 줄까지 표시한다. `originDetail`·`destinationDetail` = 이름 아래 주소 한 줄(`caption`, `textSecondary`, 말줄임 — 운행 결과, 스펙 D-40). 크기 모드는 하나뿐(예전 좁은 칸용 `dense` 모드는 쓰는 곳이 없어져 삭제) | 화살표 흐름은 **차가 달리는 동안만**(`LocalVehicleMoving`, D-32) — 주차·정차 중엔 정지 그림(흐름은 "지금 움직이는 중"이라는 뜻). |
 
 새 컴포넌트가 필요하면 이 표에 먼저 추가하는 PR을 올린다.
 
