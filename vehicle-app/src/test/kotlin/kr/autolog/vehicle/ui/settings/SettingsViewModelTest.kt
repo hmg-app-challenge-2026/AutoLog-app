@@ -30,8 +30,17 @@ class SettingsViewModelTest {
 
     private fun TestScope.open(
         overlay: OverlayPermissionRepository = RecordingOverlay.None,
+        relayUrl: String = "https://relay.example",
     ): Pair<TestAppGraph, SettingsViewModel> {
-        val g = TestAppGraph(backgroundScope, AppClock { testScheduler.currentTime }, start = Route.Home)
+        val g =
+            TestAppGraph(
+                backgroundScope,
+                AppClock {
+                    testScheduler.currentTime
+                },
+                start = Route.Home,
+                relayUrl = relayUrl,
+            )
         g.navigator.push(Route.Settings)
         val vm = SettingsViewModel(g.settings, g.navigator, g.clock, AppInfo("0.1.0", demo = true), overlay)
         backgroundScope.launch { vm.uiState.collect {} }
@@ -39,10 +48,9 @@ class SettingsViewModelTest {
     }
 
     @Test
-    fun `연결 코드 — 6자리를 넣고 연결하면 팝업이 닫히고 연결됨`() = runTest {
+    fun `연결 코드 — 6자리만 넣고 연결하면 빌드에 고정된 서버로 연결된다`() = runTest {
         val (_, vm) = open()
         vm.onAction(SettingsAction.StartRegister)
-        vm.onAction(SettingsAction.EditDialog(DialogField.SERVER_URL, "https://new.example"))
         vm.onAction(SettingsAction.EditDialog(DialogField.CONNECT_CODE, "7kq3mzW")) // 소문자는 대문자로, 7번째는 무시
 
         val dialog = vm.uiState.first { (it.dialog as? SettingsDialog.Register)?.code?.length == 6 }.dialog
@@ -53,7 +61,7 @@ class SettingsViewModelTest {
         assertNull(vm.uiState.value.dialog)
         assertEquals(TaskResult.Done, vm.uiState.value.results[SettingsTask.REGISTER])
         assertEquals(
-            "https://new.example",
+            "https://relay.example",
             (
                 vm.uiState.first {
                     it.link is LinkUi.Linked
@@ -74,9 +82,8 @@ class SettingsViewModelTest {
 
     @Test
     fun `연결 실패면 팝업에 이유를 남긴다`() = runTest {
-        val (_, vm) = open()
+        val (_, vm) = open(relayUrl = "ftp://x") // 빌드 설정이 잘못된 경우
         vm.onAction(SettingsAction.StartRegister)
-        vm.onAction(SettingsAction.EditDialog(DialogField.SERVER_URL, "ftp://x"))
         vm.onAction(SettingsAction.EditDialog(DialogField.CONNECT_CODE, "7KQ3MZ"))
         vm.onAction(SettingsAction.SubmitDialog)
         advanceUntilIdle()

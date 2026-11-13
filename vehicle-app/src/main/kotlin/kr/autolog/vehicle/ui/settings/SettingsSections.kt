@@ -57,7 +57,7 @@ internal fun SectionDetail(section: SettingsSection, state: SettingsUiState, onA
     }
 }
 
-/** 1. 차량 정보 — 연결 상태 카드 + [연결 코드 입력]/[다시 연결](팝업: 서버 주소 + 6자리 코드) + (실제 앱) 운행 기록 알약 권한 카드. */
+/** 1. 차량 정보 — 연결 상태 카드 + [연결 코드 입력]/[다시 연결](팝업: 6자리 코드) + (실제 앱) 운행 기록 알약 권한 카드. */
 @Composable
 private fun Vehicle(state: SettingsUiState, onAction: (SettingsAction) -> Unit) {
     val c = AutoLogTheme.colors
@@ -70,12 +70,12 @@ private fun Vehicle(state: SettingsUiState, onAction: (SettingsAction) -> Unit) 
         is LinkUi.Linked -> StatusCard(
             stringResource(R.string.settings_linked),
             c.success,
-            listOf(stringResource(R.string.settings_vehicle_plate, l.vehicle), l.serverUrl),
+            listOf(stringResource(R.string.settings_vehicle_plate, l.vehicle)),
         )
         is LinkUi.Unreachable -> StatusCard(
             stringResource(R.string.settings_unreachable),
             c.warning,
-            listOf(stringResource(R.string.settings_vehicle_plate, l.vehicle), l.serverUrl),
+            listOf(stringResource(R.string.settings_vehicle_plate, l.vehicle)),
         )
     }
     if (state.link == LinkUi.NotLinked) {

@@ -59,12 +59,3 @@ internal fun reduceSettings(local: SettingsLocal, sources: SettingsSources, app:
         app = app,
         overlay = local.overlay,
     )
-
-/** 연결 팝업을 열 때 서버 주소 칸의 처음 값: 지금 연결된 주소, 없으면 "https://"(스펙 7.9 — 마지막 주소 프리셋). */
-internal fun registerPreset(link: ServerLink): String = when (link) {
-    is ServerLink.Linked -> link.serverUrl
-    is ServerLink.Unreachable -> link.serverUrl
-    ServerLink.NotLinked -> HTTPS
-}
-
-private const val HTTPS = "https://"

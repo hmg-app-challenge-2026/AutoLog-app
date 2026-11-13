@@ -50,12 +50,6 @@ class SettingsReducerTest {
     }
 
     @Test
-    fun `연결 팝업의 서버 주소는 지금 주소, 없으면 https`() {
-        assertEquals("https://", registerPreset(ServerLink.NotLinked))
-        assertEquals("https://a.example", registerPreset(ServerLink.Unreachable("12가3456", "https://a.example")))
-    }
-
-    @Test
     fun `메일 칸은 호스트·아이디·비밀번호·숫자 포트가 다 있어야 완성`() {
         assertFalse(MailForm().complete)
         assertTrue(MailForm("smtp.example.com", "587", "me@example.com", "pw").complete)

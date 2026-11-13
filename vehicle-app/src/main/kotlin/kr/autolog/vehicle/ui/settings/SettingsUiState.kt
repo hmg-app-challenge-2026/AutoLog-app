@@ -92,7 +92,7 @@ sealed interface TaskResult {
 /** 설정의 팝업(모두 `ModalCard` — 오른쪽 위 X로 닫는다, D-30). */
 sealed interface SettingsDialog {
     /** 차량 연결: 서버 주소 + 연결 코드 6자리(`CodeField` — 키보드 입력, `ConnectCode` 규칙). */
-    data class Register(val serverUrl: String, val code: String = "") : SettingsDialog
+    data class Register(val code: String = "") : SettingsDialog
 
     data class AddRecipient(val email: String = "", val name: String = "") : SettingsDialog
 
@@ -103,7 +103,7 @@ sealed interface SettingsDialog {
 }
 
 /** 팝업 입력 칸 이름 — 칸 하나를 바꾸는 액션을 하나로 쓰기 위해. */
-enum class DialogField { SERVER_URL, CONNECT_CODE, EMAIL, NAME, DEPT }
+enum class DialogField { CONNECT_CODE, EMAIL, NAME, DEPT }
 
 enum class MailField { HOST, PORT, USERNAME, PASSWORD }
 

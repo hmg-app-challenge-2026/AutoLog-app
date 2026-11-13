@@ -12,9 +12,14 @@ class TestAppGraph private constructor(
     clock: AppClock,
     start: Route,
     val carUx: StaticCarUxSource,
-) : FakeAppGraph(scope, clock, carUx, start, vehicleId = "veh-test") {
-    constructor(scope: CoroutineScope, clock: AppClock = AppClock.System, start: Route = Route.ProfilePicker) :
-        this(scope, clock, start, StaticCarUxSource())
+    relayUrl: String,
+) : FakeAppGraph(scope, clock, carUx, start, vehicleId = "veh-test", relayUrl = relayUrl) {
+    constructor(
+        scope: CoroutineScope,
+        clock: AppClock = AppClock.System,
+        start: Route = Route.ProfilePicker,
+        relayUrl: String = "https://relay.example",
+    ) : this(scope, clock, start, StaticCarUxSource(), relayUrl)
 
     val trip get() = sources.trip
     val store get() = sources.store

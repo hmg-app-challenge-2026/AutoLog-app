@@ -15,8 +15,6 @@ android {
         minSdk = 28
         consumerProguardFiles("consumer-rules.pro")
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        // 중계 서버 주소. 에뮬레이터에서 호스트 PC는 10.0.2.2
-        buildConfigField("String", "RELAY_BASE_URL", "\"http://10.0.2.2:8080/\"")
     }
 
     // AAOS CarPropertyManager(시동 상태). 런타임에는 차량 OS가 제공한다.

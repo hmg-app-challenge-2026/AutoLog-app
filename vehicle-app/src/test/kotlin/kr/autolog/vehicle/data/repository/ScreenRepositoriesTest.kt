@@ -96,7 +96,7 @@ class ScreenRepositoriesTest {
     fun `잘못된 연결 코드는 이유와 함께 실패한다`() = runTest {
         val g = TestAppGraph(backgroundScope, AppClock { now })
 
-        val result = g.settings.register("https://autolog.acme.co.kr", "12")
+        val result = g.settings.register("12")
 
         assertEquals(Outcome.Failed("연결 코드 6자리를 확인해 주세요"), result)
     }
