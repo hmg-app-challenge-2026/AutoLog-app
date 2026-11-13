@@ -120,7 +120,8 @@ private fun FuelActions(state: FuelEntryUiState, onAction: (FuelEntryAction) -> 
     Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
         val error = state.error?.let { errorText(it) to AutoLogTheme.colors.danger }
         (error ?: state.notice?.let { noticeText(it) to noticeColor(it) })?.let { (text, color) ->
-            ButtonNote(text, style = AutoLogTheme.windowType.resultClassification, color = color)
+            // 운행 결과 분류 문구(title)보다 한 단계 작게 — 안내라 버튼보다 앞서 소리치지 않게(2026-11-13 사용자 지시)
+            ButtonNote(text, style = AutoLogTheme.type.label, color = color)
             Spacer(Modifier.height(Space.s5))
         }
         val add =

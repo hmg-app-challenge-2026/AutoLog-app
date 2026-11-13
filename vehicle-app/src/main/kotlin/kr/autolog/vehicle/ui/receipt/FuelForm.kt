@@ -6,7 +6,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -60,7 +59,8 @@ internal fun FuelDetails(state: FuelEntryUiState, onAction: (FuelEntryAction) ->
         if (state.showsSummary) FuelSummary(state) else FuelFieldList(state, onAction)
         if (state.receipt != null) {
             Spacer(Modifier.height(Space.s6))
-            ReceiptThumbnail(state, onImage)
+            // 누르면 크게 — 안내 글자 없이 사진만(2026-11-13 사용자 지시)
+            ReceiptImage(state, Modifier.size(THUMB_WIDTH, THUMB_HEIGHT), onClick = onImage)
         }
     }
 }
@@ -155,23 +155,6 @@ private fun FuelFieldList(state: FuelEntryUiState, onAction: (FuelEntryAction) -
                 emphasized = field == FuelField.AMOUNT,
             )
         }
-    }
-}
-
-/** 작은 사진 + "눌러서 크게 보기". */
-@Composable
-private fun ReceiptThumbnail(state: FuelEntryUiState, onClick: () -> Unit) {
-    Row(
-        Modifier.tappable(onClick = onClick),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(Space.s5),
-    ) {
-        ReceiptImage(state, Modifier.size(THUMB_WIDTH, THUMB_HEIGHT), onClick = null)
-        Text(
-            stringResource(R.string.fuel_receipt_zoom),
-            style = AutoLogTheme.type.caption,
-            color = AutoLogTheme.colors.textSecondary,
-        )
     }
 }
 
