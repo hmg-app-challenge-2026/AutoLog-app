@@ -38,7 +38,7 @@ import kr.autolog.vehicle.nav.TripResultMode
  * 다시 5초 자동 저장으로 돌아간다(누를 수 없는 화면에 멈춰 있지 않게).
  *
  * [mode] = REVIEW(운행 기록 조회에서 연 사후 확인, D-29): 카운트다운도 자동 저장도 없다. 목적 미입력 운행은 수정 모드로 열리고,
- * [저장]을 눌러야만 저장한 뒤 목록으로 돌아간다. [닫기]는 저장하지 않고 돌아간다.
+ * [저장]을 눌러야만 저장한 뒤 목록으로 돌아간다. 왼쪽 위 <(Close)는 저장하지 않고 돌아간다. [삭제하기]는 보기·수정 모두(D-39).
  */
 class TripResultViewModel(
     private val tripId: String,
@@ -104,16 +104,9 @@ class TripResultViewModel(
             TripResultAction.Continue -> keepRecording()
             is TripResultAction.Select ->
                 interaction.update { if (it.editing) it.copy(selected = action.category) else it }
-            // 삭제(D-39)는 운행 직후 카드의 수정 모드에서만 — 지운 뒤 저장 완료 화면 없이 들어온 화면으로
-            TripResultAction.Delete -> interaction.update {
-                if (it.editing &&
-                    !review
-                ) {
-                    it.copy(confirmingDelete = true)
-                } else {
-                    it
-                }
-            }
+            // 삭제(D-39): 운행 직후 카드는 수정 모드에서, 사후 확인은 보기·수정 모두 — 지운 뒤 저장 완료 화면 없이 들어온 화면으로
+            TripResultAction.Delete ->
+                interaction.update { if (it.editing || review) it.copy(confirmingDelete = true) else it }
             TripResultAction.CancelDelete -> interaction.update { it.copy(confirmingDelete = false) }
             TripResultAction.ConfirmDelete -> delete()
             TripResultAction.Edit -> {

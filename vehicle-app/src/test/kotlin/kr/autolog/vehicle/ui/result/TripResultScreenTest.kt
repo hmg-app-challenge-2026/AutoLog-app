@@ -4,6 +4,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -123,6 +124,26 @@ class TripResultScreenTest {
     }
 
     @Test
+    fun `사후 확인 — 왼쪽 위 뒤로, 아래는 수정하기·삭제하기(닫기 없음)`() {
+        val actions = mutableListOf<TripResultAction>()
+        show(
+            ended.copy(
+                review = true,
+                startedAt = TripWhen(TripDay.EARLIER, 11, 7, "19:34"),
+                autoCloseRemainingMs = null,
+            ),
+            actions,
+        )
+
+        compose.onNodeWithText("닫기").assertDoesNotExist()
+        compose.onNodeWithContentDescription("뒤로").performClick()
+        compose.onNodeWithText("수정하기").performClick()
+        compose.onNodeWithText("삭제하기").performClick()
+
+        assertEquals(listOf(TripResultAction.Close, TripResultAction.Edit, TripResultAction.Delete), actions)
+    }
+
+    @Test
     fun `삭제 확인 팝업 — 이 운행을 삭제할까요, 확인이면 삭제·취소면 닫기`() {
         val actions = mutableListOf<TripResultAction>()
         show(editing.copy(confirmingDelete = true), actions)
@@ -184,7 +205,7 @@ class TripResultScreenshotTest {
         Driving { TripResultScreen(ended.copy(saved = true), onAction = {}) }
     }
 
-    /** 운행 기록 조회에서 연 사후 확인(D-29): 카운트다운 막대 없음, 제목은 운행 시각, 오른쪽 버튼 [닫기]. */
+    /** 운행 기록 조회에서 연 사후 확인(D-29·D-39): 왼쪽 위 <, 제목은 운행 시각, 카운트다운 없음, [수정하기] · 빨간 [삭제하기]. */
     @Test
     fun review() = captureAll("trip_result_review") {
         TripResultScreen(
@@ -192,6 +213,19 @@ class TripResultScreenshotTest {
                 review = true,
                 startedAt = TripWhen(TripDay.EARLIER, 11, 7, "19:34"),
                 autoCloseRemainingMs = null,
+            ),
+            onAction = {},
+        )
+    }
+
+    /** 사후 확인 수정 모드(D-39): [저장하기] · 빨간 [삭제하기] — 삭제는 보기 때와 같은 오른쪽 자리. */
+    @Test
+    fun reviewEditing() = captureAll("trip_result_review_editing") {
+        TripResultScreen(
+            editing.copy(
+                review = true,
+                canContinue = false,
+                startedAt = TripWhen(TripDay.EARLIER, 11, 7, "19:34"),
             ),
             onAction = {},
         )

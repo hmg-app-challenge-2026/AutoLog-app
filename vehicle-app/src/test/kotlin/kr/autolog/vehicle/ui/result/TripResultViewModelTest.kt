@@ -43,7 +43,7 @@ class TripResultViewModelTest {
     }
 
     @Test
-    fun `사후 확인 — 카운트다운이 없어 기다려도 그대로, 닫기는 저장하지 않고 목록으로`() = runTest {
+    fun `사후 확인 — 카운트다운이 없어 기다려도 그대로, 왼쪽 위 뒤로는 저장하지 않고 목록으로`() = runTest {
         val (g, vm) = review("t-s2") // 이미 분류된 운행(지점 이동)
         val state = vm.uiState.first { !it.loading }
         assertNull(state.autoCloseSec)
@@ -72,7 +72,21 @@ class TripResultViewModelTest {
     }
 
     @Test
-    fun `사후 확인 — 목적 미입력 운행을 닫으면 미입력 그대로`() = runTest {
+    fun `사후 확인 — 지난 운행 삭제하기는 보기 모드에서도 팝업, 확인이면 지우고 목록으로`() = runTest {
+        val (g, vm) = review("t-s2")
+        vm.uiState.first { !it.loading }
+
+        vm.onAction(TripResultAction.Delete)
+        assertTrue(vm.uiState.first { it.confirmingDelete }.review)
+        vm.onAction(TripResultAction.ConfirmDelete)
+        runCurrent()
+
+        assertEquals(Route.History, g.navigator.current)
+        assertNull(g.store.trip("t-s2"))
+    }
+
+    @Test
+    fun `사후 확인 — 목적 미입력 운행을 뒤로 나가면 미입력 그대로`() = runTest {
         val (g, vm) = review("t-s1")
         vm.uiState.first { !it.loading }
 

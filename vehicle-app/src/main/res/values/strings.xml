@@ -48,7 +48,6 @@
     <!-- 운행 결과 카드 (스펙 7.3, D-27) -->
     <string name="result_title">운행 기록을 완료했어요</string>
     <string name="result_review_title">%1$s 운행</string>
-    <string name="result_close">닫기</string>
     <string name="history_title">운행 기록</string>
     <string name="period_month">%1$d년 %2$d월</string>
     <string name="history_summary">%1$d회 운행 · %2$s km</string>

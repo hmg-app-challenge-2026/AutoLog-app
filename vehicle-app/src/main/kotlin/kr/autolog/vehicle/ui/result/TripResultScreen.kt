@@ -49,6 +49,7 @@ import kr.autolog.vehicle.ui.design.components.EdgeCountdownBar
 import kr.autolog.vehicle.ui.design.components.ModalHost
 import kr.autolog.vehicle.ui.design.components.PrimaryButton
 import kr.autolog.vehicle.ui.design.components.RouteFlow
+import kr.autolog.vehicle.ui.design.components.ScreenHeader
 import kr.autolog.vehicle.ui.design.components.ScrollColumn
 import kr.autolog.vehicle.ui.design.components.Section
 import kr.autolog.vehicle.ui.design.components.TopLine
@@ -125,14 +126,19 @@ private fun ResultBody(state: TripResultUiState, onAction: (TripResultAction) ->
         Modifier.fillMaxSize().padding(start = margin, top = vertical, end = margin, bottom = vertical),
         verticalArrangement = Arrangement.spacedBy(Space.s2),
     ) {
-        TopLine {
-            Text(
-                resultTitle(state),
-                modifier = Modifier.weight(1f),
-                textAlign = TextAlign.Center,
-                style = AutoLogTheme.windowType.resultTitle,
-                color = c.textPrimary,
-            )
+        if (state.review) {
+            // 사후 확인은 운행 기록 조회에서 들어온 보조 화면 — 다른 보조 화면처럼 왼쪽 위 <(저장하지 않고 목록으로, D-39)
+            ScreenHeader(resultTitle(state)) { onAction(TripResultAction.Close) }
+        } else {
+            TopLine {
+                Text(
+                    resultTitle(state),
+                    modifier = Modifier.weight(1f),
+                    textAlign = TextAlign.Center,
+                    style = AutoLogTheme.windowType.resultTitle,
+                    color = c.textPrimary,
+                )
+            }
         }
         when {
             state.loading -> Unit
@@ -348,26 +354,37 @@ private data class ResultButton(
 )
 
 /**
- * 지금 보여 줄 행동 버튼(이 순서). 운행 직후: [기록 이어가기](종료 대기 중에만) · [수정하기](보기 모드에서만) · [저장하기](주 —
- * 남은 시간이 다 되면 저절로 눌리는 버튼). 수정 모드는 [수정하기]가 빠져 버튼이 하나 줄어든다.
- * 사후 확인(D-29): 보기 [수정하기] · [닫기](주), 수정 [저장하기](주) · [닫기].
+ * 지금 보여 줄 행동 버튼(이 순서). 운행 직후: [기록 이어가기](종료 대기 중에만) · [수정하기] · [저장하기](주 —
+ * 남은 시간이 다 되면 저절로 눌리는 버튼). 수정 모드는 [수정하기] 자리에 빨간 [삭제하기].
+ * 사후 확인(D-29·D-39): 보기 [수정하기] · [삭제하기], 수정 [저장하기] · [삭제하기](주) — 닫기는 왼쪽 위 <.
  */
 private fun resultButtons(state: TripResultUiState): List<ResultButton> = buildList {
     val save = ResultButton(R.string.result_save, TripResultAction.Save, primary = true)
     val edit = ResultButton(R.string.result_edit, TripResultAction.Edit, primary = false)
-    if (state.review) {
-        add(if (state.editing) save else edit)
-        add(ResultButton(R.string.result_close, TripResultAction.Close, primary = !state.editing))
-    } else {
-        // 수정 모드: [기록 이어가기] · 빨간 [삭제하기] · [저장하기] 순 — 누르면 확인 팝업(D-39, 2026-11-13 사용자 결정)
-        if (state.canContinue) add(ResultButton(R.string.result_continue, TripResultAction.Continue, primary = false))
-        if (state.editing) {
-            add(
-                ResultButton(R.string.result_delete, TripResultAction.Delete, primary = false, danger = true),
-            )
+    // 빨간 [삭제하기] — 누르면 확인 팝업(D-39, 2026-11-13 사용자 결정)
+    val delete = ResultButton(R.string.result_delete, TripResultAction.Delete, primary = false, danger = true)
+    when {
+        // 사후 확인(D-29·D-39): 보기 [수정하기] · [삭제하기], 수정 [저장하기] · [삭제하기]. 닫기는 왼쪽 위 <
+        // [삭제하기]는 보기·수정 모두 오른쪽 같은 자리 — 수정에 들어가도 움직이지 않게(2026-11-13 사용자 결정)
+        state.review -> if (state.editing) addAll(listOf(save, delete)) else addAll(listOf(edit, delete))
+        // 운행 직후 수정: [기록 이어가기](종료 대기 중에만) · [삭제하기] · [저장하기]
+        state.editing -> {
+            if (state.canContinue) {
+                add(
+                    ResultButton(R.string.result_continue, TripResultAction.Continue, primary = false),
+                )
+            }
+            addAll(listOf(delete, save))
         }
-        if (!state.editing) add(edit)
-        add(save)
+        // 운행 직후 보기: [기록 이어가기](종료 대기 중에만) · [수정하기] · [저장하기]
+        else -> {
+            if (state.canContinue) {
+                add(
+                    ResultButton(R.string.result_continue, TripResultAction.Continue, primary = false),
+                )
+            }
+            addAll(listOf(edit, save))
+        }
     }
 }
 
