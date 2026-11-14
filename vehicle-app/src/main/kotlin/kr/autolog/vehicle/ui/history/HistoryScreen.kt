@@ -2,10 +2,12 @@ package kr.autolog.vehicle.ui.history
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
@@ -13,7 +15,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -141,23 +143,29 @@ private fun Summary(state: HistoryUiState) {
 
 @Composable
 private fun RecordList(state: HistoryUiState, onAction: (HistoryAction) -> Unit, modifier: Modifier) {
-    val grouped = state.records.groupBy { it.dayOfMonth }
     LazyColumn(modifier.fillMaxWidth(), reverseLayout = true, verticalArrangement = Arrangement.spacedBy(Space.s3)) {
-        items(grouped.entries.toList(), key = { it.key }) { group ->
+        itemsIndexed(state.records, key = { _, record -> record.id }) { index, record ->
+            // reverseLayout에서 각 날짜의 가장 이른 기록이 화면상 첫 줄이다.
+            val firstInDay = index == state.records.lastIndex ||
+                state.records[index + 1].dayOfMonth != record.dayOfMonth
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Space.s3)) {
-                Text(
-                    stringResource(R.string.history_day, group.key),
-                    modifier = Modifier.width(72.dp).padding(top = Space.s3),
-                    style = AutoLogTheme.type.label,
-                    color = AutoLogTheme.colors.textSecondary,
-                )
-                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Space.s2)) {
-                    group.value.asReversed().forEach { record ->
-                        when (record) {
-                            is HistoryRecordUi.Trip -> TripRecordCard(record.row, state.driverChoices, onAction)
-                            is HistoryRecordUi.Fuel -> FuelRecordCard(record)
+                if (firstInDay) {
+                    Text(
+                        stringResource(R.string.history_day, record.dayOfMonth),
+                        modifier = Modifier.width(72.dp).padding(top = Space.s3),
+                        style = AutoLogTheme.type.label,
+                        color = AutoLogTheme.colors.textSecondary,
+                    )
+                } else {
+                    Spacer(Modifier.width(72.dp))
+                }
+                when (record) {
+                    is HistoryRecordUi.Trip ->
+                        Box(Modifier.weight(1f)) {
+                            TripRecordCard(record.row, state.driverChoices, onAction)
                         }
-                    }
+                    is HistoryRecordUi.Fuel ->
+                        Box(Modifier.weight(1f)) { FuelRecordCard(record) }
                 }
             }
         }

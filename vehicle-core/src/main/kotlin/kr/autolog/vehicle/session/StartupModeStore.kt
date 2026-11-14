@@ -2,7 +2,7 @@ package kr.autolog.vehicle.session
 
 import android.content.Context
 
-/** 시동 후 앱 화면을 열지, 기록 엔진만 준비할지 차량 사용자별로 저장한다. */
+/** 시동 후 앱 화면을 열지, 기록 엔진만 준비할지 이 차량 앱의 로컬 설정에 저장한다. */
 enum class StartupMode { SCREEN, BACKGROUND }
 
 const val EXTRA_SCREEN_ON_BOOT = "kr.autolog.vehicle.SCREEN_ON_BOOT"

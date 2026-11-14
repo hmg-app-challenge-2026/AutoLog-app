@@ -15,10 +15,6 @@ data class HistoryUiState(
     val loading: Boolean = true,
     val canGoNext: Boolean = false,
     val tripCount: Int = 0,
-    /** 거리 미확정 운행은 빠진 합계(스펙 7.7). */
-    val totalKm: String = "0.0",
-    /** 최신 순. */
-    val rows: List<TripRowUi> = emptyList(),
     /** 운행과 주유를 발생 시각 기준 최신 순으로 섞은 목록. */
     val records: List<HistoryRecordUi> = emptyList(),
     val fuelCount: Int = 0,

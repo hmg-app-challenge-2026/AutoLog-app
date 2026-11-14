@@ -35,6 +35,8 @@ data class SettingsUiState(
     val app: AppInfo = AppInfo("", demo = false),
     /** 운행 기록 알약 권한 카드(차량 정보 섹션). null = 이 빌드에 알약이 없음(데모). */
     val overlay: OverlayUi? = null,
+    /** 이전 앱 복귀 후보 판별에 필요한 사용 정보 접근 권한. 데모는 null. */
+    val usageAccess: UsageAccessUi? = null,
 ) {
     val mailConnected: Boolean get() = mailAccount != null
 }
@@ -44,6 +46,8 @@ data class SettingsUiState(
  * 이 차량에 시스템 권한 화면이 없었다(버튼 위에 안내 한 줄).
  */
 data class OverlayUi(val allowed: Boolean, val settingsUnavailable: Boolean = false)
+
+data class UsageAccessUi(val allowed: Boolean, val settingsUnavailable: Boolean = false)
 
 /** 차량·사내 서버 연결(8장). [lastSync]는 마지막 동기화 시각. */
 sealed interface LinkUi {
@@ -233,4 +237,8 @@ sealed interface SettingsAction {
 
     /** [화면 위 표시 권한 허용] — 시스템 권한 화면을 연다. */
     data object OpenOverlaySettings : SettingsAction
+
+    data object RefreshUsageAccess : SettingsAction
+
+    data object OpenUsageAccessSettings : SettingsAction
 }

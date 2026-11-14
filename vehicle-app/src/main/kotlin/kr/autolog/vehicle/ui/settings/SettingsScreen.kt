@@ -62,7 +62,17 @@ fun SettingsRoute() {
     }
     val startupModes = remember(context) { SharedPreferencesStartupModeStore(context) }
     val vm =
-        viewModel { SettingsViewModel(graph.settings, graph.navigator, graph.clock, app, graph.overlay, startupModes) }
+        viewModel {
+            SettingsViewModel(
+                graph.settings,
+                graph.navigator,
+                graph.clock,
+                app,
+                graph.overlay,
+                startupModes,
+                graph.appReturn,
+            )
+        }
     val state by vm.uiState.collectAsStateWithLifecycle()
     SettingsScreen(state, vm::onAction)
 }

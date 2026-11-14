@@ -16,6 +16,7 @@ internal data class SettingsLocal(
     val running: SettingsTask? = null,
     val results: Map<SettingsTask, TaskResult> = emptyMap(),
     val overlay: OverlayUi? = null,
+    val usageAccess: UsageAccessUi? = null,
     val startupMode: StartupMode = StartupMode.BACKGROUND,
 )
 
@@ -77,4 +78,5 @@ internal fun reduceSettings(local: SettingsLocal, sources: SettingsSources, app:
         dialog = local.dialog,
         app = app,
         overlay = local.overlay,
+        usageAccess = local.usageAccess,
     )

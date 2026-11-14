@@ -36,22 +36,21 @@ class HistoryReducerTest {
     }
 
     @Test
-    fun `불러오기 전엔 loading, 합계는 저장소 값 그대로`() {
+    fun `불러오기 전엔 loading, 운행 건수는 저장소 값 그대로`() {
         assertTrue(reduceHistory(nov, nov, null, null, emptyList(), now).loading)
 
         val s = reduceHistory(nov, nov, listOf(item("t-1", "김영업")), MonthSummary(6, 1234.56, 90.7, 1), drivers, now)
 
         assertFalse(s.loading)
         assertEquals(6, s.tripCount)
-        assertEquals("1,234.6", s.totalKm)
-        assertEquals("t-1", s.rows.single().tripId)
+        assertEquals("t-1", (s.records.single() as HistoryRecordUi.Trip).row.tripId)
     }
 
     @Test
     fun `운전자 미확정 줄을 표시하고 후보는 추천 순 최대 3명`() {
         val s = reduceHistory(nov, nov, listOf(item("t-1", null)), null, drivers, now)
 
-        assertTrue(s.rows.single().driverUnset)
+        assertTrue((s.records.single() as HistoryRecordUi.Trip).row.driverUnset)
         assertEquals(listOf("u-1", "u-2", "u-3"), s.driverChoices.map { it.userId })
     }
 

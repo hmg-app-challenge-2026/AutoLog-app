@@ -5,7 +5,6 @@ import kr.autolog.vehicle.core.FuelRecord
 import kr.autolog.vehicle.data.repository.DriverProfile
 import kr.autolog.vehicle.data.repository.HistoryItem
 import kr.autolog.vehicle.data.repository.MonthSummary
-import kr.autolog.vehicle.ui.design.formatKm
 import kr.autolog.vehicle.ui.trips.toTripRowUi
 import java.time.Instant
 import java.time.YearMonth
@@ -28,8 +27,6 @@ internal fun reduceHistory(
     loading = items == null,
     canGoNext = month < current,
     tripCount = summary?.tripCount ?: 0,
-    totalKm = formatKm(summary?.totalKm ?: 0.0).orEmpty(),
-    rows = items.orEmpty().map { it.toTripRowUi(now) },
     fuelCount = fuels.size,
     records = (
         items.orEmpty().map { HistoryRecordUi.Trip(it.toTripRowUi(now), it.startTime) } +
@@ -39,7 +36,7 @@ internal fun reduceHistory(
                     id = "fuel:${fuel.expenseId}",
                     occurredAt = fuel.occurredAt,
                     dayOfMonth = at.dayOfMonth,
-                    time = at.format(DateTimeFormatter.ofPattern("HH:mm")),
+                    time = at.format(FUEL_TIME),
                     amountWon = fuel.amountWon,
                     liters = fuel.liters,
                     merchant = fuel.merchant,
@@ -48,3 +45,5 @@ internal fun reduceHistory(
         ).sortedByDescending { it.occurredAt },
     driverChoices = drivers.take(DRIVER_CHOICES).map { DriverChoice(it.userId, it.name) },
 )
+
+private val FUEL_TIME = DateTimeFormatter.ofPattern("HH:mm")

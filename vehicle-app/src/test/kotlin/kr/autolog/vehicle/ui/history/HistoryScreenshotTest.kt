@@ -32,8 +32,6 @@ class HistoryScreenshotTest {
         loading = false,
         canGoNext = false,
         tripCount = 4,
-        totalKm = "73.2",
-        rows = rows,
         fuelCount = 1,
         records = listOf(
             HistoryRecordUi.Trip(rows[0], 4L),
@@ -55,8 +53,6 @@ class HistoryScreenshotTest {
                 month = YearMonth.of(2026, 10),
                 canGoNext = true,
                 tripCount = 0,
-                totalKm = "0.0",
-                rows = emptyList(),
                 records = emptyList(),
                 fuelCount = 0,
             ),

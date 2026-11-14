@@ -37,12 +37,7 @@ const val FULL_ENTRY_GUARD_MS = 300L
  * 예전엔 정차 때 별도 패널(Peek), 주행 때 빈 화면으로 통째로 바꿔 그려 단계가 바뀔 때마다 다른 앱처럼 보였다(2026-11-11 사용자 지시로 하나로).
  */
 @Composable
-fun AutoLogRoot(
-    graph: AppGraph,
-    onRequestBackground: () -> Unit,
-    deferBackgroundUntilMotionKnown: Boolean = false,
-    hasPreviousApp: () -> Boolean = { true },
-) {
+fun AutoLogRoot(graph: AppGraph, onRequestBackground: () -> Unit, deferBackgroundUntilMotionKnown: Boolean = false) {
     val tier by graph.usage.tier.collectAsStateWithLifecycle()
     val motion by graph.usage.motion.collectAsStateWithLifecycle()
     val noKeyboard by graph.usage.noKeyboard.collectAsStateWithLifecycle()
@@ -56,10 +51,10 @@ fun AutoLogRoot(
                 if (motion == VehicleMotion.MOVING && bootOpening) {
                     // 시동 직후 화면 실행을 택했다면 일시적인 주행 신호에 화면이 바로 사라지지 않게 한다.
                     delay(3_000)
-                    if (graph.usage.motion.value == VehicleMotion.MOVING && hasPreviousApp()) onRequestBackground()
+                    if (graph.usage.motion.value == VehicleMotion.MOVING) onRequestBackground()
                     bootOpening = false
                 } else if (motion == VehicleMotion.MOVING) {
-                    if (hasPreviousApp()) onRequestBackground()
+                    onRequestBackground()
                 }
             }
             UsageTier.FULL -> {

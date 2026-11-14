@@ -16,6 +16,7 @@ import kr.autolog.vehicle.data.repository.ConnectCode
 import kr.autolog.vehicle.data.repository.Outcome
 import kr.autolog.vehicle.data.repository.OverlayPermissionRepository
 import kr.autolog.vehicle.data.repository.SettingsRepository
+import kr.autolog.vehicle.data.usage.AppReturnGateway
 import kr.autolog.vehicle.nav.Navigator
 import kr.autolog.vehicle.session.StartupModeStore
 
@@ -31,10 +32,12 @@ class SettingsViewModel(
     private val app: AppInfo,
     private val overlay: OverlayPermissionRepository,
     private val startupModes: StartupModeStore,
+    private val appReturn: AppReturnGateway,
 ) : ViewModel() {
     private val local = MutableStateFlow(
         SettingsLocal(
             overlay = if (overlay.supported) OverlayUi(allowed = overlay.isAllowed()) else null,
+            usageAccess = if (appReturn.supported) UsageAccessUi(allowed = appReturn.hasUsageAccess()) else null,
             startupMode = startupModes.get(),
         ),
     )
@@ -60,7 +63,12 @@ class SettingsViewModel(
             .stateIn(
                 viewModelScope,
                 SharingStarted.WhileSubscribed(5_000),
-                SettingsUiState(app = app, overlay = local.value.overlay),
+                SettingsUiState(
+                    app = app,
+                    overlay = local.value.overlay,
+                    usageAccess = local.value.usageAccess,
+                    startupMode = local.value.startupMode,
+                ),
             )
 
     fun onAction(action: SettingsAction) {
@@ -144,6 +152,17 @@ class SettingsViewModel(
             SettingsAction.OpenOverlaySettings -> {
                 val opened = overlay.openSettings()
                 local.update { l -> l.copy(overlay = l.overlay?.copy(settingsUnavailable = !opened)) }
+            }
+            SettingsAction.RefreshUsageAccess -> local.update { l ->
+                l.copy(
+                    usageAccess = l.usageAccess?.let {
+                        UsageAccessUi(appReturn.hasUsageAccess(), it.settingsUnavailable)
+                    },
+                )
+            }
+            SettingsAction.OpenUsageAccessSettings -> {
+                val opened = appReturn.openSettings()
+                local.update { l -> l.copy(usageAccess = l.usageAccess?.copy(settingsUnavailable = !opened)) }
             }
         }
     }

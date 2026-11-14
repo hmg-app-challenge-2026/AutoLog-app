@@ -1,7 +1,5 @@
 package kr.autolog.vehicle.ui.settings
 
-import android.content.Intent
-import android.provider.Settings
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -30,7 +28,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -38,7 +35,6 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import kr.autolog.vehicle.R
 import kr.autolog.vehicle.core.PurposeCategory
-import kr.autolog.vehicle.data.usage.PreviousAppDetector
 import kr.autolog.vehicle.session.StartupMode
 import kr.autolog.vehicle.ui.design.AutoLogTheme
 import kr.autolog.vehicle.ui.design.Radius
@@ -74,11 +70,11 @@ internal fun SectionDetail(section: SettingsSection, state: SettingsUiState, onA
 @Composable
 private fun Personalization(state: SettingsUiState, onAction: (SettingsAction) -> Unit) {
     val c = AutoLogTheme.colors
-    val context = LocalContext.current
     var expanded by remember { mutableStateOf(false) }
-    var usageAccess by remember { mutableStateOf(PreviousAppDetector.hasUsageAccess(context)) }
-    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { onAction(SettingsAction.RefreshOverlay) }
-    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { usageAccess = PreviousAppDetector.hasUsageAccess(context) }
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
+        onAction(SettingsAction.RefreshOverlay)
+        onAction(SettingsAction.RefreshUsageAccess)
+    }
     Row(
         Modifier.fillMaxWidth().clip(RoundedCornerShape(Radius.lg)).background(c.surface1).padding(Space.s5),
         verticalAlignment = Alignment.CenterVertically,
@@ -140,13 +136,14 @@ private fun Personalization(state: SettingsUiState, onAction: (SettingsAction) -
             modifier = Modifier.fillMaxWidth(),
         )
     }
-    if (!state.app.demo && !usageAccess) {
+    if (state.usageAccess?.allowed == false) {
         ButtonNote(stringResource(R.string.settings_previous_app_permission_hint))
+        if (state.usageAccess.settingsUnavailable) {
+            ButtonNote(stringResource(R.string.settings_previous_app_permission_unavailable))
+        }
         SecondaryButton(
             stringResource(R.string.settings_previous_app_permission_allow),
-            onClick = {
-                runCatching { context.startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS)) }
-            },
+            onClick = { onAction(SettingsAction.OpenUsageAccessSettings) },
             modifier = Modifier.fillMaxWidth(),
         )
     }

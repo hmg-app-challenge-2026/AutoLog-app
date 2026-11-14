@@ -8,6 +8,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kr.autolog.vehicle.common.AppClock
 import kr.autolog.vehicle.core.AutoLog
+import kr.autolog.vehicle.data.usage.AndroidAppReturnGateway
 import kr.autolog.vehicle.data.usage.AndroidCarUxSource
 import kr.autolog.vehicle.overlay.RecordingPill
 
@@ -21,7 +22,7 @@ fun createAppGraph(app: Application): AppGraph {
     val carUx = AndroidCarUxSource(app).also { it.start() }
     val components = AutoLog.create(app)
     val pill = RecordingPill(app, components.session, AppClock.System)
-    return RealAppGraph(components, carUx, scope, overlay = pill)
+    return RealAppGraph(components, carUx, scope, overlay = pill, appReturn = AndroidAppReturnGateway(app))
 }
 
 /**
