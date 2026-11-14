@@ -7,6 +7,15 @@ import java.time.YearMonth
 
 // ===== 앱 A·B 공용 =====
 
+/** 저장된 주유 비용 한 건. 영수증 inbox와 달리 확정된 기록만 포함한다. */
+data class FuelRecord(
+    val expenseId: String,
+    val occurredAt: Long,
+    val amountWon: Int,
+    val liters: Double?,
+    val merchant: String?,
+)
+
 /** 운전자가 어떻게 정해졌는지 (기술명세 2.9 TripEntity.driverSource). */
 enum class DriverSource {
     DRIVER_SELECTED,

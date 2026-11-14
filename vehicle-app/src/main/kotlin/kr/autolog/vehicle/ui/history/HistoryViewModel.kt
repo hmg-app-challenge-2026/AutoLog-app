@@ -33,8 +33,13 @@ class HistoryViewModel(
 
     val uiState: StateFlow<HistoryUiState> =
         month.flatMapLatest { m ->
-            combine(trips.history(m), trips.summary(m), profile.orderedProfiles()) { items, summary, drivers ->
-                reduceHistory(m, clock.currentMonth(), items, summary, drivers, clock.nowMs())
+            combine(trips.history(m), trips.summary(m), trips.fuelRecords(m), profile.orderedProfiles()) {
+                    items,
+                    summary,
+                    fuels,
+                    drivers,
+                ->
+                reduceHistory(m, clock.currentMonth(), items, summary, drivers, clock.nowMs(), fuels)
             }
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HistoryUiState(month.value))
 

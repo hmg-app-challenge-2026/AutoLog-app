@@ -1,6 +1,6 @@
 package kr.autolog.vehicle.ui.history
 
-import androidx.compose.animation.core.VisibilityThreshold
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -10,22 +10,27 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import kr.autolog.vehicle.R
 import kr.autolog.vehicle.di.LocalAppGraph
 import kr.autolog.vehicle.ui.design.AutoLogTheme
+import kr.autolog.vehicle.ui.design.Radius
 import kr.autolog.vehicle.ui.design.Size
 import kr.autolog.vehicle.ui.design.Space
 import kr.autolog.vehicle.ui.design.components.Avatar
@@ -39,6 +44,7 @@ import kr.autolog.vehicle.ui.design.screenMargin
 import kr.autolog.vehicle.ui.trips.TripRowUi
 import kr.autolog.vehicle.ui.trips.tripMetaText
 import kr.autolog.vehicle.ui.trips.tripRouteText
+import java.util.Locale
 
 @Composable
 fun HistoryRoute() {
@@ -49,8 +55,8 @@ fun HistoryRoute() {
 }
 
 /**
- * 운행 기록 조회(스펙 7.8, F-12). 위에서 아래로: 머리 줄(X · "운행 기록") → 달 이동 · 합계
- * → 운행 목록(최신 순, 넘치면 스크롤 — 자동 스크롤 없음) → 아래 가운데 [운행기록부 내보내기].
+ * 기록 조회. 월별 운행·주유를 날짜별로 묶어 오래된 날부터 위에 표시한다.
+ * 처음 열면 가장 최근 기록이 있는 날짜가 보이고, 위로 스크롤하면 과거 기록을 볼 수 있다.
  * 줄을 누르면 운행 결과 카드(사후 확인 — 카운트다운 없음, D-29). 운전자 미확정 줄은 그 자리에서 후보 1탭으로 지정(F-20).
  */
 @Composable
@@ -71,7 +77,7 @@ fun HistoryScreen(state: HistoryUiState, onAction: (HistoryAction) -> Unit, modi
             }, label = "historyMonth") { shown ->
                 when {
                     shown.loading -> Unit
-                    shown.rows.isEmpty() ->
+                    shown.records.isEmpty() ->
                         Text(
                             stringResource(R.string.history_empty),
                             modifier = Modifier.fillMaxWidth(),
@@ -79,7 +85,7 @@ fun HistoryScreen(state: HistoryUiState, onAction: (HistoryAction) -> Unit, modi
                             color = AutoLogTheme.colors.textTertiary,
                             textAlign = TextAlign.Center,
                         )
-                    else -> TripList(shown, onAction, Modifier.fillMaxSize())
+                    else -> RecordList(shown, onAction, Modifier.fillMaxSize())
                 }
             }
             SecondaryButton(
@@ -119,7 +125,7 @@ private fun MonthSwitcher(state: HistoryUiState, onAction: (HistoryAction) -> Un
 @Composable
 private fun Summary(state: HistoryUiState) {
     FadeThrough(
-        stringResource(R.string.history_summary, state.tripCount, state.totalKm),
+        stringResource(R.string.history_summary, state.tripCount, state.fuelCount),
         Modifier.fillMaxWidth(),
         contentAlignment = Alignment.Center,
         label = "historySummary",
@@ -134,27 +140,69 @@ private fun Summary(state: HistoryUiState) {
 }
 
 @Composable
-private fun TripList(state: HistoryUiState, onAction: (HistoryAction) -> Unit, modifier: Modifier) {
-    val motion = AutoLogTheme.motion
-    LazyColumn(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(Space.s3)) {
-        items(state.rows, key = { it.tripId }) { row ->
-            TripListRow(
-                modifier = Modifier.animateItem(
-                    fadeInSpec = motion.quick(),
-                    placementSpec = motion.smooth(IntOffset.VisibilityThreshold),
-                    fadeOutSpec = motion.swapOut(),
-                ),
-                title = tripRouteText(row),
-                subtitle = tripMetaText(row, withDriver = true, withUpload = true),
-                onClick = { onAction(HistoryAction.Open(row.tripId)) },
-                extra =
-                if (row.driverUnset && state.driverChoices.isNotEmpty()) {
-                    { DriverPicker(row, state.driverChoices, onAction) }
-                } else {
-                    null
-                },
-            )
+private fun RecordList(state: HistoryUiState, onAction: (HistoryAction) -> Unit, modifier: Modifier) {
+    val grouped = state.records.groupBy { it.dayOfMonth }
+    LazyColumn(modifier.fillMaxWidth(), reverseLayout = true, verticalArrangement = Arrangement.spacedBy(Space.s3)) {
+        items(grouped.entries.toList(), key = { it.key }) { group ->
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Space.s3)) {
+                Text(
+                    stringResource(R.string.history_day, group.key),
+                    modifier = Modifier.width(72.dp).padding(top = Space.s3),
+                    style = AutoLogTheme.type.label,
+                    color = AutoLogTheme.colors.textSecondary,
+                )
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Space.s2)) {
+                    group.value.asReversed().forEach { record ->
+                        when (record) {
+                            is HistoryRecordUi.Trip -> TripRecordCard(record.row, state.driverChoices, onAction)
+                            is HistoryRecordUi.Fuel -> FuelRecordCard(record)
+                        }
+                    }
+                }
+            }
         }
+    }
+}
+
+@Composable
+private fun TripRecordCard(row: TripRowUi, choices: List<DriverChoice>, onAction: (HistoryAction) -> Unit) {
+    TripListRow(
+        title = tripRouteText(row),
+        subtitle = tripMetaText(row, withDriver = true, withUpload = true),
+        onClick = { onAction(HistoryAction.Open(row.tripId)) },
+        extra = if (row.driverUnset && choices.isNotEmpty()) {
+            { DriverPicker(row, choices, onAction) }
+        } else {
+            null
+        },
+    )
+}
+
+@Composable
+private fun FuelRecordCard(record: HistoryRecordUi.Fuel) {
+    val c = AutoLogTheme.colors
+    val t = AutoLogTheme.type
+    val merchant = record.merchant?.takeIf { it.isNotBlank() }
+    val title = merchant?.let { stringResource(R.string.history_fuel_merchant, it) }
+        ?: stringResource(R.string.history_fuel_title)
+    val amount = stringResource(R.string.history_fuel_amount, "%,d".format(Locale.KOREA, record.amountWon))
+    val liters = record.liters?.let {
+        stringResource(R.string.history_fuel_liters, "%,.1f".format(Locale.KOREA, it))
+    }
+    Column(
+        Modifier.fillMaxWidth().heightIn(min = Size.touchMin)
+            .clip(RoundedCornerShape(Radius.md)).background(c.surface1)
+            .padding(horizontal = Space.s5, vertical = Space.s3),
+        verticalArrangement = Arrangement.spacedBy(Space.s1),
+    ) {
+        Text(title, style = t.label, color = c.textPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text(
+            listOfNotNull(record.time, amount, liters).joinToString(stringResource(R.string.meta_separator)),
+            style = t.caption,
+            color = c.textSecondary,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
     }
 }
 

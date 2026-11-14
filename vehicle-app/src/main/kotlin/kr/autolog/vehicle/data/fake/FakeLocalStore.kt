@@ -7,6 +7,7 @@ import kotlinx.coroutines.flow.map
 import kr.autolog.shared.ReceiptPayload
 import kr.autolog.vehicle.common.AppClock
 import kr.autolog.vehicle.common.AppZone
+import kr.autolog.vehicle.core.FuelRecord
 import kr.autolog.vehicle.core.LocalStore
 import kr.autolog.vehicle.core.PurposeDetail
 import kr.autolog.vehicle.core.PurposeDetail.Companion.BRANCH_MOVE
@@ -38,6 +39,8 @@ class FakeLocalStore(clock: AppClock, seed: Boolean = true) : LocalStore {
 
     override fun trips(month: YearMonth): Flow<List<TripRow>> =
         rows.map { all -> all.filter { month.containsEpoch(it.startTime) }.sortedByDescending { it.startTime } }
+
+    override fun fuelRecords(month: YearMonth): Flow<List<FuelRecord>> = kotlinx.coroutines.flow.flowOf(emptyList())
 
     override val pendingReviews: Flow<List<TripRow>> =
         rows.map { all -> all.filter { it.purpose == null }.sortedByDescending { it.startTime } }

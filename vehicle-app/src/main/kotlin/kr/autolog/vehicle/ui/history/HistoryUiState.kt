@@ -19,9 +19,33 @@ data class HistoryUiState(
     val totalKm: String = "0.0",
     /** 최신 순. */
     val rows: List<TripRowUi> = emptyList(),
+    /** 운행과 주유를 발생 시각 기준 최신 순으로 섞은 목록. */
+    val records: List<HistoryRecordUi> = emptyList(),
+    val fuelCount: Int = 0,
     /** 운전자 미확정 줄에서 1탭으로 고를 후보(추천 순 최대 [DRIVER_CHOICES]명). */
     val driverChoices: List<DriverChoice> = emptyList(),
 )
+
+sealed interface HistoryRecordUi {
+    val id: String
+    val occurredAt: Long
+    val dayOfMonth: Int
+
+    data class Trip(val row: TripRowUi, override val occurredAt: Long) : HistoryRecordUi {
+        override val id: String = "trip:${row.tripId}"
+        override val dayOfMonth: Int = row.dayOfMonth
+    }
+
+    data class Fuel(
+        override val id: String,
+        override val occurredAt: Long,
+        override val dayOfMonth: Int,
+        val time: String,
+        val amountWon: Int,
+        val liters: Double?,
+        val merchant: String?,
+    ) : HistoryRecordUi
+}
 
 data class DriverChoice(val userId: String, val name: String)
 

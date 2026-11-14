@@ -1,5 +1,6 @@
 package kr.autolog.vehicle.ui.history
 
+import kr.autolog.vehicle.core.FuelRecord
 import kr.autolog.vehicle.data.repository.DriverProfile
 import kr.autolog.vehicle.data.repository.HistoryItem
 import kr.autolog.vehicle.data.repository.MonthSummary
@@ -52,5 +53,15 @@ class HistoryReducerTest {
 
         assertTrue(s.rows.single().driverUnset)
         assertEquals(listOf("u-1", "u-2", "u-3"), s.driverChoices.map { it.userId })
+    }
+
+    @Test
+    fun `운행과 주유를 발생 시각으로 섞고 같은 날짜에 묶을 수 있다`() {
+        val fuel = FuelRecord("f-1", now - 1_800_000, 65000, 42.5, "판교주유소")
+        val state = reduceHistory(nov, nov, listOf(item("t-1", "김영업")), null, emptyList(), now, listOf(fuel))
+
+        assertEquals(1, state.fuelCount)
+        assertEquals(listOf("fuel:f-1", "trip:t-1"), state.records.map { it.id })
+        assertEquals(state.records.first().dayOfMonth, state.records.last().dayOfMonth)
     }
 }

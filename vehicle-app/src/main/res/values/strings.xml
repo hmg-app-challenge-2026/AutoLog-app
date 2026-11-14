@@ -50,11 +50,16 @@
     <!-- 운행 결과 카드 (스펙 7.3, D-27) -->
     <string name="result_title">운행 기록을 완료했어요</string>
     <string name="result_review_title">%1$s 운행</string>
-    <string name="history_title">운행 기록</string>
+    <string name="history_title">기록 조회</string>
     <string name="period_month">%1$d년 %2$d월</string>
-    <string name="history_summary">%1$d회 운행 · %2$s km</string>
+    <string name="history_summary">%1$d회 운행 · %2$d건 주유</string>
     <string name="history_report">운행기록부 내보내기</string>
-    <string name="history_empty">이 달에는 운행 기록이 없어요</string>
+    <string name="history_empty">이 달에는 기록이 없어요</string>
+    <string name="history_day">%1$d일</string>
+    <string name="history_fuel_title">주유 기록</string>
+    <string name="history_fuel_merchant">주유 · %1$s</string>
+    <string name="history_fuel_amount">%1$s원</string>
+    <string name="history_fuel_liters">%1$s L</string>
     <string name="history_assign_driver">운전자 지정</string>
     <string name="month_prev">이전 달</string>
     <string name="month_next">다음 달</string>
@@ -125,7 +130,7 @@
     <string name="recovery_delete_confirm">이 운행을 지울까요? 되돌릴 수 없어요</string>
     <string name="recovery_delete_yes">지우기</string>
     <string name="action_fuel_add">주유 기록 추가</string>
-    <string name="action_records">운행 기록 조회</string>
+    <string name="action_records">기록 조회</string>
     <string name="action_settings">설정</string>
     <string name="input_locked">지금은 입력할 수 없어요</string>
     <string name="keypad_delete">지우기</string>
