@@ -91,6 +91,12 @@ class TripSessionManager(
     /** 지금 기록(또는 재개)을 시작한 시각. '움직임 없음' 판단은 이보다 앞선 시각을 기준으로 삼지 않는다. */
     @Volatile private var watchFrom: Long = 0
 
+    /**
+     * 종료 대기(StopCandidate) 동안 미리 정한 도착지 — 차가 멈춘 그 자리가 도착 위치다. 결과 화면이 처음부터 저장될 도착지를
+     * 보이게 하고, 운행을 끝낼 때 그대로 저장한다. [기록 이어가기]로 돌아가면 버린다. [mutex] 안에서만 읽고 쓴다.
+     */
+    private var previewedDestination: TripEntity? = null
+
     /** 시작 복구 중(계기판 재조회 최대 60초)에는 새 운행을 만들지 않는다. 끝나지 않은 운행이 고아로 남기 때문이다. */
     @Volatile private var recovering = false
 
@@ -542,6 +548,17 @@ class TripSessionManager(
             status = TripStatus.PENDING_REVIEW,
             rawSnapshotJson = trip.rawSnapshotJson?.removeSuffix("}") + ",\"end\":{\"km\":$endKm,\"at\":$endTime}}",
         )
+        previewedDestination?.takeIf { it.tripId == trip.tripId }?.let { p ->
+            done = done.copy(
+                destinationLabel = p.destinationLabel,
+                destinationLat = p.destinationLat,
+                destinationLng = p.destinationLng,
+                destinationSource = p.destinationSource,
+                destinationAddress = p.destinationAddress,
+                destinationAddressSource = p.destinationAddressSource,
+            )
+        }
+        previewedDestination = null
         val facts = done.toFacts()
         val suggestion = runCatching { purpose.suggest(facts) }.getOrNull()
         if (done.userId == null) {
@@ -572,6 +589,7 @@ class TripSessionManager(
         val start = since ?: now
         _state.value =
             SessionState.StopCandidate(trip, liveKm, reason, since = start, deadlineAt = now + waitSec * 1_000)
+        scope.launch { previewDestination(trip.tripId) }
     }
 
     private suspend fun resumeLocked(s: SessionState.StopCandidate) {
@@ -589,8 +607,10 @@ class TripSessionManager(
         }
         val trip = dao.trip(s.trip.tripId)
         watchFrom = now
+        previewedDestination = null
         _state.value = SessionState.Recording(
-            s.trip,
+            // 종료 대기 때 미리 보인 도착지는 버리고 저장된 값(내비 목적지 등)으로
+            trip?.let { s.trip.withPlacesOf(it) } ?: s.trip,
             trip?.let { liveKm(it, lastKm) } ?: s.liveKm,
             lastSavedAt = trip?.lastSeenAt ?: now,
         )
@@ -672,6 +692,27 @@ class TripSessionManager(
             refreshLiveLocked(tripId)
         }
         return geo?.source == AddressSource.KAKAO_RELAY
+    }
+
+    /**
+     * 종료 대기에 들어가면 차가 멈춘 자리로 도착지를 미리 정해 화면에 보인다(저장은 운행을 끝낼 때 [finishLocked]가).
+     * 규칙은 운행을 끝낼 때와 같다([PlacePolicy.mergeDestination]) — 그래서 결과 화면과 저장된 기록의 도착지가 같다.
+     */
+    private suspend fun previewDestination(tripId: String) {
+        val t = dao.trip(tripId) ?: return
+        val end = endPosition()
+        val lat = end?.lat ?: t.destinationLat ?: return
+        val lng = end?.lng ?: t.destinationLng ?: return
+        val place = purpose.placeAt(lat, lng)
+        val geo = geocode?.reverse(lat, lng, isCurrentPosition = true)
+        mutex.withLock {
+            val s = _state.value as? SessionState.StopCandidate ?: return
+            if (s.trip.tripId != tripId) return
+            val fresh = dao.trip(tripId) ?: return
+            val m = PlacePolicy.mergeDestination(fresh, end, place, geo)
+            previewedDestination = m
+            _state.value = s.copy(trip = s.trip.withPlacesOf(m))
+        }
     }
 
     /** 운행이 끝난 직후 차의 실제 위치. 내비 현재 위치 → 30초 이내 위치 SDK 좌표 → 모름. */
