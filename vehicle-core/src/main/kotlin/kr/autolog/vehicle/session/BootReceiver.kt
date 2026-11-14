@@ -18,5 +18,17 @@ class BootReceiver : BroadcastReceiver() {
         runCatching {
             AutoLog.create(context)
         }.onFailure { Log.w("AutoLog/session", "boot start failed: ${it.message}") }
+        // 앱 업데이트 때는 화면을 가로채지 않는다. 실제 부팅에서 화면 실행을 고른 경우에만 연다.
+        if (intent.action == Intent.ACTION_BOOT_COMPLETED &&
+            SharedPreferencesStartupModeStore(context).get() == StartupMode.SCREEN
+        ) {
+            runCatching {
+                context.packageManager.getLaunchIntentForPackage(context.packageName)?.let { launch ->
+                    context.startActivity(
+                        launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK).putExtra(EXTRA_SCREEN_ON_BOOT, true),
+                    )
+                } ?: Log.w("AutoLog/session", "boot screen launch intent unavailable")
+            }.onFailure { Log.w("AutoLog/session", "boot screen launch failed: ${it.message}") }
+        }
     }
 }

@@ -17,6 +17,7 @@ import kr.autolog.vehicle.data.repository.Outcome
 import kr.autolog.vehicle.data.repository.OverlayPermissionRepository
 import kr.autolog.vehicle.data.repository.SettingsRepository
 import kr.autolog.vehicle.nav.Navigator
+import kr.autolog.vehicle.session.StartupModeStore
 
 /**
  * 설정(스펙 7.9). 섹션 열기·팝업·입력 칸·작업 실행만 맡고, 표시용 계산은 [reduceSettings].
@@ -29,10 +30,12 @@ class SettingsViewModel(
     private val clock: AppClock,
     private val app: AppInfo,
     private val overlay: OverlayPermissionRepository,
+    private val startupModes: StartupModeStore,
 ) : ViewModel() {
     private val local = MutableStateFlow(
         SettingsLocal(
             overlay = if (overlay.supported) OverlayUi(allowed = overlay.isAllowed()) else null,
+            startupMode = startupModes.get(),
         ),
     )
 
@@ -65,6 +68,10 @@ class SettingsViewModel(
             is SettingsAction.Open -> local.update { it.copy(section = action.section) }
             SettingsAction.CloseSection -> local.update { it.copy(section = null) }
             SettingsAction.Back -> navigator.pop()
+            is SettingsAction.SetStartupMode -> {
+                startupModes.set(action.mode)
+                local.update { it.copy(startupMode = action.mode) }
+            }
             SettingsAction.StartRegister ->
                 openDialog(SettingsDialog.Register(), SettingsTask.REGISTER)
             SettingsAction.StartAddRecipient -> openDialog(SettingsDialog.AddRecipient(), SettingsTask.ADD_RECIPIENT)

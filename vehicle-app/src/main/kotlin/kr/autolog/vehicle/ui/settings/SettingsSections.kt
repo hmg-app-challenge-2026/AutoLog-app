@@ -1,7 +1,9 @@
 package kr.autolog.vehicle.ui.settings
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -11,10 +13,17 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Delete
+import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.Lock
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -26,6 +35,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import kr.autolog.vehicle.R
 import kr.autolog.vehicle.core.PurposeCategory
+import kr.autolog.vehicle.session.StartupMode
 import kr.autolog.vehicle.ui.design.AutoLogTheme
 import kr.autolog.vehicle.ui.design.Radius
 import kr.autolog.vehicle.ui.design.Size
@@ -50,8 +60,77 @@ internal fun SectionDetail(section: SettingsSection, state: SettingsUiState, onA
             SettingsSection.STAFF -> Staff(state, onAction)
             SettingsSection.AUTOMATION -> Automation(state, onAction)
             SettingsSection.SYNC -> Sync(state, onAction)
+            SettingsSection.PERSONALIZATION -> Personalization(state, onAction)
             SettingsSection.ABOUT -> About(state)
         }
+    }
+}
+
+/** 시동 때 화면을 열지 않고 기록만 준비할 수도 있다. 선택값만 보이고 눌렀을 때 두 선택지가 펼쳐진다. */
+@Composable
+private fun Personalization(state: SettingsUiState, onAction: (SettingsAction) -> Unit) {
+    val c = AutoLogTheme.colors
+    var expanded by remember { mutableStateOf(false) }
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { onAction(SettingsAction.RefreshOverlay) }
+    Row(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(Radius.lg)).background(c.surface1).padding(Space.s5),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(Space.s3),
+    ) {
+        Text(
+            stringResource(R.string.settings_startup_method),
+            Modifier.weight(1f),
+            style = AutoLogTheme.type.body,
+            color = c.textPrimary,
+        )
+        Box {
+            Row(
+                Modifier.clip(RoundedCornerShape(Radius.md)).clickable { expanded = true }.padding(Space.s3),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    stringResource(
+                        if (state.startupMode == StartupMode.SCREEN) {
+                            R.string.settings_startup_screen
+                        } else {
+                            R.string.settings_startup_background
+                        },
+                    ),
+                    style = AutoLogTheme.type.body,
+                    color = c.accent,
+                )
+                Icon(Icons.Rounded.KeyboardArrowDown, contentDescription = null, tint = c.accent)
+            }
+            DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                StartupMode.entries.forEach { mode ->
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                stringResource(
+                                    if (mode == StartupMode.SCREEN) {
+                                        R.string.settings_startup_screen
+                                    } else {
+                                        R.string.settings_startup_background
+                                    },
+                                ),
+                            )
+                        },
+                        onClick = {
+                            expanded = false
+                            onAction(SettingsAction.SetStartupMode(mode))
+                        },
+                    )
+                }
+            }
+        }
+    }
+    if (state.startupMode == StartupMode.SCREEN && state.overlay?.allowed == false) {
+        ButtonNote(stringResource(R.string.settings_startup_screen_permission_hint))
+        SecondaryButton(
+            stringResource(R.string.settings_recording_pill_allow),
+            onClick = { onAction(SettingsAction.OpenOverlaySettings) },
+            modifier = Modifier.fillMaxWidth(),
+        )
     }
 }
 

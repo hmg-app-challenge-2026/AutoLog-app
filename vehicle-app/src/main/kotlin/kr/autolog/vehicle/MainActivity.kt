@@ -12,6 +12,7 @@ import kr.autolog.vehicle.core.DeepLink
 import kr.autolog.vehicle.di.AppGraph
 import kr.autolog.vehicle.di.runtimePermissions
 import kr.autolog.vehicle.nav.deepLinkRoute
+import kr.autolog.vehicle.session.EXTRA_SCREEN_ON_BOOT
 import kr.autolog.vehicle.ui.root.AutoLogRoot
 
 /**
@@ -43,7 +44,14 @@ class MainActivity : ComponentActivity() {
         pendingIntent?.let(::openDeepLink)
         pendingIntent = null
         val appGraph = graph
-        setContent { AutoLogRoot(graph = appGraph, onRequestBackground = { moveTaskToBack(true) }) }
+        val screenOnBoot = intent.getBooleanExtra(EXTRA_SCREEN_ON_BOOT, false)
+        setContent {
+            AutoLogRoot(
+                graph = appGraph,
+                onRequestBackground = { moveTaskToBack(true) },
+                deferBackgroundUntilMotionKnown = screenOnBoot,
+            )
+        }
         // 이 화면이 보이는 동안은 알약을 숨기고 앱 A 알림을 조용히(스펙 6.11·D-37), 창이 놓인 앱 영역 가운데를 알려 준다
         appGraph.setAppVisible(true)
         window.decorView.addOnLayoutChangeListener { view, _, _, _, _, _, _, _, _ -> reportAppArea(view) }

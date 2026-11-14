@@ -6,6 +6,7 @@ import kr.autolog.vehicle.core.PurposeRuleInfo
 import kr.autolog.vehicle.core.RecipientInfo
 import kr.autolog.vehicle.core.UserInfo
 import kr.autolog.vehicle.data.repository.ServerLink
+import kr.autolog.vehicle.session.StartupMode
 import kr.autolog.vehicle.ui.trips.tripWhenOf
 
 /** 사람이 고치는 중인 값과 진행 상태 — ViewModel이 들고 있고 [reduceSettings]가 저장소 값과 합친다. */
@@ -15,6 +16,7 @@ internal data class SettingsLocal(
     val running: SettingsTask? = null,
     val results: Map<SettingsTask, TaskResult> = emptyMap(),
     val overlay: OverlayUi? = null,
+    val startupMode: StartupMode = StartupMode.BACKGROUND,
 )
 
 /** 저장소 값 묶음(설정 화면이 구독하는 원천). */
@@ -69,6 +71,7 @@ internal fun reduceSettings(local: SettingsLocal, sources: SettingsSources, app:
             )
         },
         autoMonthlySend = sources.autoMonthlySend,
+        startupMode = local.startupMode,
         running = local.running,
         results = local.results,
         dialog = local.dialog,

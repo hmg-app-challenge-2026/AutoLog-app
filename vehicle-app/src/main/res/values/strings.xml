@@ -196,6 +196,11 @@
     <string name="settings_staff">직원</string>
     <string name="settings_automation">자동화</string>
     <string name="settings_sync">동기화</string>
+    <string name="settings_personalization">사용자화</string>
+    <string name="settings_startup_method">시동 시 앱 실행 방법</string>
+    <string name="settings_startup_screen">화면 실행</string>
+    <string name="settings_startup_background">백그라운드 실행</string>
+    <string name="settings_startup_screen_permission_hint">시동 시 화면 실행을 허용하려면 화면 위 표시 권한을 켜 주세요.</string>
     <string name="settings_about">정보</string>
     <string name="settings_not_linked">연결 안 됨</string>
     <string name="settings_linked">연결됨</string>
