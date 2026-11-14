@@ -37,11 +37,6 @@ class DefaultPurposeEngine(
         val places = store.places().map { it.toPlace() }
         val origin = at(trip.startLat, trip.startLng, places)
         val destination = at(trip.endLat, trip.endLng, places)
-        val window = PurposeRules.SCHEDULE_WINDOW_MS
-        val schedules =
-            store.schedules(trip.vehicleId, trip.startTime - window, trip.startTime + window).map {
-                ScheduleCandidate(it.scheduleId, it.startsAt, it.destPlaceId, it.purposeDetail)
-            }
         val past =
             if (destination == null) {
                 emptyList()
@@ -51,7 +46,7 @@ class DefaultPurposeEngine(
                     .filter { t -> t.confirmedPurpose != null && at(t.endLat, t.endLng, listOf(destination)) != null }
                     .mapNotNull { it.confirmedPurpose }
             }
-        rules.suggest(TripContext(trip.startTime, origin, destination, schedules, past, routeRules()))
+        rules.suggest(TripContext(trip.startTime, origin, destination, past, routeRules()))
     } catch (e: Exception) {
         log("목적 추천 실패 trip=${trip.tripId}: ${e.message}")
         Suggestion(PurposeDetail.NEEDS_CHECK, FALLBACK_CONFIDENCE, PurposeRuleId.FALLBACK)

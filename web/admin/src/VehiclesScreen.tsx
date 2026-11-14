@@ -69,6 +69,25 @@ export function VehiclesScreen() {
     }
   }
 
+  const remove = async (v: Vehicle) => {
+    if (
+      !confirm(
+        `${v.plateNo}을(를) 삭제할까요?\n서버에 있는 이 차의 배차·영수증 사진도 함께 지워지고 되돌릴 수 없어요.\n차 안의 운행 기록은 그대로 남지만, 차는 더 이상 서버에 연결되지 않아요.`,
+      )
+    )
+      return
+    setError(null)
+    setNotice('')
+    try {
+      await api.deleteVehicle(v.vehicleId)
+      if (issued?.vehicle.vehicleId === v.vehicleId) setIssued(null)
+      setNotice(`${v.plateNo}을(를) 삭제했어요.`)
+      await load()
+    } catch (err) {
+      setError(err as ApiError)
+    }
+  }
+
   return (
     <section>
       <header className="screen-head">
@@ -163,6 +182,10 @@ export function VehiclesScreen() {
                     </button>
                   </>
                 )}
+                {' · '}
+                <button className="link danger" onClick={() => remove(v)}>
+                  삭제
+                </button>
               </td>
             </tr>
           ))}

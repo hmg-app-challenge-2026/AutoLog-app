@@ -66,13 +66,13 @@ class DefaultPurposeEngineTest {
     }
 
     @Test
-    fun `이 차의 배차를 읽어 배차 목적을 추천한다`() = runTest {
+    fun `배차가 있어도 목적은 배차로 정하지 않는다`() = runTest {
         store.scheduleList += "car-1" to ScheduleInfo("s-1", "u-kim", kst(14), kst(15), "client", "MEETING")
 
         val s = engine.suggest(trip(kst(13, 30), office, client))
 
-        assertEquals(PurposeDetail.MEETING, s.detail)
-        assertEquals("s-1", s.scheduleId)
+        assertTrue(s.scheduleId == null)
+        assertTrue(s.rule != PurposeRuleId.SCHEDULE)
     }
 
     @Test
@@ -159,7 +159,7 @@ class DefaultPurposeEngineTest {
         val q = engine.unassignedTrips("car-1", kst(15))
 
         assertEquals(listOf("c", "b"), q.map { it.tripId })
-        assertEquals("08:00 본사 → 판교 · 23.4 km", q[1].label)
+        assertEquals("08:00 출발 → 판교 · 23.4 km", q[1].label)
         assertEquals("u-kim", q[1].candidate?.userId) // 2시간 안 직전 운행(a)의 운전자
         assertEquals(null, q[0].candidate)
     }

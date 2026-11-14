@@ -130,6 +130,11 @@ export interface User {
   dept: string | null
 }
 
+export interface UserInput {
+  name: string
+  dept?: string
+}
+
 export interface Schedule {
   scheduleId: string
   vehicleId: string
@@ -234,7 +239,13 @@ export const api = {
     request<{ vehicleId: string; vehicleCode: string }>('POST', '/vehicles', { plateNo, model }),
   connectCode: (vehicleId: string) => request<ConnectCode>('POST', `/vehicles/${vehicleId}/connect-code`),
   revokeDevice: (vehicleId: string) => request<void>('DELETE', `/vehicles/${vehicleId}/device`),
+  deleteVehicle: (vehicleId: string) => request<void>('DELETE', `/vehicles/${vehicleId}`),
   users: () => request<User[]>('GET', '/users'),
+  createUser: (u: UserInput) => request<User>('POST', '/users', u),
+  // 비운 칸은 ''로 보내야 서버가 값을 지운다(null이면 그대로 둔다)
+  updateUser: (id: string, u: { name: string; dept: string }) => request<User>('PATCH', `/users/${id}`, u),
+  deleteUser: (id: string) => request<void>('DELETE', `/users/${id}`),
+  importUsers: (csv: File) => request<{ imported: number }>('POST', '/users/import', csv, 'text/csv'),
 
   schedules: (from: string, to: string) =>
     request<Schedule[]>('GET', `/schedules?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`),
