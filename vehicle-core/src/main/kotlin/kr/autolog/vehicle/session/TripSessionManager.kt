@@ -15,6 +15,7 @@ import kr.autolog.vehicle.core.AddressSource
 import kr.autolog.vehicle.core.ContextApi
 import kr.autolog.vehicle.core.DestinationInfo
 import kr.autolog.vehicle.core.DriverSource
+import kr.autolog.vehicle.core.GeoDistance
 import kr.autolog.vehicle.core.GeocodeApi
 import kr.autolog.vehicle.core.InputMode
 import kr.autolog.vehicle.core.LiveTrip
@@ -393,21 +394,40 @@ class TripSessionManager(
                         saveLastKnown(r.km, r.at)
                     }
                     val trip = dao.trip(s.trip.tripId)
-                    enterStopLocked(s.trip, trip?.let { liveKm(it, lastKm) } ?: s.liveKm, StopReason.GEAR_P, null)
+                    val liveKm = trip?.let { liveKm(it, lastKm) } ?: s.liveKm
+                    if (parkedAwayFromDestination()) {
+                        _state.value = s.copy(liveKm = liveKm) // 목적지 전 잠깐 세운 것 — 기록을 이어 간다
+                    } else {
+                        enterStopLocked(s.trip, liveKm, StopReason.GEAR_P, null)
+                    }
                 }
                 is SessionState.StopCandidate -> when {
-                    g == Gear.PARK && s.reason !in setOf(StopReason.GEAR_P, StopReason.USER_REQUEST) -> enterStopLocked(
-                        s.trip,
-                        s.liveKm,
-                        StopReason.GEAR_P,
-                        s.since,
-                    )
+                    g == Gear.PARK && s.reason !in setOf(StopReason.GEAR_P, StopReason.USER_REQUEST) ->
+                        if (parkedAwayFromDestination()) {
+                            resumeLocked(s)
+                        } else {
+                            enterStopLocked(s.trip, s.liveKm, StopReason.GEAR_P, s.since)
+                        }
                     g != Gear.PARK && s.reason == StopReason.GEAR_P -> resumeLocked(s)
                     else -> Unit
                 }
                 else -> Unit
             }
         }
+    }
+
+    /**
+     * 내비 목적지가 있는데 목적지에서 [NEAR_DESTINATION_M]보다 먼 곳에서 P를 넣었으면 true — 기록을 끊지 않는다
+     * (2026-11-15 사용자 결정: 편의점·주유소처럼 목적지 가는 길에 잠깐 세운 것). 목적지가 없거나, 좌표를 모르거나,
+     * 목적지 근처면 false — 지금처럼 P 종료 대기로 간다. 시동 OFF·내비 도착·[기록 종료]는 그대로 끝낸다.
+     */
+    private suspend fun parkedAwayFromDestination(): Boolean {
+        val d = context.destination.value?.takeIf { it.isSet() } ?: return false
+        val fix = context.freshFix() ?: return false
+        val meters = GeoDistance.meters(fix.lat, fix.lng, d.lat, d.lng)
+        val away = meters > NEAR_DESTINATION_M
+        log("gear P: 목적지까지 ${meters.toInt()}m → ${if (away) "기록 유지" else "종료 대기"}")
+        return away
     }
 
     /** 시동 OFF·ACC 순간 — 기다리지 않고 바로 확정한다(프론트 스펙 1.1.1 4순위). 프로세스가 곧 멈출 수 있다. */
@@ -771,6 +791,9 @@ class TripSessionManager(
         const val UNREGISTERED_VEHICLE = "unregistered"
         const val MISSED_TRIP_NOTE = "앱 미실행 중 운행(시각 추정)"
         const val TICK_MS = 1_000L
+
+        /** 내비 목적지에서 이 거리(m) 안에서 P를 넣어야 운행을 끝낸다. 밖이면 기록을 이어 간다. */
+        const val NEAR_DESTINATION_M = 500.0
         const val CHECKPOINT_MS = 10_000L
 
         /** 이보다 짧은 정차는 Stop으로 남기지 않는다(신호 대기 소음 제거). F-04 "60초 정차 후 재출발 시 Trip 유지". */
