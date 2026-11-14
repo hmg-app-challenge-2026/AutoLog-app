@@ -373,7 +373,7 @@ class TripSessionManagerTest {
     }
 
     @Test
-    fun `내비 목적지에서 500m 밖에서 P를 넣으면 기록을 끊지 않는다`() = runTest {
+    fun `내비 목적지에서 300m 밖에서 P를 넣으면 기록을 끊지 않는다`() = runTest {
         val rig = Rig(this)
         val id = startedTrip(rig)
         rig.car.drive(5.0)
@@ -385,6 +385,20 @@ class TripSessionManagerTest {
 
         assertTrue(rig.stateValue is SessionState.Recording)
         assertEquals(TripStatus.RECORDING, rig.dao.trip(id)!!.status)
+    }
+
+    @Test
+    fun `목적지에서 400m면 근처가 아니다 — 기준은 도착 판정과 같은 300m`() = runTest {
+        val rig = Rig(this)
+        startedTrip(rig)
+        rig.car.drive(5.0)
+        runCurrent()
+        rig.ctx.setFix(FakeContext.SAMPLE_FIX.copy(lat = 37.4046, lng = 127.108)) // 목적지 북쪽 약 400m
+
+        rig.car.shift(Gear.PARK)
+        advanceTimeBy(TripTiming.T_GEAR_P_SEC * 1_000 + 1_000)
+
+        assertTrue(rig.stateValue is SessionState.Recording)
     }
 
     @Test
