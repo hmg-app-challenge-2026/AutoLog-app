@@ -6,7 +6,6 @@ import kr.autolog.shared.ReceiptPayload
 import kr.autolog.vehicle.core.TripCandidate
 import kr.autolog.vehicle.data.repository.HistoryItem
 import kr.autolog.vehicle.data.repository.TripSession
-import kr.autolog.vehicle.ui.design.components.CONFIDENCE_OK
 import kr.autolog.vehicle.ui.design.components.applyKey
 import java.text.NumberFormat
 import java.time.OffsetDateTime
@@ -18,8 +17,11 @@ import kotlin.math.abs
  * 주유 기록 입력 창의 상태 계산(순수 함수, FuelEntryReducerTest 대상). 입력은 Repository 값 타입만.
  */
 
-/** 검산 허용 오차(원). OCR 리터가 소수 둘째 자리에서 반올림돼도 통과하게. */
-private const val ARITH_TOLERANCE_WON = 1.0
+/**
+ * 검산 허용 오차(원). 주유기는 리터를 소수 셋째 자리에서 끊고 금액을 맞춰 결제하므로 몇십 원 차이는 흔하다
+ * (예: 35.353 L × 1,980원 = 69,999원 → 결제 70,000원). 100원까지는 맞는 것으로 본다(2026-11-15 사용자 결정).
+ */
+private const val ARITH_TOLERANCE_WON = 100.0
 
 private const val CARD_DIGITS = 4
 
@@ -44,21 +46,17 @@ internal fun reduceManualEntry(session: TripSession, lastEnded: HistoryItem? = n
 }
 
 /**
- * 영수증에서 왔을 때: OCR 값으로 칸을 채운다. 스펙 7.5 자동 조건(모든 칸 확인됨 · 검산 통과 · 후보 1개)이면
- * 그 후보를 고른 채로 연다 — [추가하기] 1탭으로 끝난다.
+ * 영수증에서 왔을 때: OCR 값으로 칸을 채우고, 연결할 운행은 맨 위 후보(가장 최근 출발)를 고른 채로 연다
+ * (2026-11-15 사용자 결정 — 예전엔 스펙 7.5 자동 조건(모든 칸 확인됨 · 검산 통과 · 후보 1개)일 때만 골랐다).
+ * 후보가 없으면 "연결 안 함".
  */
 internal fun reduceReceiptEntry(receipt: ReceiptPayload, candidates: List<TripCandidate>): FuelEntryUiState {
     val trips = candidates.map { FuelTripOption(it.tripId, FuelTripLabel.Named(it.label), it.hasFuelStop) }
-    val autoSelect =
-        receipt.arithOk == true &&
-            receipt.confidence.isNotEmpty() &&
-            receipt.confidence.values.all { it >= CONFIDENCE_OK } &&
-            trips.size == 1
     return FuelEntryUiState(
         receipt = receipt,
         values = receipt.fields.toValues(),
         trips = trips,
-        selectedTripId = if (autoSelect) trips.single().tripId else null,
+        selectedTripId = trips.firstOrNull()?.tripId,
     )
 }
 
@@ -83,7 +81,7 @@ private fun FuelEntryUiState.editNumber(change: (String) -> String): FuelEntryUi
 private fun FuelEntryUiState.withValue(field: FuelField, value: String) =
     copy(values = values + (field to value), edited = edited + field, error = null)
 
-/** 리터 × 단가 − 할인 = 금액(±1원). 셋 중 하나라도 비면 OCR이 낸 검산 결과를 쓴다. */
+/** 리터 × 단가 − 할인 = 금액(±100원). 셋 중 하나라도 비면 OCR이 낸 검산 결과를 쓴다. */
 internal fun fuelArithOk(state: FuelEntryUiState): Boolean? {
     val receipt = state.receipt ?: return null
     if (receipt.ocrStatus == OcrStatus.FAILED) return null

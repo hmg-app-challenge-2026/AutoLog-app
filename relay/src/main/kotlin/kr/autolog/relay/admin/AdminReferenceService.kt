@@ -105,17 +105,12 @@ class AdminReferenceService(
         publisher.publishSchedules(org, vehicles)
     }
 
-    /** CSV: name, dept, email */
+    /** CSV: name, dept. 이메일 열이 있어도 받지 않는다(2026-11-15 — 쓰는 곳이 없는 개인정보). */
     @Transactional
     fun importUsers(org: UUID, csv: ByteArray): ImportResult {
         val rows = Csv.parse(csv)
         val users = collect(rows) { row ->
-            validUser(
-                UUID.randomUUID(),
-                row["name"] ?: row["이름"],
-                row["dept"] ?: row["부서"],
-                row["email"] ?: row["이메일"],
-            )
+            validUser(UUID.randomUUID(), row["name"] ?: row["이름"], row["dept"] ?: row["부서"], null)
         }
         users.forEach { repo.upsertUser(org, it) }
         publisher.publishUsers(org)
@@ -208,12 +203,14 @@ class AdminReferenceService(
         publisher.publishSchedules(org, listOf(old.vehicleId))
     }
 
-    /** CSV: plate_no, driver(이름 또는 이메일), starts_at, ends_at, destination(장소 이름), purpose_detail */
+    /**
+     * CSV: plate_no, driver(이름, 동명이인이면 이름(부서)), starts_at, ends_at.
+     * 목적지·목적 열은 있어도 받지 않는다(2026-11-15 — 배차는 누가 쓰는지만. 목적은 [목적] 탭의 출발→도착 규칙).
+     */
     @Transactional
     fun importSchedules(org: UUID, csv: ByteArray): ImportResult {
         val plates = repo.vehicleIdsByPlate(org)
         val users = repo.users(org)
-        val places = repo.places(org)
         val schedules =
             collect(Csv.parse(csv)) { row ->
                 val plate = (row["plate_no"] ?: row["차량번호"]) ?: throw bad("plate_no(차량번호)가 비었습니다")
@@ -221,18 +218,12 @@ class AdminReferenceService(
                 val driver = row["driver"] ?: row["운전자"]
                 val userId =
                     driver?.let { d ->
-                        val found = users.filter { it.name == d || it.email.equals(d, ignoreCase = true) }
+                        val found = matchDriver(users, d)
                         when (found.size) {
                             1 -> found.single().userId.toString()
                             0 -> throw bad("직원 목록에 없는 운전자입니다: $d")
-                            else -> throw bad("같은 이름의 직원이 여럿입니다. 이메일로 적어 주세요: $d")
+                            else -> throw bad("같은 이름의 직원이 여럿입니다. 이름(부서)로 적어 주세요: $d")
                         }
-                    }
-                val dest = row["destination"] ?: row["목적지"]
-                val destId =
-                    dest?.let { label ->
-                        places.firstOrNull { it.label == label }?.placeId?.toString()
-                            ?: throw bad("등록되지 않은 장소입니다: $label")
                     }
                 validSchedule(
                     org,
@@ -242,13 +233,9 @@ class AdminReferenceService(
                         userId,
                         row["starts_at"] ?: row["시작"],
                         row["ends_at"] ?: row["종료"],
-                        destId,
-                        row["purpose_category"],
-                        row["purpose_detail"] ?: row["목적"],
                     ),
                     old = null,
                     knownUsers = users.map { it.userId }.toSet(),
-                    knownPlaces = places.map { it.placeId }.toSet(),
                     knownVehicles = plates.values.toSet(),
                 )
             }
@@ -289,6 +276,20 @@ class AdminReferenceService(
         return ImportResult(added)
     }
 
+    /**
+     * 배차 CSV의 운전자 칸 → 직원. `이름` 또는 동명이인이면 `이름(부서)`. 예전 데이터를 위해 이메일도 받는다
+     * (직원 이메일은 2026-11-15부터 새로 받지 않는다).
+     */
+    private fun matchDriver(users: List<UserRow>, raw: String): List<UserRow> {
+        val d = raw.trim()
+        val withDept = Regex("^(.+?)\\s*\\((.+)\\)$").find(d)
+        if (withDept != null) {
+            val (name, dept) = withDept.destructured
+            return users.filter { it.name == name.trim() && it.dept == dept.trim() }
+        }
+        return users.filter { it.name == d }.ifEmpty { users.filter { it.email.equals(d, ignoreCase = true) } }
+    }
+
     // ===== 검증 =====
 
     private fun validUser(id: UUID, name: String?, dept: String?, email: String?): UserRow {
@@ -325,7 +326,6 @@ class AdminReferenceService(
         r: ScheduleRequest,
         old: ScheduleRow?,
         knownUsers: Set<UUID>? = null,
-        knownPlaces: Set<UUID>? = null,
         knownVehicles: Set<UUID>? = null,
     ): ScheduleRow {
         val vehicleId = r.vehicleId ?: old?.vehicleId ?: throw bad("차량을 선택해 주세요")
@@ -335,12 +335,6 @@ class AdminReferenceService(
             !(knownUsers ?: repo.users(org).map { it.userId }.toSet()).contains(userId)
         ) {
             throw bad("직원 목록에 없는 운전자입니다")
-        }
-        val destId = uuidOrNull(r.destPlaceId.patch(old?.destPlaceId?.toString()), "목적지")
-        if (destId != null &&
-            !(knownPlaces ?: repo.places(org).map { it.placeId }.toSet()).contains(destId)
-        ) {
-            throw bad("등록되지 않은 목적지입니다")
         }
         val starts = r.startsAt?.let(::parseTime) ?: old?.startsAt ?: throw bad("시작 시각을 입력해 주세요")
         val ends = r.endsAt?.let(::parseTime) ?: old?.endsAt ?: throw bad("종료 시각을 입력해 주세요")
@@ -352,9 +346,10 @@ class AdminReferenceService(
             userId,
             starts,
             ends,
-            destId,
-            r.purposeCategory.patch(old?.purposeCategory)?.uppercase(),
-            r.purposeDetail.patch(old?.purposeDetail)?.uppercase(),
+            // 목적지·목적은 저장하지 않는다(2026-11-15). DTO·DB 칸은 이미 깔린 앱을 위해 남기고 비운다
+            destPlaceId = null,
+            purposeCategory = null,
+            purposeDetail = null,
         )
     }
 

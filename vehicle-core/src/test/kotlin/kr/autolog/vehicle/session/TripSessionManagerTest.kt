@@ -41,7 +41,9 @@ class TripSessionManagerTest {
         val clock = scope.virtualClock()
         val car = FakeVehicle(clock)
         val dao = InMemoryTripDao()
-        val ctx = FakeContext()
+
+        // 기본은 내비 목적지(판교 거래처) 바로 옆 — P를 넣으면 지금처럼 끝난다. 목적지 전 정차는 setFix로 옮긴다
+        val ctx = FakeContext(fix = FakeContext.SAMPLE_FIX.copy(lat = 37.4012, lng = 127.1081))
         val engine = FakePurposeEngine()
         var ids = 0
         val session: TripSessionManager
@@ -146,7 +148,7 @@ class TripSessionManagerTest {
         assertNull(row.destinationLabel)
         assertEquals("경기 성남시 분당구 정자일로 1", row.destinationAddress)
         assertEquals(AddressSource.NAVI_HELPER, row.destinationAddressSource)
-        assertEquals(FakeContext.SAMPLE_FIX.lat, row.destinationLat!!, 0.0)
+        assertEquals(rig.ctx.latestFix.value!!.lat, row.destinationLat!!, 0.0)
         assertEquals(PlaceSource.FUSED_LOCATION, row.destinationSource)
         assertEquals("경기 성남시 분당구 정자일로 1", (rig.stateValue as SessionState.PendingReview).trip.destinationAddress)
     }
@@ -327,8 +329,8 @@ class TripSessionManagerTest {
         val row = rig.dao.trip(startedTrip(rig))!!
 
         assertNull(row.originLabel)
-        assertEquals(FakeContext.SAMPLE_FIX.lat, row.originLat!!, 0.0)
-        assertEquals(FakeContext.SAMPLE_FIX.lng, row.originLng!!, 0.0)
+        assertEquals(rig.ctx.latestFix.value!!.lat, row.originLat!!, 0.0)
+        assertEquals(rig.ctx.latestFix.value!!.lng, row.originLng!!, 0.0)
         assertEquals(PlaceSource.FUSED_LOCATION, row.originSource)
     }
 
@@ -368,6 +370,71 @@ class TripSessionManagerTest {
         assertEquals(TripStatus.PENDING_REVIEW, row.status)
         assertEquals(DistanceSource.VEHICLE_ODOMETER, row.distanceSource)
         assertEquals(18_443.9, rig.dao.state!!.lastKnownOdometerKm!!, 0.0)
+    }
+
+    @Test
+    fun `내비 목적지에서 300m 밖에서 P를 넣으면 기록을 끊지 않는다`() = runTest {
+        val rig = Rig(this)
+        val id = startedTrip(rig)
+        rig.car.drive(5.0)
+        runCurrent()
+        rig.ctx.setFix(FakeContext.SAMPLE_FIX.copy(lat = 37.380, lng = 127.108)) // 목적지에서 약 2.3km
+
+        rig.car.shift(Gear.PARK)
+        advanceTimeBy(TripTiming.T_GEAR_P_SEC * 1_000 + 60_000)
+
+        assertTrue(rig.stateValue is SessionState.Recording)
+        assertEquals(TripStatus.RECORDING, rig.dao.trip(id)!!.status)
+    }
+
+    @Test
+    fun `목적지에서 400m면 근처가 아니다 — 기준은 도착 판정과 같은 300m`() = runTest {
+        val rig = Rig(this)
+        startedTrip(rig)
+        rig.car.drive(5.0)
+        runCurrent()
+        rig.ctx.setFix(FakeContext.SAMPLE_FIX.copy(lat = 37.4046, lng = 127.108)) // 목적지 북쪽 약 400m
+
+        rig.car.shift(Gear.PARK)
+        advanceTimeBy(TripTiming.T_GEAR_P_SEC * 1_000 + 1_000)
+
+        assertTrue(rig.stateValue is SessionState.Recording)
+    }
+
+    @Test
+    fun `목적지 전 P로 이어 가다 목적지 근처에서 P를 넣으면 지금처럼 끝난다`() = runTest {
+        val rig = Rig(this)
+        startedTrip(rig)
+        rig.car.drive(5.0)
+        runCurrent()
+        val near = rig.ctx.latestFix.value!!
+        rig.ctx.setFix(FakeContext.SAMPLE_FIX.copy(lat = 37.380, lng = 127.108))
+        rig.car.shift(Gear.PARK)
+        runCurrent()
+        rig.car.shift(Gear.DRIVE)
+        rig.car.drive(3.0)
+        rig.ctx.setFix(near)
+
+        rig.car.shift(Gear.PARK)
+        advanceTimeBy(TripTiming.T_GEAR_P_SEC * 1_000 + 1_000)
+
+        val review = rig.stateValue as SessionState.PendingReview
+        assertEquals(8.0, review.distanceKm!!, 0.001)
+    }
+
+    @Test
+    fun `내비 목적지가 없으면 어디서 P를 넣든 지금처럼 끝난다`() = runTest {
+        val rig = Rig(this)
+        rig.ctx.setDestination(null)
+        startedTrip(rig)
+        rig.car.drive(5.0)
+        runCurrent()
+        rig.ctx.setFix(FakeContext.SAMPLE_FIX.copy(lat = 37.380, lng = 127.108))
+
+        rig.car.shift(Gear.PARK)
+        advanceTimeBy(TripTiming.T_GEAR_P_SEC * 1_000 + 1_000)
+
+        assertTrue(rig.stateValue is SessionState.PendingReview)
     }
 
     @Test

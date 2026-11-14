@@ -91,7 +91,7 @@ fun ProfilePickerScreen(
             }
             TertiaryButton(stringResource(R.string.picker_later), onClick = { onAction(ProfilePickerAction.Later) })
         }
-        ModalHost(visible = state.showAll) { AllProfilesDialog(state.profiles, onAction) }
+        ModalHost(visible = state.showAll) { AllProfilesDialog(state.others, onAction) }
         ModalHost(state.addForm) { AddDriverDialog(it, onAction) }
     }
 }

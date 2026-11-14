@@ -3,8 +3,11 @@ package kr.autolog.vehicle.ui.profile
 import kr.autolog.vehicle.data.repository.AddDriverResult
 import kr.autolog.vehicle.data.repository.DriverProfile
 
-/** 스펙 7.1: 사람 타일 최대 5개, 넘치면 그 뒤에 [다른 사람]. [+ 새 운전자 추가]는 항상 맨 끝. */
-const val PICKER_VISIBLE_MAX = 5
+/**
+ * 스펙 7.1: 사람 타일 최대 4개, 넘치면 그 뒤에 [다른 사람]. [+ 새 운전자 추가]는 항상 맨 끝.
+ * [다른 사람]은 메인에 보인 4명을 뺀 나머지만 보인다(2026-11-15 사용자 결정, 예전 5개·전체 목록).
+ */
+const val PICKER_VISIBLE_MAX = 4
 
 /** 선택 화면 한 줄에 놓이는 타일. 화면은 이 목록을 순서대로 그리기만 한다(배치 규칙은 여기 한 곳). */
 sealed interface PickerTile {
@@ -32,6 +35,9 @@ data class ProfilePickerUiState(
     val loaded: Boolean = false,
 ) {
     val hasMore: Boolean get() = profiles.size > PICKER_VISIBLE_MAX
+
+    /** [다른 사람] 팝업에 보일 사람 — 메인에 이미 보인 사람은 뺀다. */
+    val others: List<DriverProfile> get() = profiles.drop(PICKER_VISIBLE_MAX)
 
     val tiles: List<PickerTile>
         get() =

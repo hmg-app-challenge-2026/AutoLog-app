@@ -233,15 +233,8 @@ class ReportBuilder(
         "앱 미실행 중 운행(시각 추정)".takeIf { t.timeEstimated && t.note?.contains("앱 미실행") != true },
         "목적 미확정 — 업무거리 0".takeIf { t.purpose == null || t.purpose.category == PurposeCategory.UNDETERMINED },
         "운전자 미확정".takeIf { t.userId == null },
-        editedRemark(t),
+        // 사람이 고친 거리도 일반 기록과 똑같이 적는다(2026-11-15 사용자 결정). 계기판 원본은 Room에 그대로 남는다(F-05)
     ).joinToString(" · ")
-
-    /** 사람이 고친 거리면 계기판 원본을 비고에 남긴다(F-05 — 원본은 덮지 않는다). */
-    private fun editedRemark(t: ReportTrip): String? {
-        if (!t.isDistanceEdited) return null
-        val odo = t.odometerDistanceKm?.let { "계기판 ${"%.1f".format(Locale.ROOT, it)} km" } ?: "계기판 미확정"
-        return "거리 수정($odo)"
-    }
 
     /** 이름(등록 장소·내비 목적지·건물) → 이름. 이름이 없으면 주소. 주소는 옆 칸에 따로 적는다. */
     private fun route(t: ReportTrip) =

@@ -103,8 +103,6 @@ class ReportBuilderTest {
         assertTrue("출발지 주소" in log && "도착지 주소" in log)
         assertTrue("서울 서대문구 연희동 연희로 11-1 → 판교" in log) // 이름이 없으면 주소
         assertTrue("경기 성남시 분당구 삼평동 판교역로 166" in log)
-        assertTrue("거리 수정(계기판 23.4 km)" in log)
-        assertTrue("거리 수정(계기판 미확정)" in log)
         assertEquals(37.0, r.file.totalKm, 1e-9)
     }
 

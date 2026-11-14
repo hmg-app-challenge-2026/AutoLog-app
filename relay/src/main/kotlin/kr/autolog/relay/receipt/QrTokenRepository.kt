@@ -14,6 +14,9 @@ interface QrTokenRepository {
 
     /** 사용하지 않고 토큰이 유효한지만 본다(카메라 페이지 열기). */
     fun isValid(vehicleCode: String, tokenHash: String, now: Instant): Boolean
+
+    /** 만료·사용 여부와 상관없이 이 차의 토큰이면 차량 id. 다시 보내기가 이미 들어간 사진인지 볼 때 쓴다. */
+    fun vehicleOf(vehicleCode: String, tokenHash: String): UUID?
 }
 
 @Repository
@@ -54,4 +57,16 @@ class JdbcQrTokenRepository(private val jdbc: JdbcClient) : QrTokenRepository {
         .param("code", vehicleCode)
         .query(Long::class.java)
         .single() > 0
+
+    override fun vehicleOf(vehicleCode: String, tokenHash: String): UUID? = jdbc
+        .sql(
+            """
+                SELECT q.vehicle_id FROM qr_tokens q JOIN vehicles v ON v.vehicle_id = q.vehicle_id
+                WHERE q.token = :token AND v.vehicle_code = :code
+            """.trimIndent(),
+        ).param("token", tokenHash)
+        .param("code", vehicleCode)
+        .query(UUID::class.java)
+        .optional()
+        .orElse(null)
 }

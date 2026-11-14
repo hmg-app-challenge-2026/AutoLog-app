@@ -170,7 +170,7 @@ interface DomainStore {
     /** origin=LOCAL로 저장 (F-17 차 안 거래처 등록). */
     suspend fun savePlace(p: PlaceInfo)
 
-    /** 이미 같은 sha256의 비용이 저장돼 있는지 (F-19 중복 거부). */
+    /** 이미 같은 sha256의 비용이 저장돼 있는지 (F-19). 저장을 막지는 않는다 — 2026-11-15부터 같은 사진도 저장한다. */
     suspend fun hasReceipt(sha256: String): Boolean
 
     /** expenses + trip_expense_links 저장. 저장된 expenseId를 돌려준다. */

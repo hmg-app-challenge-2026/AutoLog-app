@@ -71,4 +71,7 @@ private class FakeQrTokenRepository : QrTokenRepository {
         val r = rows[tokenHash] ?: return false
         return vehicleCode == "abcd2345" && r.usedAt == null && r.expiresAt.isAfter(now)
     }
+
+    override fun vehicleOf(vehicleCode: String, tokenHash: String): UUID? =
+        rows[tokenHash]?.vehicleId?.takeIf { vehicleCode == "abcd2345" }
 }

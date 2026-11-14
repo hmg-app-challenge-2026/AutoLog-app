@@ -21,8 +21,8 @@ class SettingsScreenshotTest {
             RecipientRowUi("me@example.com", "나", fromServer = false),
         ),
         staff = listOf(
-            StaffRowUi("u-1", "김영업", "영업1팀", "kim@example.com", fromServer = true),
-            StaffRowUi("local-4", "최신입", "영업2팀", null, fromServer = false),
+            StaffRowUi("u-1", "김영업", "영업1팀", fromServer = true),
+            StaffRowUi("local-4", "최신입", "영업2팀", fromServer = false),
         ),
         app = AppInfo("0.1.0", demo = true),
     )

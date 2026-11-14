@@ -15,6 +15,7 @@ import kr.autolog.shared.RecipientsPayload
 import kr.autolog.shared.SchedulesPayload
 import kr.autolog.shared.UsersPayload
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -185,7 +186,7 @@ class AdminReferenceIntegrationTest {
         val res =
             csv(
                 "/admin/users/import",
-                "name,email\n박관리,park@example.com\n,no-name@example.com\n최회계,not-email\n".toByteArray(),
+                "name,dept\n박관리,관리팀\n,영업팀\n${"가".repeat(200)},영업팀\n".toByteArray(),
             )
 
         assertEquals(HttpStatus.BAD_REQUEST, res.statusCode)
@@ -196,9 +197,9 @@ class AdminReferenceIntegrationTest {
     }
 
     @Test
-    fun `엑셀 CP949 CSV로 장소·배차를 올리면 해당 차에 배차가 간다`() {
+    fun `엑셀 CP949 CSV로 배차를 올리면 해당 차에 운전자 배차가 간다`() {
         val (_, token) = newCar("34나5678")
-        csv("/admin/users/import", "이름,부서,이메일\n정배차,물류팀,jung@example.com\n".toByteArray(Charset.forName("MS949")))
+        csv("/admin/users/import", "이름,부서\n정배차,물류팀\n정배차,영업팀\n".toByteArray(Charset.forName("MS949")))
         val places =
             csv(
                 "/admin/places/import",
@@ -210,13 +211,15 @@ class AdminReferenceIntegrationTest {
         val res =
             csv(
                 "/admin/schedules/import",
-                "차량번호,운전자,시작,종료,목적지,목적\n34나 5678,jung@example.com,$tomorrow 09:00,$tomorrow 18:00,수원 지점,BRANCH_MOVE\n"
+                "차량번호,운전자,시작,종료,목적지,목적\n34나 5678,정배차(물류팀),$tomorrow 09:00,$tomorrow 18:00,수원 지점,BRANCH_MOVE\n"
                     .toByteArray(Charset.forName("MS949")),
             )
         assertEquals(HttpStatus.OK, res.statusCode, res.body)
 
         val s = inbox(token).latest<SchedulesPayload>(InboxKind.SCHEDULES).schedules.single()
-        assertEquals("BRANCH_MOVE", s.purposeDetail)
+        assertNotNull(s.userId)
+        assertNull(s.purposeDetail) // 목적지·목적 열은 받지 않는다
+        assertNull(s.destPlaceId)
         assertTrue(s.startsAt.endsWith("+09:00"))
     }
 
@@ -235,5 +238,36 @@ class AdminReferenceIntegrationTest {
         val items = inbox(token)
         assertNull(items.latest<SchedulesPayload>(InboxKind.SCHEDULES).schedules.single().userId)
         assertTrue(items.latest<UsersPayload>(InboxKind.USERS).users.none { it.name == "한퇴사" })
+    }
+
+    @Test
+    fun `차량을 지우면 목록에서 빠지고 그 차의 기기 토큰과 배차도 사라진다`() {
+        val (vehicleId, token) = newCar("78라1234")
+        val now = java.time.OffsetDateTime.now(java.time.ZoneOffset.ofHours(9)).plusHours(2).withNano(0)
+        post("/admin/schedules", """{"vehicleId":"$vehicleId","startsAt":"$now","endsAt":"${now.plusHours(1)}"}""")
+
+        val res = http.exchange(
+            "/admin/vehicles/$vehicleId",
+            HttpMethod.DELETE,
+            HttpEntity<Void>(adminHeaders),
+            Void::class.java,
+        )
+
+        assertEquals(HttpStatus.NO_CONTENT, res.statusCode)
+        assertTrue(get("/admin/vehicles").none { (it as Map<*, *>)["vehicleId"] == vehicleId })
+        val after = http.exchange(
+            "/v1/inbox",
+            HttpMethod.GET,
+            HttpEntity<Void>(HttpHeaders().apply { setBearerAuth(token) }),
+            String::class.java,
+        )
+        assertEquals(HttpStatus.UNAUTHORIZED, after.statusCode)
+        val again = http.exchange(
+            "/admin/vehicles/$vehicleId",
+            HttpMethod.DELETE,
+            HttpEntity<Void>(adminHeaders),
+            Void::class.java,
+        )
+        assertEquals(HttpStatus.NOT_FOUND, again.statusCode)
     }
 }

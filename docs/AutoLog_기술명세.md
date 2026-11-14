@@ -769,7 +769,7 @@ suspend fun onAppStart() {
 
 | 항목 | 내용 |
 |---|---|
-| 데이터 | `recent_users`(로컬, 최근 3명) + 조직 직원 목록(앱 시작 시 `GET /users` 갱신, 캐시) + 배차(`GET /schedules?vehicle=&around=now`) |
+| 데이터 | `recent_users`(로컬. "최근" 배지는 가장 최근 1명) + 조직 직원 목록(앱 시작 시 `GET /users` 갱신, 캐시) + 배차(`GET /schedules?vehicle=&around=now`) |
 | 기본 강조 | 배차 운전자 → 직전 운행 운전자 → 최근 순 |
 | 결과 | `TripEntity.userId`, `driverSource = DRIVER_SELECTED`. "나중에 선택"이면 `userId = null` → 서버 `DriverResolver`(3.4)가 역추론 |
 | 제약 | 정차 시에만. 운행 중 전환 불가 |
@@ -825,7 +825,7 @@ class InboxSyncWorker(ctx: Context, p: WorkerParameters) : CoroutineWorker(ctx, 
 
 ```
 목적 추천 (첫 매치):
-  a. schedules(이 차, 시각 ±2h, dest 일치)  → 배차 목적 0.97
+  (a. 배차 목적 규칙은 2026-11-15에 뺐다 — 배차는 운전자 추론에만 쓴다)
   a2. 목적 규칙: origin 장소 = 규칙 출발 & dest 장소 = 규칙 도착 → 규칙 목적 0.96
   a3. 목적 규칙: 출발 "어디서든" & dest 장소 = 규칙 도착 → 규칙 목적 0.93
   b. HOME→OFFICE 평일 05–11 → 출근 0.95 · c. OFFICE→HOME 16–23 → 퇴근 0.95

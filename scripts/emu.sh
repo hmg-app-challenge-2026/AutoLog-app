@@ -75,7 +75,8 @@ case "${1:-}" in
     odo="$(odo_now)"
     while true; do
       sleep 1
-      heartbeat
+      # 콘솔이 잠깐 늦게 답해도(curl 시간 초과) 끝내지 않고 다음 초에 다시 한다
+      heartbeat || true
       speed="$(curl -s -m 2 "$CONSOLE/vehicle/state" | python3 -c 'import json,sys; print(json.load(sys.stdin)["controls"].get("speed_kph") or 0)' || echo 0)"
       odo="$(python3 -c "print(round($odo + $speed / 3600, 3))")"
       curl -s -m 2 -X PUT "$CONSOLE/vehicle/odometer?traveled_distance_km=$odo" >/dev/null || true

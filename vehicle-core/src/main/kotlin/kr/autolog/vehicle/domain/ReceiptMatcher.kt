@@ -33,14 +33,21 @@ object ReceiptMatcher {
             .map { it to gap(it, at) }
             .filter { (_, g) -> g <= WINDOW_MS }
             .map { (t, g) -> Triple(t, g, hasFuelStop(t, stations)) }
-            .sortedWith(compareByDescending<Triple<TripSummary, Long, Boolean>> { it.third }.thenBy { it.second })
+            // 지금 기록 중인 운행(endTime 없음)은 늘 뽑는다 — 운행 중 주유하고 바로 영수증을 찍는 게 가장 흔하다
+            .sortedWith(
+                compareByDescending<Triple<TripSummary, Long, Boolean>> { it.first.endTime == null }
+                    .thenByDescending { it.third }
+                    .thenBy { it.second },
+            )
             .take(MAX_CANDIDATES)
+            // 고르는 건 가까운 순, 보여 주는 건 최근 출발이 위(2026-11-15 사용자 결정)
+            .sortedByDescending { (t, _, _) -> t.startTime }
             .map { (t, _, fuel) -> TripCandidate(t.tripId, t.startTime, t.endTime, label(t), fuel) }
     }
 
     /** 운행 시간 안이면 0, 밖이면 가까운 끝까지의 거리(ms). */
     internal fun gap(t: TripSummary, at: Long): Long {
-        val end = t.endTime ?: t.startTime
+        val end = t.endTime ?: Long.MAX_VALUE // 기록 중이면 아직 끝나지 않았다
         return when {
             at in t.startTime..end -> 0
             at < t.startTime -> t.startTime - at
@@ -60,14 +67,26 @@ object ReceiptMatcher {
      * 운행 한 줄 표시. 예: "09:12 본사 → 판교 거래처", 장소를 모르면 "09:12 출발 · 23.4 km".
      * [withDistance]면 장소가 있어도 거리를 붙인다(F-20 "이전 운행(09:00, 23.4 km)").
      */
+    /**
+     * 운행 한 줄: `09:12 출발 → 거래처`. 어디로 갔는지가 운행을 구분하는 단서라 도착지를 늘 보인다(2026-11-15 사용자 결정).
+     * 도착지 이름이 없으면 주소(광역·기초 뺀 `동 도로명 번호`), 그것도 없으면 "도착지 모름"과 거리.
+     */
     fun label(t: TripSummary, withDistance: Boolean = false): String {
         val time = HHMM.format(Instant.ofEpochMilli(t.startTime).atZone(KST))
         val km = t.distanceKm?.let { " · ${String.format(Locale.ROOT, "%.1f", it)} km" } ?: ""
-        return if (t.originLabel != null || t.destinationLabel != null) {
-            "$time ${t.originLabel ?: "?"} → ${t.destinationLabel ?: "?"}" + if (withDistance) km else ""
-        } else {
-            "$time 출발$km"
-        }
+        val dest = t.destinationLabel?.takeIf { it.isNotBlank() } ?: shortAddress(t.destinationAddress)
+        if (t.endTime == null) return "$time 출발 → ${dest ?: RECORDING_DEST}" // 기록 중 — 거리는 아직 없다
+        return "$time 출발 → ${dest ?: UNKNOWN_DEST}" + if (withDistance || dest == null) km else ""
+    }
+
+    private const val UNKNOWN_DEST = "도착지 모름"
+    private const val RECORDING_DEST = "지금 기록 중"
+
+    /** `서울 성동구 사근동 왕십리로 222` → `사근동 왕십리로 222`. 짧으면 그대로. */
+    internal fun shortAddress(address: String?): String? {
+        val parts = address?.trim()?.split(Regex("\\s+"))?.filter { it.isNotEmpty() } ?: return null
+        if (parts.isEmpty()) return null
+        return (if (parts.size > 3) parts.drop(2) else parts).joinToString(" ")
     }
 
     private fun parse(iso: String?): Long? =

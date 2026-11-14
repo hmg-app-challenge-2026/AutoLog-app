@@ -67,7 +67,7 @@ interface SettingsRepository {
 
     suspend fun removePurposeRule(ruleId: String): Outcome
 
-    suspend fun addUser(name: String, dept: String?, email: String?): Outcome
+    suspend fun addUser(name: String, dept: String?): Outcome
 
     val autoMonthlySend: StateFlow<Boolean>
 
@@ -136,8 +136,9 @@ class DefaultSettingsRepository(
     override suspend fun addPlace(label: String, lat: Double, lng: Double): PlaceAddResult =
         settings.addPlace(label, lat, lng)
 
-    override suspend fun addUser(name: String, dept: String?, email: String?): Outcome =
-        settings.addUser(name.trim(), dept?.trim()?.ifEmpty { null }, email?.trim()?.ifEmpty { null }).toOutcome()
+    // 직원 이메일은 받지 않는다(2026-11-15 — 쓰는 곳이 없는 개인정보). 계약은 그대로 두고 null을 넘긴다
+    override suspend fun addUser(name: String, dept: String?): Outcome =
+        settings.addUser(name.trim(), dept?.trim()?.ifEmpty { null }, null).toOutcome()
 
     override val autoMonthlySend: StateFlow<Boolean> = settings.autoMonthlySend
 

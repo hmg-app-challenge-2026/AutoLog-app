@@ -287,15 +287,6 @@ private fun DistanceTime(state: TripResultUiState) {
         state.minutes?.let {
             Text(minutesText(it), modifier = Modifier.alignByBaseline(), style = t.resultTime, color = c.textSecondary)
         }
-        // 사람이 고친 거리(F-05) — 계기판 값이 아님을 조용히 알린다(엑셀 비고에는 계기판 값이 남는다)
-        if (state.distanceEdited && state.km != null) {
-            Text(
-                stringResource(R.string.trip_km_edited),
-                modifier = Modifier.alignByBaseline(),
-                style = t.caption,
-                color = c.textSecondary,
-            )
-        }
     }
 }
 

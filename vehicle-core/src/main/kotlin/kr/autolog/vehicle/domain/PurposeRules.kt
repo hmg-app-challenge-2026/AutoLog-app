@@ -9,15 +9,6 @@ import java.time.DayOfWeek
 import java.time.Instant
 import java.time.ZoneId
 import java.time.ZonedDateTime
-import kotlin.math.abs
-
-/** 배차 한 건. Room ScheduleEntity에서 필요한 값만 옮긴 것. */
-data class ScheduleCandidate(
-    val scheduleId: String,
-    val startsAt: Long,
-    val destPlaceId: String?,
-    val purposeDetail: String?,
-)
 
 /** 목적 추천 입력. 모두 Room에 있는 값이라 차 안에서 계산한다(기술명세 3.3). */
 data class TripContext(
@@ -27,8 +18,6 @@ data class TripContext(
     val origin: Place?,
     /** 도착지가 매칭된 등록 장소. 없으면 null(미등록). */
     val destination: Place?,
-    /** 이 차의 배차. 시각 필터는 규칙이 한다. */
-    val schedules: List<ScheduleCandidate> = emptyList(),
     /** 같은 목적지에서 과거에 CONFIRMED된 세부 목적들. */
     val pastConfirmedAtDestination: List<PurposeDetail> = emptyList(),
     /** 출발→도착 목적 규칙(회사 지정 먼저). [PurposeBook.rules]. */
@@ -48,17 +37,7 @@ fun interface PurposeRule {
 class PurposeRules(private val zone: ZoneId = SEOUL) {
     private val rules: List<PurposeRule> =
         listOf(
-            // a. 이 차 배차, 시각 ±2h, 목적지 일치 → 배차 목적
-            PurposeRule { ctx ->
-                val dest = ctx.destination ?: return@PurposeRule null
-                ctx.schedules
-                    .filter { it.destPlaceId == dest.placeId && abs(it.startsAt - ctx.startTime) <= SCHEDULE_WINDOW_MS }
-                    .minByOrNull { abs(it.startsAt - ctx.startTime) }
-                    ?.let { s ->
-                        val detail = PurposeDetail.fromName(s.purposeDetail) ?: PurposeDetail.CLIENT_VISIT
-                        Suggestion(detail, 0.97, PurposeRuleId.SCHEDULE, s.scheduleId)
-                    }
-            },
+            // (예전 a. 배차 + 목적지 일치 규칙은 뺐다 — 2026-11-15 배차는 누가 쓰는지만 담는다)
             // a2. 목적 규칙: 출발 장소·도착 장소가 둘 다 맞으면 그 목적 (관리자 웹·차 설정에서 정함)
             PurposeRule { ctx ->
                 val from = ctx.origin?.placeId ?: return@PurposeRule null
@@ -146,7 +125,6 @@ class PurposeRules(private val zone: ZoneId = SEOUL) {
 
     companion object {
         val SEOUL: ZoneId = ZoneId.of("Asia/Seoul")
-        const val SCHEDULE_WINDOW_MS = 2 * 60 * 60 * 1000L
         const val PAST_CONFIRMED_MIN = 3
     }
 }

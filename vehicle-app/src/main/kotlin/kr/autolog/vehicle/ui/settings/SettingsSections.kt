@@ -252,7 +252,6 @@ private fun Staff(state: SettingsUiState, onAction: (SettingsAction) -> Unit) {
                     s.fromServer
                 },
                 s.dept,
-                s.email,
             ).joinToString(separator).ifEmpty { null },
             locked = s.fromServer,
             onRemove = null,

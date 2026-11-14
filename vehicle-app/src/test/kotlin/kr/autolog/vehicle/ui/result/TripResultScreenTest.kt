@@ -207,13 +207,6 @@ class TripResultScreenTest {
     }
 
     @Test
-    fun `고친 거리엔 수정됨`() {
-        show(ended.copy(km = "50.0", distanceEdited = true), mutableListOf())
-
-        compose.onNodeWithText("수정됨").assertIsDisplayed()
-    }
-
-    @Test
     fun `수정 모드 — 수정하기가 빠지고 빨간 삭제하기가 생긴다, 라디오로 고르고 저장하기`() {
         val actions = mutableListOf<TripResultAction>()
         show(editing, actions)
@@ -256,7 +249,7 @@ class TripResultScreenshotTest {
         )
     }
 
-    /** 고친 거리(수정됨) + 목적지 없이 끝나 이름 없이 주소만 있는 도착지. */
+    /** 고친 거리(표시 없음) + 목적지 없이 끝나 이름 없이 주소만 있는 도착지. */
     @Test
     fun editedNoName() = captureAll("trip_result_edited_address_only") {
         TripResultScreen(ended.copy(km = "50.0", distanceEdited = true, destination = null), onAction = {})

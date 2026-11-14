@@ -24,36 +24,6 @@ class PurposeRulesTest {
     private fun at(iso: String): Long = ZonedDateTime.parse("$iso+09:00[Asia/Seoul]").toInstant().toEpochMilli()
 
     @Test
-    fun `a 배차 시각 2시간 이내이고 목적지가 같으면 배차 목적을 추천한다`() {
-        val ctx =
-            TripContext(
-                startTime = at("2026-11-02T09:00:00"),
-                origin = office,
-                destination = client,
-                schedules = listOf(ScheduleCandidate("s-1", at("2026-11-02T10:30:00"), client.placeId, "MEETING")),
-            )
-
-        val s = rules.suggest(ctx)
-
-        assertEquals(PurposeDetail.MEETING, s.detail)
-        assertEquals(0.97, s.confidence, 0.0)
-        assertEquals("s-1", s.scheduleId)
-    }
-
-    @Test
-    fun `a 배차가 2시간보다 멀면 배차 규칙은 쓰지 않는다`() {
-        val ctx =
-            TripContext(
-                startTime = at("2026-11-02T09:00:00"),
-                origin = office,
-                destination = client,
-                schedules = listOf(ScheduleCandidate("s-1", at("2026-11-02T11:01:00"), client.placeId, "MEETING")),
-            )
-
-        assertEquals(PurposeRuleId.CLIENT, rules.suggest(ctx).rule)
-    }
-
-    @Test
     fun `b 평일 아침 자택에서 회사로 가면 출근을 추천한다`() {
         val s = rules.suggest(TripContext(at("2026-11-02T08:10:00"), origin = home, destination = office))
 
@@ -137,19 +107,6 @@ class PurposeRulesTest {
         assertEquals(PurposeDetail.NEEDS_CHECK, s.detail)
         assertEquals(PurposeCategory.UNDETERMINED, s.category)
         assertEquals(0.50, s.confidence, 0.0)
-    }
-
-    @Test
-    fun `배차 목적 문자열을 모르면 거래처 방문으로 둔다`() {
-        val ctx =
-            TripContext(
-                startTime = at("2026-11-02T09:00:00"),
-                origin = office,
-                destination = client,
-                schedules = listOf(ScheduleCandidate("s-1", at("2026-11-02T09:00:00"), client.placeId, "UNKNOWN_X")),
-            )
-
-        assertEquals(PurposeDetail.CLIENT_VISIT, rules.suggest(ctx).detail)
     }
 
     private val delivery = PurposeDetail.custom("납품", PurposeCategory.BUSINESS)

@@ -15,8 +15,8 @@ import java.util.Locale
 object UserOrdering {
     const val SCHEDULE_WINDOW_MS = 60 * 60 * 1000L
 
-    /** 최근 배지를 붙이는 최근 사용자 수(화면의 "최근 3명"). */
-    const val RECENT_BADGE_COUNT = 3
+    /** 최근 배지를 붙이는 사람 수 — 가장 최근 1명만(2026-11-15 사용자 결정, 예전 3명). */
+    const val RECENT_BADGE_COUNT = 1
 
     private val nameOrder: Comparator<UserInfo> =
         Collator.getInstance(Locale.KOREAN).let { c -> Comparator { a, b -> c.compare(a.name, b.name) } }

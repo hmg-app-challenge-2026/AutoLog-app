@@ -36,9 +36,13 @@ data class RelayProperties(
 
     data class Gemini(
         val apiKey: String = "",
-        val model: String = "gemini-2.5-flash",
+        val model: String = "gemini-3.5-flash-lite",
         val baseUrl: String = "https://generativelanguage.googleapis.com",
         val maxAttempts: Int = 3,
+        /** 한 번 부를 때 기다리는 최대 시간(초). 0이면 제한 없음(테스트). */
+        val timeoutSec: Int = 25,
+        /** 재시도까지 합친 전체 예산(초). 넘으면 더 시도하지 않고 OCR 실패로 넘긴다 — 폰 연결이 먼저 끊기지 않게. */
+        val budgetSec: Int = 45,
     )
 
     data class Storage(
