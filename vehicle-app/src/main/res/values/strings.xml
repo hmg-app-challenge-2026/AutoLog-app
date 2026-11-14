@@ -38,7 +38,6 @@
     <string name="trip_km_unknown">거리 미확정</string>
     <string name="trip_km_unknown_reason">계기판 거리를 읽지 못하고 있어요</string>
     <!-- 사람이 고친 거리 옆 표시. 계기판 값은 엑셀 비고에 남는다 -->
-    <string name="trip_km_edited">수정됨</string>
     <string name="trip_no_purpose">목적 미입력</string>
     <!-- 앞뒤 공백은 따옴표로 지킨다(aapt가 맨 앞·뒤 공백을 지운다) -->
     <string name="meta_separator">" · "</string>
@@ -230,7 +229,6 @@
     <string name="settings_add_staff">직원 추가</string>
     <string name="settings_from_company">회사 지정</string>
     <string name="settings_email">이메일</string>
-    <string name="settings_email_optional">이메일 (선택)</string>
     <string name="settings_email_hint">name@company.com</string>
     <string name="settings_name">이름</string>
     <string name="settings_name_optional">이름 (선택)</string>

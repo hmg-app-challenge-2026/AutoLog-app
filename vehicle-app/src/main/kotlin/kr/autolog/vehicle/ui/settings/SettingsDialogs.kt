@@ -128,13 +128,6 @@ private fun SettingsDialogCard(
                     { onAction(SettingsAction.EditDialog(DialogField.DEPT, it)) },
                     placeholder = stringResource(R.string.picker_add_dept_hint),
                 )
-                InputField(
-                    stringResource(R.string.settings_email_optional),
-                    d.email,
-                    { onAction(SettingsAction.EditDialog(DialogField.EMAIL, it)) },
-                    keyboardType = KeyboardType.Email,
-                    placeholder = stringResource(R.string.settings_email_hint),
-                )
                 DialogError(state, SettingsTask.ADD_STAFF)
             }
         }

@@ -48,7 +48,7 @@ internal fun reduceSettings(local: SettingsLocal, sources: SettingsSources, app:
         recipients = sources.recipients.sortedBy { it.origin != Origin.SERVER }
             .map { RecipientRowUi(it.email, it.name, it.origin == Origin.SERVER) },
         staff = sources.users.sortedBy { it.name }
-            .map { StaffRowUi(it.userId, it.name, it.dept, it.email, it.origin == Origin.SERVER) },
+            .map { StaffRowUi(it.userId, it.name, it.dept, it.origin == Origin.SERVER) },
         purposes = sources.purposes.map {
             PurposeRowUi(
                 it.detail.name,

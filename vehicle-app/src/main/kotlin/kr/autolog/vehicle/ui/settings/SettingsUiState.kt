@@ -54,13 +54,7 @@ sealed interface LinkUi {
 
 data class RecipientRowUi(val email: String, val name: String?, val fromServer: Boolean)
 
-data class StaffRowUi(
-    val userId: String,
-    val name: String,
-    val dept: String?,
-    val email: String?,
-    val fromServer: Boolean,
-)
+data class StaffRowUi(val userId: String, val name: String, val dept: String?, val fromServer: Boolean)
 
 /** 목적 한 줄. [name]은 저장소 키(지울 때 씀). [builtIn]이면 지울 수 없다. */
 data class PurposeRowUi(
@@ -124,7 +118,7 @@ sealed interface SettingsDialog {
 
     data class AddRecipient(val email: String = "", val name: String = "") : SettingsDialog
 
-    data class AddStaff(val name: String = "", val dept: String = "", val email: String = "") : SettingsDialog
+    data class AddStaff(val name: String = "", val dept: String = "") : SettingsDialog
 
     /** 직접 추가한 받는 사람 지우기 — 되돌릴 수 없어 한 번 묻는다. */
     data class RemoveRecipient(val email: String, val name: String?) : SettingsDialog

@@ -159,7 +159,7 @@ class SettingsViewModel(
             }
             is SettingsDialog.AddStaff -> {
                 if (d.name.isBlank()) return
-                run(SettingsTask.ADD_STAFF) { settings.addUser(d.name, d.dept, d.email).toResult() }
+                run(SettingsTask.ADD_STAFF) { settings.addUser(d.name, d.dept).toResult() }
             }
             is SettingsDialog.RemoveRecipient ->
                 run(SettingsTask.REMOVE_RECIPIENT) { settings.removeRecipient(d.email).toResult() }
@@ -279,7 +279,6 @@ private fun SettingsDialog.edit(field: DialogField, value: String): SettingsDial
     is SettingsDialog.AddStaff -> when (field) {
         DialogField.NAME -> copy(name = value)
         DialogField.DEPT -> copy(dept = value)
-        DialogField.EMAIL -> copy(email = value)
         else -> this
     }
     is SettingsDialog.AddPlace -> when (field) {

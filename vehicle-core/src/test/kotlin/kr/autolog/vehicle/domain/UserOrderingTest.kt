@@ -43,12 +43,12 @@ class UserOrderingTest {
     }
 
     @Test
-    fun `최근 배지는 3명까지`() {
+    fun `최근 배지는 가장 최근 1명만`() {
         val recent = (1..5).map { RecentUse(users[it - 1].userId, it.toLong()) }
 
         val cards = UserOrdering.order(users, emptyList(), null, recent)
 
-        assertEquals(3, cards.count { it.badge == UserBadge.RECENT })
+        assertEquals(listOf(users[4].userId), cards.filter { it.badge == UserBadge.RECENT }.map { it.userId })
     }
 
     @Test
