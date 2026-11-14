@@ -105,7 +105,7 @@ class SettingsViewModelTest {
     }
 
     @Test
-    fun `받는 사람 추가와 지우기 — 회사 지정은 지울 수 없다`() = runTest {
+    fun `받는 사람 추가와 지우기 — 회사 지정도 이 차에서 뺄 수 있다`() = runTest {
         val (_, vm) = open()
         vm.onAction(SettingsAction.StartAddRecipient)
         vm.onAction(SettingsAction.EditDialog(DialogField.EMAIL, "boss@example.com"))
@@ -121,7 +121,8 @@ class SettingsViewModelTest {
         vm.onAction(SettingsAction.AskRemoveRecipient("accounting@example.com"))
         vm.onAction(SettingsAction.SubmitDialog)
         advanceUntilIdle()
-        assertTrue(vm.uiState.value.results[SettingsTask.REMOVE_RECIPIENT] is TaskResult.Failed)
+        assertEquals(TaskResult.Done, vm.uiState.value.results[SettingsTask.REMOVE_RECIPIENT])
+        assertTrue(vm.uiState.value.recipients.none { it.email == "accounting@example.com" })
     }
 
     @Test
