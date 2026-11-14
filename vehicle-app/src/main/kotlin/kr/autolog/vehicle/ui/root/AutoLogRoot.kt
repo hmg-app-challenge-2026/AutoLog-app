@@ -16,6 +16,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.delay
+import kr.autolog.vehicle.core.VehicleMotion
 import kr.autolog.vehicle.data.usage.UsageTier
 import kr.autolog.vehicle.di.AppGraph
 import kr.autolog.vehicle.di.LocalAppGraph
@@ -46,14 +47,13 @@ fun AutoLogRoot(graph: AppGraph, onRequestBackground: () -> Unit, deferBackgroun
         graph.navigator.onTierChanged(tier)
         when (tier) {
             UsageTier.BACKGROUND -> {
-                if (bootOpening) {
-                    if (motion != null) {
-                        // 부팅 직후 신호가 잠깐 주행으로 판정돼도 선택한 화면이 즉시 사라지지 않게 한다.
-                        delay(3_000)
-                        if (graph.usage.tier.value == UsageTier.BACKGROUND) onRequestBackground()
-                        bootOpening = false
-                    }
-                } else {
+                // 판정 전(null)에도 입력은 잠그지만, 실제 주행을 확인하기 전에는 앱 창을 내리지 않는다.
+                if (motion == VehicleMotion.MOVING && bootOpening) {
+                    // 시동 직후 화면 실행을 택했다면 일시적인 주행 신호에 화면이 바로 사라지지 않게 한다.
+                    delay(3_000)
+                    if (graph.usage.motion.value == VehicleMotion.MOVING) onRequestBackground()
+                    bootOpening = false
+                } else if (motion == VehicleMotion.MOVING) {
                     onRequestBackground()
                 }
             }

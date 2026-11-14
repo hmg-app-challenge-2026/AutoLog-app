@@ -167,6 +167,21 @@ class AutoLogRootTest {
     }
 
     @Test
+    fun `차량 움직임 판정 전에는 앱을 뒤로 보내지 않고 주행이 확인되면 보낸다`() {
+        val graph = TestAppGraph(scope, start = Route.Home)
+        graph.trip.setMotion(null)
+        var backgroundCount = 0
+        compose.setContent { AutoLogRoot(graph, onRequestBackground = { backgroundCount++ }) }
+        compose.waitForIdle()
+
+        assertEquals(0, backgroundCount)
+        graph.trip.setMotion(VehicleMotion.MOVING)
+        compose.waitForIdle()
+
+        assertEquals(1, backgroundCount)
+    }
+
+    @Test
     fun `주차에서 내려가면 열린 화면이 닫히고 Home만 남는다`() {
         val graph = TestAppGraph(scope, start = Route.Home)
         graph.navigator.push(Route.ProfilePicker)
