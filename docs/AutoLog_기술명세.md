@@ -807,6 +807,8 @@ class InboxSyncWorker(ctx: Context, p: WorkerParameters) : CoroutineWorker(ctx, 
                 PLACES     -> dao.replaceServerPlaces(it.payload as List<PlaceDto>)
                 SCHEDULES  -> dao.replaceSchedules(it.payload as List<ScheduleDto>)
                 RECIPIENTS -> dao.replaceServerRecipients(it.payload as List<RecipientDto>)
+                MAIL_ACCOUNT -> onMailAccount(it.payload.account)   // 앱 B mail: 하나뿐인 메일 계정 덮어쓰기(null = 지움)
+                PURPOSES   -> onPurposes(it.payload)                // 앱 B domain/PurposeBook: 회사 목적·목적 규칙 교체
             }
             api.ack(it.id)
         }
@@ -815,7 +817,7 @@ class InboxSyncWorker(ctx: Context, p: WorkerParameters) : CoroutineWorker(ctx, 
 }
 ```
 
-트리거: 앱 시작 · 정차 전환 · QR 화면 열린 동안 10초 주기 · 설정 [지금 동기화] · 15분 주기(네트워크 제약). 실패는 조용히 재시도. **서버 불가가 로컬 기능을 막지 않는다.**
+트리거: 앱 시작 · 기기 등록 직후 · 운행 종료(결과 화면) · QR 화면 열린 동안 10초 주기 · 설정 [지금 동기화] · 15분 주기(네트워크 제약). MAIL_ACCOUNT·PURPOSES는 앱 B 쪽이 연결되기 전이면 ack하지 않고 다음에 다시 받는다. 실패는 조용히 재시도. **서버 불가가 로컬 기능을 막지 않는다.**
 
 ### 3.3 목적 추천 · 운전자 확정 (차 안)
 
@@ -824,6 +826,8 @@ class InboxSyncWorker(ctx: Context, p: WorkerParameters) : CoroutineWorker(ctx, 
 ```
 목적 추천 (첫 매치):
   a. schedules(이 차, 시각 ±2h, dest 일치)  → 배차 목적 0.97
+  a2. 목적 규칙: origin 장소 = 규칙 출발 & dest 장소 = 규칙 도착 → 규칙 목적 0.96
+  a3. 목적 규칙: 출발 "어디서든" & dest 장소 = 규칙 도착 → 규칙 목적 0.93
   b. HOME→OFFICE 평일 05–11 → 출근 0.95 · c. OFFICE→HOME 16–23 → 퇴근 0.95
   d. dest.kind=CLIENT 0.90 · e. BRANCH 0.90 · f. 같은 dest 과거 CONFIRMED ≥3 → 0.80
   g. 주말·미등록 0.30 · h. 그 외 0.50
@@ -832,6 +836,8 @@ class InboxSyncWorker(ctx: Context, p: WorkerParameters) : CoroutineWorker(ctx, 
 ```
 
 `fun interface PurposeRule { fun evaluate(ctx: TripContext): Suggestion? }` + `List<PurposeRule>.firstNotNullOfOrNull`. 규칙당 단위 테스트 1개.
+
+**목적 목록과 목적 규칙 (2026-11-14).** `PurposeDetail`은 고정 enum이 아니라 클래스다. 기본 목적(CLIENT_VISIT 등)은 상수, 추가 목적은 `PurposeDetail.custom(이름, 구분)`이고 이름(name)이 `custom:<구분>:<이름>`이라 Room·엑셀은 저장 문자열만으로 구분·이름을 되살린다(목록을 몰라도 된다, 지운 목적도 지난 기록엔 그대로). 목적·규칙은 `domain/PurposeBook`(SharedPreferences JSON, `mail/PrefsPurposeBookStore`)이 회사 지정(inbox PURPOSES)과 이 차에서 만든 것을 따로 들고, 이 차에서 뺀 회사 지정은 숨김 목록으로 기억한다. 결과 화면은 구분만 고르고(D-27), 추천 목적이 같은 구분이면 그 목적으로 저장된다.
 
 ### 3.4 ReviewCalculator (검토 열)
 
@@ -866,7 +872,7 @@ implementation("org.apache.poi:poi-ooxml:5.3.0") { exclude(group = "org.apache.x
 implementation("com.sun.mail:android-mail:1.6.7"); implementation("com.sun.mail:android-activation:1.6.7")
 
 suspend fun send(report: ReportEntity, to: List<String>) = withContext(Dispatchers.IO) {
-    val s = settings.smtp()                                   // host, port(587), user, appPassword(EncryptedSharedPreferences)
+    val s = settings.smtp()                                   // host, port(587/465), user, appPassword(EncryptedSharedPreferences) — 운영 웹이 정해 inbox로 온 계정
     val session = Session.getInstance(Properties().apply {
         put("mail.smtp.host", s.host); put("mail.smtp.port", s.port); put("mail.smtp.auth", "true"); put("mail.smtp.starttls.enable", "true")
     }, object : Authenticator() { override fun getPasswordAuthentication() = PasswordAuthentication(s.user, s.appPassword) })
@@ -884,7 +890,7 @@ suspend fun send(report: ReportEntity, to: List<String>) = withContext(Dispatche
 
 - 화면: 기간 ◀▶ · 수신자 체크 · [보내기]. 본문·주소 타이핑 없음. 정차 시에만.
 - 오프라인·실패 → `reports.sendState=PENDING`, WorkManager 재시도. 차량 LTE가 587을 막으면 HTTPS 메일 API(SendGrid `POST /v3/mail/send`)로 폴백 — 1단계 검증.
-- 계정 비밀번호는 APK·로그에 절대 없음. 설정 화면에서만 입력.
+- 계정 비밀번호는 APK·로그에 절대 없음. **메일 계정은 하나이고 회사 관리자가 운영 웹 [메일 설정]에서 정한다**(2026-11-14). 서버가 SMTP 로그인을 확인하고 AES-GCM으로 암호화해 두었다가(`MAIL_SECRET_KEY`), inbox MAIL_ACCOUNT로 차에 넣는다 — inbox 표에는 비밀번호 없이 넣고 차가 가져가는 순간 채운다. 차 설정 화면은 연결된 주소만 보여 준다(입력 칸 없음).
 
 ### 3.7 영수증 입력 두 경로
 
@@ -905,7 +911,7 @@ suspend fun send(report: ReportEntity, to: List<String>) = withContext(Dispatche
 |---|---|
 | 기기 등록(연결 코드 → 토큰) | 운행·비용·엑셀 저장 |
 | 폰 카메라 페이지 제공, 영수증 수신, Gemini OCR, 결과를 차 inbox에 | 목적 추천·운전자 확정·검토 계산 |
-| 운영 웹의 직원·장소·배차·수신자를 조직 차량 inbox로 배포 | 메일 발송 |
+| 운영 웹의 직원·장소·배차·수신자·메일 계정·목적·목적 규칙을 조직 차량 inbox로 배포 | 메일 발송(계정만 전달, 발송은 차) |
 | inbox 조회·ack·만료 삭제 | 차 상태 조회(차가 올리지 않으므로) |
 
 ### 4.2 기술 스택
@@ -929,6 +935,7 @@ suspend fun send(report: ReportEntity, to: List<String>) = withContext(Dispatche
 | GET | `/v1/inbox` | 기기 토큰 | 내 차 앞으로 온 편지 목록 `[{id, kind, payload, created_at}]` |
 | POST | `/v1/inbox/{id}/ack` | 기기 토큰 | 수신 확인 → 삭제 |
 | POST | `/v1/qr-tokens` | 기기 토큰 | 영수증용 1회 토큰 발급(10분) → 차가 QR에 넣음 |
+| GET | `/v1/geo/search?q=` | 기기 토큰 | 새 장소 찾기(카카오 키워드 → 없으면 주소 검색, 최대 10개). 검색어·결과 저장 안 함. 키 없음 503 (F-17·F-24 목적 규칙) |
 | GET | `/v1/geo/reverse?lat=&lng=` | 기기 토큰 | 운행 출발·도착 좌표 → 주소(카카오 coord2address). 좌표는 저장하지 않음. 키 없음 503·카카오 실패 502 → 차가 내비 주소로 대신 (F-06·F-07) |
 | GET | `/r/{vehicleCode}?t=` | QR 토큰 | 카메라 페이지(정적 HTML 1장) |
 | POST | `/r/{vehicleCode}/receipt?t=` | QR 토큰 | multipart 사진 → 저장 → Gemini → inbox(RECEIPT) |
@@ -937,6 +944,10 @@ suspend fun send(report: ReportEntity, to: List<String>) = withContext(Dispatche
 | GET/POST | `/admin/auth/me`, `/admin/auth/logout`, `/admin/auth/password` | 세션 | 내 정보, 로그아웃, 비밀번호 변경(다른 세션 끊김) |
 | GET/POST/PATCH/DELETE | `/admin/vehicles`, `/admin/vehicles/{id}/connect-code`, `/admin/vehicles/{id}/device` | 세션 | 차량, 연결 코드 발급, 토큰 회수 |
 | GET/POST/PATCH/DELETE | `/admin/users`, `/admin/places`, `/admin/schedules`, `/admin/recipients` (+ `/import` CSV) | 세션 | 변경 시 조직 차량 inbox에 전체 목록 적재(배차는 해당 차량만) |
+| GET | `/admin/places/search?q=` | 세션 | 운영 웹 [목적] 규칙의 [+ 새 장소] 검색(`/v1/geo/search`와 같음) |
+| GET/PUT/DELETE | `/admin/mail-account` | 세션 | 회사 발신 메일 계정(F-54). GET은 비밀번호 없이(없으면 204). PUT은 SMTP 로그인 확인 후 암호화 저장(비밀번호를 비우면 기존 것 유지) → 모든 차에 MAIL_ACCOUNT. 키 없음 503 `MAIL_SECRET_MISSING`, 로그인 실패 400 `MAIL_AUTH_FAILED` |
+| GET/POST/DELETE | `/admin/purposes`, `/admin/purposes/{id}` | 세션 | 목적 목록(기본 + 회사 추가, F-55). 추가는 이름 + 구분, 이름 중복 409. 지우면 그 목적을 쓰는 규칙도 지움 → PURPOSES 배포 |
+| GET/POST/DELETE | `/admin/purpose-rules`, `/admin/purpose-rules/{id}` | 세션 | 출발 장소(null = 어디서든) → 도착 장소 = 목적. 같은 출발·도착 409 → PURPOSES 배포 |
 | GET/POST | `/ops/orgs`, `/ops/orgs/{id}/admins`, `/ops/admins/{id}/password` | 운영자 토큰 | 회사·회사 관리자 만들기, 비밀번호 재설정. nginx 밖으로 안 나감(`scripts/ops.sh`) |
 
 관리자 인증(2026-11-13): 서버 하나에 회사가 여럿이다. 회사가 운영 웹에서 직접 가입하면(가입한 사람 = 첫 관리자) 바로 쓸 수 있고, 운영자 /ops는 비밀번호 재설정 같은 예외용이다. 관리자는 이메일·비밀번호로 로그인해 받은 세션 토큰을 `X-Admin-Token` 헤더로 보낸다. 세션은 sha256 해시로만 저장(`admin_sessions`), 비밀번호는 PBKDF2-HMAC-SHA256. 모든 /admin API는 세션의 `org_id`로만 조회·변경한다. JWT 대신 서버 저장 세션을 쓴 이유: 로그아웃·비밀번호 변경 때 바로 끊을 수 있고 서버가 하나라 상태 저장이 부담이 아니다.
@@ -951,13 +962,21 @@ suspend fun send(report: ReportEntity, to: List<String>) = withContext(Dispatche
 @Serializable data class PlacesPayload(val places: List<PlaceDto>) : InboxPayload
 @Serializable data class SchedulesPayload(val schedules: List<ScheduleDto>) : InboxPayload
 @Serializable data class RecipientsPayload(val recipients: List<RecipientDto>) : InboxPayload
+@Serializable data class MailAccountPayload(val account: MailAccountDto?) : InboxPayload        // null = 회사가 계정을 지움
+@Serializable data class MailAccountDto(val host: String, val port: Int, val username: String, val password: String?, val fromName: String?, val startTls: Boolean)
+@Serializable data class PurposesPayload(val purposes: List<PurposeDto>, val rules: List<PurposeRuleDto>) : InboxPayload
+@Serializable data class PurposeDto(val label: String, val category: String)                    // BUSINESS·COMMUTE·NON_BUSINESS
+@Serializable data class PurposeRuleDto(val ruleId: String, val originPlaceId: String?, val destPlaceId: String, val purpose: String)  // purpose = PurposeDetail.name
 ```
+
+`PlaceKind`: OFFICE · BRANCH · CLIENT · GAS_STATION · HOME · OTHER(기타 — 목적 규칙용 새 장소, 2026-11-14).
 
 ### 4.4 스키마
 
 ```sql
 CREATE TABLE organizations (org_id UUID PRIMARY KEY, name TEXT NOT NULL, created_at TIMESTAMPTZ DEFAULT now());
-CREATE TABLE admins (admin_id UUID PRIMARY KEY, org_id UUID REFERENCES organizations, email TEXT UNIQUE, password_hash TEXT);
+CREATE TABLE admins (admin_id UUID PRIMARY KEY, org_id UUID NOT NULL REFERENCES organizations, email TEXT UNIQUE NOT NULL, password_hash TEXT NOT NULL, created_at TIMESTAMPTZ);
+CREATE TABLE admin_sessions (token_hash CHAR(64) PRIMARY KEY, admin_id UUID REFERENCES admins ON DELETE CASCADE, org_id UUID, created_at TIMESTAMPTZ, expires_at TIMESTAMPTZ);   -- V3
 CREATE TABLE vehicles (vehicle_id UUID PRIMARY KEY, org_id UUID, plate_no TEXT, model TEXT, vehicle_code TEXT UNIQUE,   -- QR용 공개 코드
   device_token_hash TEXT, registered_at TIMESTAMPTZ, last_inbox_at TIMESTAMPTZ);
 CREATE TABLE connect_codes (code CHAR(6) PRIMARY KEY, vehicle_id UUID, expires_at TIMESTAMPTZ, used_at TIMESTAMPTZ);
@@ -971,6 +990,11 @@ CREATE TABLE receipts (receipt_id UUID PRIMARY KEY, vehicle_id UUID, sha256 CHAR
 CREATE UNIQUE INDEX ON receipts (vehicle_id, sha256);
 CREATE TABLE inbox (id BIGSERIAL PRIMARY KEY, vehicle_id UUID, kind TEXT, payload JSONB, created_at TIMESTAMPTZ DEFAULT now(), expires_at TIMESTAMPTZ);
 CREATE INDEX ON inbox (vehicle_id, created_at);
+CREATE TABLE org_mail_accounts (org_id UUID PRIMARY KEY REFERENCES organizations ON DELETE CASCADE, host TEXT, port INT, username TEXT,
+  password_enc TEXT, from_name TEXT, start_tls BOOLEAN, updated_at TIMESTAMPTZ);                -- V4. password_enc = AES-GCM 'v1:…'
+CREATE TABLE org_purposes (id BIGSERIAL PRIMARY KEY, org_id UUID REFERENCES organizations ON DELETE CASCADE, label TEXT, category TEXT, created_at TIMESTAMPTZ);  -- V5, (org_id, label) 유일
+CREATE TABLE org_purpose_rules (rule_id UUID PRIMARY KEY, org_id UUID REFERENCES organizations ON DELETE CASCADE,
+  origin_place_id UUID REFERENCES places ON DELETE CASCADE, dest_place_id UUID REFERENCES places ON DELETE CASCADE, purpose TEXT, created_at TIMESTAMPTZ);  -- V5, (org, 출발, 도착) 유일
 ```
 
 운행·비용 테이블은 **없다.** `receipts`는 OCR 결과의 서버 측 사본이며 30일 후 삭제.
@@ -999,6 +1023,7 @@ POST /r/{code}/receipt
 | 관리자 | 회사별 계정(이메일·비밀번호, PBKDF2) + 서버 저장 세션(해시, 12시간), org 스코프. 운영자 API는 별도 토큰·내부망만 |
 | 영수증 | 30일 후 자동 삭제. 카드 뒷 4자리만 |
 | Gemini 키 | 서버 환경변수. APK·웹에 없음 |
+| 회사 메일 비밀번호 | AES-256-GCM으로 암호화 저장(키 `MAIL_SECRET_KEY`는 서버 `.env`에만, 없으면 저장 거절). 웹·API 응답에 다시 보여 주지 않음. inbox 표에는 비밀번호 없이 넣고 차가 가져갈 때 채움. 로그에 남기지 않음. 키를 바꾸거나 잃으면 회사가 다시 입력 |
 | 운행 데이터 | 서버에 없음 — 유출 면적 최소 |
 
 ---
@@ -1015,7 +1040,7 @@ POST /r/{code}/receipt
 
 ```yaml
 services:
-  relay:    { build: ./relay, environment: [SPRING_PROFILES_ACTIVE=demo, GEMINI_API_KEY=${GEMINI_API_KEY}], depends_on: [postgres, minio] }
+  relay:    { build: ./relay, environment: [SPRING_PROFILES_ACTIVE=demo, GEMINI_API_KEY=${GEMINI_API_KEY}, KAKAO_REST_KEY=${KAKAO_REST_KEY}, OPS_TOKEN=${OPS_TOKEN}, MAIL_SECRET_KEY=${MAIL_SECRET_KEY}], depends_on: [postgres, minio] }
   postgres: { image: postgres:16, volumes: [pgdata:/var/lib/postgresql/data] }
   minio:    { image: minio/minio, command: server /data --console-address ":9001", volumes: [minio:/data] }
   nginx:    { image: nginx:1.27, ports: ["80:80","443:443"], volumes: [./nginx:/etc/nginx/conf.d, ./web/dist:/usr/share/nginx/html] }
@@ -1030,7 +1055,7 @@ services:
 | 항목 | 값 |
 |---|---|
 | 프레임워크 | React 18 + TS + Vite, Tailwind. `web/admin`(운영 웹), `web/camera`(정적 HTML 1장) |
-| 운영 웹 5화면 | 차량(연결 코드·토큰 회수·마지막 inbox 시각) · 직원 · 장소(주소→좌표 지오코딩) · 배차(주간 캘린더) · 수신자 |
+| 운영 웹 화면 | 회사 가입·로그인 · 차량(연결 코드·토큰 회수·마지막 inbox 시각) · 목적(목적 목록 · 출발→도착 규칙 · [+ 새 장소] 검색) · 배차(주간 캘린더) · 메일 설정(발신 계정 · 받는 사람) · 내 계정. 직원 화면은 아직(API만). [장소] 탭은 2026-11-14에 뺐다 |
 | 카메라 페이지 | `<input type="file" accept="image/*" capture="environment">` → `POST /r/{code}/receipt` → "차량으로 전송됨". 로그인 없음, QR 토큰만 |
 | 없음 | 대시보드·운행 목록·비용 화면 (운행 데이터가 서버에 없음) |
 
