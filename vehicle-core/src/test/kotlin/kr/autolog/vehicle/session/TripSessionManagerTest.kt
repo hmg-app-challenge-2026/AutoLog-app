@@ -192,6 +192,56 @@ class TripSessionManagerTest {
     }
 
     @Test
+    fun `종료 대기 화면부터 저장될 도착지를 보이고 끝나면 같은 도착지로 저장한다`() = runTest {
+        val rig =
+            Rig(
+                this,
+                geo = FakeGeocode(result = GeocodeResult("서울 중구 태평로1가 세종대로 110", "서울시청", AddressSource.KAKAO_RELAY)),
+            )
+        val id = startedTrip(rig)
+        rig.car.drive(30.0)
+        runCurrent()
+        rig.ctx.setNaviLocation(NaviCurrentLocation(37.5663, 126.9779, null))
+
+        rig.car.shift(Gear.PARK)
+        runCurrent()
+        val waiting = rig.stateValue as SessionState.StopCandidate
+        advanceTimeBy(TripTiming.T_GEAR_P_SEC * 1_000 + 1_000)
+
+        // 종료 대기(결과 화면 [기록 이어가기] 단계)에 이미 실제 도착지 — 내비 목적지(판교)가 아니다
+        assertEquals("서울시청", waiting.trip.destinationLabel)
+        assertEquals("서울 중구 태평로1가 세종대로 110", waiting.trip.destinationAddress)
+        val review = rig.stateValue as SessionState.PendingReview
+        assertEquals("서울시청", review.trip.destinationLabel)
+        val row = rig.dao.trip(id)!!
+        assertEquals("서울시청", row.destinationLabel)
+        assertEquals("서울 중구 태평로1가 세종대로 110", row.destinationAddress)
+    }
+
+    @Test
+    fun `종료 대기에서 기록을 이어가면 미리 보인 도착지를 버리고 내비 목적지로 돌아간다`() = runTest {
+        val rig =
+            Rig(
+                this,
+                geo = FakeGeocode(result = GeocodeResult("서울 중구 태평로1가 세종대로 110", "서울시청", AddressSource.KAKAO_RELAY)),
+            )
+        val id = startedTrip(rig)
+        rig.car.drive(5.0)
+        runCurrent()
+        rig.ctx.setNaviLocation(NaviCurrentLocation(37.5663, 126.9779, null))
+        rig.car.shift(Gear.PARK)
+        runCurrent()
+        assertEquals("서울시청", (rig.stateValue as SessionState.StopCandidate).trip.destinationLabel)
+
+        rig.car.shift(Gear.DRIVE)
+        runCurrent()
+
+        val recording = rig.stateValue as SessionState.Recording
+        assertEquals("판교 테크노밸리 거래처", recording.trip.destinationLabel)
+        assertEquals("판교 테크노밸리 거래처", rig.dao.trip(id)!!.destinationLabel)
+    }
+
+    @Test
     fun `경로가 없을 때 내비가 보내는 빈 목적지(이름 없음, 0·0)는 목적지로 저장하지 않는다`() = runTest {
         val rig = Rig(this)
         rig.ctx.setDestination(DestinationInfo("", null, 0.0, 0.0))
