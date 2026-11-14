@@ -1,6 +1,7 @@
 package kr.autolog.vehicle.fake
 
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
 import kr.autolog.vehicle.core.MailApi
 import kr.autolog.vehicle.core.MailError
 import kr.autolog.vehicle.core.MailResult
@@ -23,6 +24,7 @@ class FakeMailApi(
         null
     }
     val sent = mutableListOf<Pair<ReportFile, List<String>>>()
+    override val account = MutableStateFlow(config?.username)
 
     override suspend fun send(report: ReportFile, to: List<String>): MailResult {
         if (config == null) return MailResult.Failed(MailError.NOT_CONFIGURED, "메일 설정이 필요합니다")
@@ -34,6 +36,7 @@ class FakeMailApi(
 
     override suspend fun saveSmtp(config: SmtpConfig): MailResult {
         this.config = config
+        account.value = config.username
         return MailResult.Ok
     }
 

@@ -43,10 +43,32 @@ class SettingsServiceTest {
     }
 
     @Test
-    fun `서버 배포 수신자는 추가하거나 지울 수 없다`() = runTest {
+    fun `회사 지정 수신자는 다시 추가할 수 없다`() = runTest {
         assertTrue(settings.addRecipient("ACCOUNTING@example.com", null) is SettingsResult.Invalid)
-        assertTrue(settings.removeRecipient("accounting@example.com") is SettingsResult.Invalid)
         assertEquals(1, settings.recipients().first().size)
+    }
+
+    @Test
+    fun `회사 지정 수신자를 빼면 서버가 목록을 다시 보내도 이 차에서는 숨긴다`() = runTest {
+        val hidden = HiddenRecipientStore.InMemory()
+        val s = SettingsService(store, relay, pref, hidden)
+
+        assertEquals(SettingsResult.Ok, s.removeRecipient("Accounting@example.com"))
+        store.recipientList.value = listOf(RecipientInfo("accounting@example.com", "회계팀", Origin.SERVER))
+
+        assertTrue(s.recipients().first().isEmpty())
+        assertEquals(setOf("accounting@example.com"), hidden.load())
+        // 차를 다시 켜도(저장소에서 다시 읽어도) 숨긴 채로
+        assertTrue(SettingsService(store, relay, pref, hidden).recipients().first().isEmpty())
+    }
+
+    @Test
+    fun `뺀 회사 지정 수신자를 다시 추가하면 회사 지정으로 돌아온다`() = runTest {
+        settings.removeRecipient("accounting@example.com")
+
+        assertEquals(SettingsResult.Ok, settings.addRecipient("accounting@example.com", null))
+
+        assertEquals(Origin.SERVER, settings.recipients().first().single().origin)
     }
 
     @Test

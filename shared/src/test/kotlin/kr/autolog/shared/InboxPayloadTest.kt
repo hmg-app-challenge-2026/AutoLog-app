@@ -26,4 +26,23 @@ class InboxPayloadTest {
             ).plateNo,
         )
     }
+
+    @Test
+    fun `회사 메일 계정 편지는 계정이 있든 지웠든 왕복한다`() {
+        val set: InboxPayload =
+            MailAccountPayload(MailAccountDto("smtp.example.com", 465, "a@example.com", "pw", "회사", false))
+        val cleared: InboxPayload = MailAccountPayload(null)
+
+        listOf(set, cleared).forEach {
+            val text = AutoLogJson.encodeToString(InboxPayload.serializer(), it)
+            assertEquals(it, AutoLogJson.decodeFromString(InboxPayload.serializer(), text))
+        }
+    }
+
+    @Test
+    fun `메일 계정 문자열에는 비밀번호가 찍히지 않는다`() {
+        val dto = MailAccountDto("smtp.example.com", username = "a@example.com", password = "secret-pw")
+
+        assertEquals(false, dto.toString().contains("secret-pw"))
+    }
 }

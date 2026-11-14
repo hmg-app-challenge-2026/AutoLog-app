@@ -10,12 +10,10 @@ import kr.autolog.vehicle.BuildConfig
 import kr.autolog.vehicle.core.ConnectionState
 import kr.autolog.vehicle.core.DeviceApi
 import kr.autolog.vehicle.core.MailApi
-import kr.autolog.vehicle.core.MailResult
 import kr.autolog.vehicle.core.RecipientInfo
 import kr.autolog.vehicle.core.RegisterResult
 import kr.autolog.vehicle.core.SettingsApi
 import kr.autolog.vehicle.core.SettingsResult
-import kr.autolog.vehicle.core.SmtpConfig
 import kr.autolog.vehicle.core.SyncResult
 import kr.autolog.vehicle.core.UserInfo
 import kr.autolog.vehicle.data.upload.UploadApi
@@ -49,9 +47,8 @@ interface SettingsRepository {
 
     suspend fun syncNow(): Outcome
 
-    fun smtpConfigured(): Boolean
-
-    suspend fun saveSmtp(config: SmtpConfig): MailResult
+    /** 연결된 발신 메일 주소. 메일 계정은 관리자 웹에서 정해 서버로 온다 — 차에서는 입력하지 않는다(2026-11-14). */
+    val mailAccount: StateFlow<String?>
 }
 
 class DefaultSettingsRepository(
@@ -100,9 +97,7 @@ class DefaultSettingsRepository(
         is SyncResult.Failed -> Outcome.Failed(r.reason)
     }
 
-    override fun smtpConfigured(): Boolean = mail.smtpConfigured()
-
-    override suspend fun saveSmtp(config: SmtpConfig): MailResult = mail.saveSmtp(config)
+    override val mailAccount: StateFlow<String?> = mail.account
 
     private fun SettingsResult.toOutcome() = when (this) {
         SettingsResult.Ok -> Outcome.Ok

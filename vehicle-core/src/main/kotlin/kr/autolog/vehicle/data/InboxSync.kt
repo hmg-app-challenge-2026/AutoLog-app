@@ -5,6 +5,8 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kr.autolog.shared.AutoLogJson
 import kr.autolog.shared.InboxItem
+import kr.autolog.shared.MailAccountDto
+import kr.autolog.shared.MailAccountPayload
 import kr.autolog.shared.PlacesPayload
 import kr.autolog.shared.ReceiptPayload
 import kr.autolog.shared.RecipientsPayload
@@ -21,6 +23,7 @@ import java.time.OffsetDateTime
  * 서버 우체통 → Room, 단방향 (F-11, 기술명세 3.2). 앱 B가 쓰는 [RelayClient]도 구현한다(QR 발급·지금 동기화).
  *
  * - USERS·PLACES·SCHEDULES·RECIPIENTS: SERVER 분만 통째로 교체(LOCAL 보존) → 바로 ack
+ * - MAIL_ACCOUNT: 회사 메일 계정 — [onMailAccount](앱 B 메일)에 넘기고 반영됐으면 ack
  * - RECEIPT: 확인 대기 목록에 넣고 **사용자가 확정할 때** ack(RoomDomainStore.ackReceipt). 확정했지만 ack가 실패한 것은 여기서 다시 보낸다
  * - 이미 반영한 편지(inbox_seen)는 다시 반영하지 않고 ack만 한다
  * - 반영에 실패한 편지는 ack하지 않는다(서버에 남겨 다음에 다시 받는다)
@@ -38,6 +41,9 @@ class InboxSync(
 
     /** 동기화가 성공한 뒤 한 번 부른다(주소 없는 운행을 서버로 채우기 — 세션이 연결). 실패해도 동기화 결과는 그대로. */
     @Volatile var onSynced: (suspend () -> Unit)? = null
+
+    /** 회사 메일 계정을 받으면 부른다(앱 B mail이 연결). 반영했으면 true. 연결 전이거나 false면 ack하지 않고 다음에 다시 받는다. */
+    @Volatile var onMailAccount: ((MailAccountDto?) -> Boolean)? = null
 
     override suspend fun issueQrToken(): QrResult = device.issueQr()
 
@@ -130,6 +136,7 @@ class InboxSync(
                     RecipientEntity(it.email, it.name, Origin.SERVER)
                 },
             )
+            is MailAccountPayload -> check(onMailAccount?.invoke(p.account) == true) { "mail account not applied" }
         }
     }
 

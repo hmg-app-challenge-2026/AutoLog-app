@@ -2,6 +2,7 @@ package kr.autolog.vehicle.data
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.test.runTest
+import kr.autolog.shared.MailAccountDto
 import kr.autolog.vehicle.core.SyncResult
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
@@ -106,5 +107,40 @@ class InboxSyncTest {
 
         assertEquals(3, server.requestCount)
         assertEquals("김영업", savedUsers.single().name)
+    }
+
+    private fun mailLetter(account: String) =
+        MockResponse().setResponseCode(200).setHeader("Content-Type", "application/json").setBody(
+            """[{"id":9,"kind":"MAIL_ACCOUNT","payload":{"type":"MAIL_ACCOUNT","account":$account},"created_at":"2026-11-14T09:00:00+09:00"}]""",
+        )
+
+    @Test
+    fun `회사 메일 계정 편지는 메일 쪽에 넘기고 반영되면 ack한다`() = runTest {
+        val got = mutableListOf<MailAccountDto?>()
+        sync.onMailAccount = {
+            got += it
+            true
+        }
+        server.enqueue(
+            mailLetter("""{"host":"smtp.example.com","port":465,"username":"a@example.com","password":"pw"}"""),
+        )
+        server.enqueue(MockResponse().setResponseCode(204))
+
+        sync.syncNow()
+
+        assertEquals("a@example.com", got.single()?.username)
+        server.takeRequest()
+        assertEquals("/v1/inbox/9/ack", server.takeRequest().path)
+    }
+
+    @Test
+    fun `메일 쪽이 반영하지 못하면 회사 메일 계정 편지를 ack하지 않는다`() = runTest {
+        sync.onMailAccount = { false }
+        server.enqueue(mailLetter("null"))
+
+        sync.syncNow()
+
+        assertEquals(1, server.requestCount)
+        assertTrue(9L !in seen)
     }
 }

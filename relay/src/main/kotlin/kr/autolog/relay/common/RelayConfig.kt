@@ -20,7 +20,11 @@ data class RelayProperties(
     val gemini: Gemini = Gemini(),
     val storage: Storage = Storage(),
     val geocoder: GeocoderProps = GeocoderProps(),
+    val mail: Mail = Mail(),
 ) {
+    /** 회사 메일 앱 비밀번호 암호화 키(아무 길이의 비밀 문자열). 비어 있으면 메일 계정 저장을 거절한다. */
+    data class Mail(val secretKey: String = "")
+
     /** 카카오 로컬 API. 주소 → 좌표(F-52 운영 웹)와 좌표 → 주소(F-06·F-07 운행, geo/). 키가 비어 있으면 둘 다 끈다. */
     data class GeocoderProps(val kakaoKey: String = "", val baseUrl: String = "https://dapi.kakao.com")
 

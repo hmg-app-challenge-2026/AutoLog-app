@@ -1,6 +1,5 @@
 package kr.autolog.vehicle.ui.settings
 
-import kr.autolog.vehicle.core.MailError
 import kr.autolog.vehicle.ui.trips.TripWhen
 
 /** 설정 섹션(스펙 7.9) — 선언 순서 = 목록 순서. 이름·아이콘·요약 문구는 화면이 정한다. */
@@ -10,15 +9,15 @@ enum class SettingsSection { VEHICLE, SERVER, MAIL, RECIPIENTS, STAFF, AUTOMATIO
 
 /**
  * 설정 화면 상태(스펙 7.9, F-24·F-01·8장). 저장소 값은 [reduceSettings]가 표시용으로 바꾸고,
- * 사람이 고치는 중인 값(메일 칸·팝업 칸)과 진행 중 작업·결과는 [SettingsLocal]에 있다.
+ * 사람이 고치는 중인 값(팝업 칸)과 진행 중 작업·결과는 [SettingsLocal]에 있다.
  */
 data class SettingsUiState(
     /** 열린 섹션. null = 목록만(좁은·세로 창). 넓은 창은 null이면 첫 섹션을 오른쪽에 연다. */
     val section: SettingsSection? = null,
     val link: LinkUi = LinkUi.NotLinked,
     val upload: UploadUi = UploadUi(),
-    val mailConnected: Boolean = false,
-    val mail: MailForm = MailForm(),
+    /** 연결된 발신 메일 주소. 관리자 웹에서 정해 서버로 온다(차에서는 입력하지 않는다). null = 아직 없음. */
+    val mailAccount: String? = null,
     val recipients: List<RecipientRowUi> = emptyList(),
     val staff: List<StaffRowUi> = emptyList(),
     val autoMonthlySend: Boolean = false,
@@ -30,7 +29,9 @@ data class SettingsUiState(
     val app: AppInfo = AppInfo("", demo = false),
     /** 운행 기록 알약 권한 카드(차량 정보 섹션). null = 이 빌드에 알약이 없음(데모). */
     val overlay: OverlayUi? = null,
-)
+) {
+    val mailConnected: Boolean get() = mailAccount != null
+}
 
 /**
  * 운행 기록 알약(스펙 6.11)의 화면 위 표시 권한. [settingsUnavailable] = [화면 위 표시 권한 허용]을 눌렀지만
@@ -54,17 +55,6 @@ data class UploadUi(
     val lastError: String? = null,
 )
 
-/** 메일 발신 계정 입력 칸 — 사람이 고치는 글자 그대로. 비밀번호는 화면에서 항상 가린다. */
-data class MailForm(
-    val host: String = "",
-    val port: String = "587",
-    val username: String = "",
-    val password: String = "",
-) {
-    val complete: Boolean
-        get() = host.isNotBlank() && username.isNotBlank() && password.isNotBlank() && port.toIntOrNull() != null
-}
-
 data class RecipientRowUi(val email: String, val name: String?, val fromServer: Boolean)
 
 data class StaffRowUi(
@@ -78,15 +68,13 @@ data class StaffRowUi(
 data class AppInfo(val version: String, val demo: Boolean)
 
 /** 결과를 남기는 작업. */
-enum class SettingsTask { REGISTER, UPLOAD, MAIL, ADD_RECIPIENT, REMOVE_RECIPIENT, ADD_STAFF, SYNC }
+enum class SettingsTask { REGISTER, UPLOAD, ADD_RECIPIENT, REMOVE_RECIPIENT, ADD_STAFF, SYNC }
 
 sealed interface TaskResult {
     data object Done : TaskResult
 
     /** [reason]은 원천이 준 문장 그대로. */
     data class Failed(val reason: String) : TaskResult
-
-    data class MailFailed(val error: MailError) : TaskResult
 }
 
 /** 설정의 팝업(모두 `ModalCard` — 오른쪽 위 X로 닫는다, D-30). */
@@ -105,8 +93,6 @@ sealed interface SettingsDialog {
 /** 팝업 입력 칸 이름 — 칸 하나를 바꾸는 액션을 하나로 쓰기 위해. */
 enum class DialogField { CONNECT_CODE, EMAIL, NAME, DEPT }
 
-enum class MailField { HOST, PORT, USERNAME, PASSWORD }
-
 sealed interface SettingsAction {
     data class Open(val section: SettingsSection) : SettingsAction
 
@@ -119,10 +105,6 @@ sealed interface SettingsAction {
     data object StartRegister : SettingsAction
 
     data object UploadNow : SettingsAction
-
-    data class EditMail(val field: MailField, val value: String) : SettingsAction
-
-    data object SaveMail : SettingsAction
 
     data object StartAddRecipient : SettingsAction
 

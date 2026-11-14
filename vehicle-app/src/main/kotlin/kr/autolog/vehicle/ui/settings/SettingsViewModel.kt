@@ -10,8 +10,6 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kr.autolog.vehicle.common.AppClock
-import kr.autolog.vehicle.core.MailResult
-import kr.autolog.vehicle.core.SmtpConfig
 import kr.autolog.vehicle.data.repository.ConnectCode
 import kr.autolog.vehicle.data.repository.Outcome
 import kr.autolog.vehicle.data.repository.OverlayPermissionRepository
@@ -32,7 +30,6 @@ class SettingsViewModel(
 ) : ViewModel() {
     private val local = MutableStateFlow(
         SettingsLocal(
-            mailConnected = settings.smtpConfigured(),
             overlay = if (overlay.supported) OverlayUi(allowed = overlay.isAllowed()) else null,
         ),
     )
@@ -43,9 +40,10 @@ class SettingsViewModel(
             settings.upload,
             settings.recipients(),
             settings.users(),
-            settings.autoMonthlySend,
-            ::SettingsSources,
-        )
+            combine(settings.autoMonthlySend, settings.mailAccount, ::Pair),
+        ) { link, upload, recipients, users, (autoSend, mailAccount) ->
+            SettingsSources(link, upload, recipients, users, autoSend, mailAccount)
+        }
 
     val uiState: StateFlow<SettingsUiState> =
         combine(local, sources) { l, s -> reduceSettings(l, s, app, clock.nowMs()) }
@@ -63,8 +61,6 @@ class SettingsViewModel(
             SettingsAction.StartRegister ->
                 openDialog(SettingsDialog.Register(), SettingsTask.REGISTER)
             SettingsAction.UploadNow -> run(SettingsTask.UPLOAD) { settings.uploadNow().toResult() }
-            is SettingsAction.EditMail -> local.update { it.copy(mail = it.mail.edit(action.field, action.value)) }
-            SettingsAction.SaveMail -> saveMail()
             SettingsAction.StartAddRecipient -> openDialog(SettingsDialog.AddRecipient(), SettingsTask.ADD_RECIPIENT)
             is SettingsAction.AskRemoveRecipient -> {
                 val name = uiState.value.recipients.firstOrNull { it.email == action.email }?.name
@@ -93,21 +89,6 @@ class SettingsViewModel(
 
     private fun openDialog(dialog: SettingsDialog, task: SettingsTask) =
         local.update { it.copy(dialog = dialog, results = it.results - task) }
-
-    private fun saveMail() {
-        val form = local.value.mail
-        if (!form.complete) return
-        val config = SmtpConfig(form.host.trim(), form.port.toInt(), form.username.trim(), form.password)
-        run(SettingsTask.MAIL) {
-            when (val r = settings.saveSmtp(config)) {
-                MailResult.Ok -> {
-                    local.update { it.copy(mailConnected = true, mail = it.mail.copy(password = "")) }
-                    TaskResult.Done
-                }
-                is MailResult.Failed -> TaskResult.MailFailed(r.error)
-            }
-        }
-    }
 
     private fun submitDialog() {
         when (val d = local.value.dialog) {
@@ -151,13 +132,6 @@ private fun Outcome.toResult(): TaskResult = when (this) {
     is Outcome.Failed -> TaskResult.Failed(reason)
 }
 
-private fun MailForm.edit(field: MailField, value: String) = when (field) {
-    MailField.HOST -> copy(host = value)
-    MailField.PORT -> copy(port = value.filter(Char::isDigit).take(PORT_DIGITS))
-    MailField.USERNAME -> copy(username = value)
-    MailField.PASSWORD -> copy(password = value)
-}
-
 private fun SettingsDialog.edit(field: DialogField, value: String): SettingsDialog = when (this) {
     is SettingsDialog.Register -> when (field) {
         // 키보드로 친 소문자는 대문자로, 서버가 쓰지 않는 글자는 들어가지 않는다(G-01)
@@ -177,5 +151,3 @@ private fun SettingsDialog.edit(field: DialogField, value: String): SettingsDial
     }
     is SettingsDialog.RemoveRecipient -> this
 }
-
-private const val PORT_DIGITS = 5

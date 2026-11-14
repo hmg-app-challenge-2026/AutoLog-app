@@ -5,7 +5,7 @@ import kotlinx.serialization.Serializable
 
 /** 서버 우체통(inbox) 편지 종류. 서버 → 차 단방향. */
 @Serializable
-enum class InboxKind { RECEIPT, USERS, PLACES, SCHEDULES, RECIPIENTS }
+enum class InboxKind { RECEIPT, USERS, PLACES, SCHEDULES, RECIPIENTS, MAIL_ACCOUNT }
 
 /** GET /v1/inbox 응답의 한 항목. */
 @Serializable
@@ -67,6 +67,31 @@ data class SchedulesPayload(val schedules: List<ScheduleDto>) : InboxPayload
 @Serializable
 @SerialName("RECIPIENTS")
 data class RecipientsPayload(val recipients: List<RecipientDto>) : InboxPayload
+
+/**
+ * 회사 메일 발신 계정 (F-24, F-54). 관리자 웹에서 정하면 회사의 모든 차에 간다. [account]가 null이면 회사 계정을 지웠다는 뜻.
+ * 차는 이 계정으로 운행기록부를 **직접** 보낸다(엑셀은 서버를 거치지 않는다).
+ */
+@Serializable
+@SerialName("MAIL_ACCOUNT")
+data class MailAccountPayload(val account: MailAccountDto?) : InboxPayload
+
+/**
+ * SMTP 접속 정보. [password]는 서버 inbox 표에 평문으로 남기지 않으려고 저장할 때는 null이고,
+ * 차가 편지를 가져가는 순간 서버가 채운다. [toString]은 비밀번호를 가린다(CONVENTIONS 7.6).
+ */
+@Serializable
+data class MailAccountDto(
+    val host: String,
+    val port: Int = 587,
+    val username: String,
+    val password: String? = null,
+    val fromName: String? = null,
+    val startTls: Boolean = true,
+) {
+    override fun toString(): String =
+        "MailAccountDto(host=$host, port=$port, username=$username, password=***, fromName=$fromName, startTls=$startTls)"
+}
 
 @Serializable
 data class UserDto(val userId: String, val name: String, val dept: String?, val email: String?)

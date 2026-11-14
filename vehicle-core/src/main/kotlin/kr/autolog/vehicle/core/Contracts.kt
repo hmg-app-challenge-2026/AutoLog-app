@@ -292,6 +292,12 @@ interface MailApi {
 
     /** 프론트: 보내기 버튼 활성화 여부. */
     fun smtpConfigured(): Boolean
+
+    /**
+     * 프론트: 설정 화면. 연결된 발신 메일 주소(아이디). 없으면 null.
+     * 계정은 하나뿐이다 — 관리자 웹에서 정하면(inbox MAIL_ACCOUNT) 그 계정으로 바뀐다.
+     */
+    val account: StateFlow<String?>
 }
 
 /** 설정 화면 (F-24). 메일 계정은 [MailApi], 차량 연결은 DeviceApi(앱 A). */
@@ -302,7 +308,7 @@ interface SettingsApi {
     /** 프론트: 수신자 직접 추가. 이메일 형식이 틀리면 Invalid. */
     suspend fun addRecipient(email: String, name: String?): SettingsResult
 
-    /** 프론트: 직접 추가한 수신자 삭제. 서버 배포분은 Invalid. */
+    /** 프론트: 수신자 삭제. 서버 배포분(회사 지정)도 이 차에서만 빼고 기억한다 — 다시 추가하면 돌아온다. */
     suspend fun removeRecipient(email: String): SettingsResult
 
     /** 프론트: 직원 목록. 이름순. */

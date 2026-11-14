@@ -74,7 +74,7 @@
     <string name="report_build_again">다시 만들기</string>
     <string name="report_send">보내기 · %1$d명</string>
     <string name="report_send_again">다시 보내기</string>
-    <string name="report_connect_mail">설정에서 메일 계정 연결</string>
+    <string name="report_connect_mail">메일 계정 확인</string>
     <string name="report_sent">보냈어요 · %1$d명</string>
     <string name="mail_not_configured">메일 계정이 연결되지 않았어요</string>
     <string name="mail_error_auth">메일 계정 비밀번호를 확인해 주세요</string>
@@ -224,13 +224,7 @@
     <string name="settings_upload_now">지금 전송</string>
     <string name="settings_mail_connected">메일 계정 연결됨</string>
     <string name="settings_mail_not_connected">메일 계정 연결 안 됨</string>
-    <string name="settings_mail_host">SMTP 서버</string>
-    <string name="settings_mail_host_hint">smtp.example.com</string>
-    <string name="settings_mail_port">포트</string>
-    <string name="settings_mail_username">아이디(메일 주소)</string>
-    <string name="settings_mail_username_hint">me@example.com</string>
-    <string name="settings_mail_password">앱 비밀번호</string>
-    <string name="settings_mail_save">연결 확인</string>
+    <string name="settings_mail_managed_note">메일 계정은 회사 관리자 웹의 [메일 설정]에서 정해요. 바뀌면 다음 동기화 때 이 차에도 자동으로 들어와요.</string>
     <string name="settings_people_count">%1$d명</string>
     <string name="settings_add_recipient">받는 사람 추가</string>
     <string name="settings_add_staff">직원 추가</string>
@@ -244,12 +238,12 @@
     <string name="settings_recipient_name_hint">예: 회계팀</string>
     <string name="settings_name_with_email">%1$s(%2$s)</string>
     <string name="settings_remove_recipient_title">받는 사람 지우기</string>
-    <string name="settings_remove_recipient_body">%1$s을(를) 받는 사람에서 지울까요? 되돌릴 수 없어요</string>
+    <string name="settings_remove_recipient_body">%1$s을(를) 받는 사람에서 지울까요? 회사가 지정한 사람은 이 차에서만 빠지고, 같은 주소를 다시 추가하면 돌아와요</string>
     <string name="settings_on">켜짐</string>
     <string name="settings_off">꺼짐</string>
     <string name="settings_auto_send">월말 운행기록부 자동 발송</string>
     <string name="settings_auto_send_detail">매달 마지막 날 운행기록부를 만들어 받는 사람에게 보내요</string>
-    <string name="settings_auto_send_needs_mail">메일 계정을 연결해야 보낼 수 있어요</string>
+    <string name="settings_auto_send_needs_mail">관리자 웹에서 메일 계정을 설정해야 보낼 수 있어요</string>
     <string name="settings_sync_summary">회사 서버에서 직원·받는 사람·장소 목록을 받아요</string>
     <string name="settings_last_sync">마지막 동기화 %1$s</string>
     <string name="settings_last_sync_label">마지막 동기화</string>
@@ -268,7 +262,6 @@
     <string name="license_apache">Apache License 2.0</string>
     <string name="settings_done_register">차량을 연결했어요</string>
     <string name="settings_done_upload">사내 서버로 보냈어요</string>
-    <string name="settings_done_mail">메일 계정을 연결했어요</string>
     <string name="settings_done_add_recipient">받는 사람을 추가했어요</string>
     <string name="settings_done_remove_recipient">받는 사람을 지웠어요</string>
     <string name="settings_done_add_staff">직원을 추가했어요</string>

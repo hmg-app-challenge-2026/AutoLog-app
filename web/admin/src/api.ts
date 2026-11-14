@@ -151,6 +151,32 @@ export interface ScheduleInput {
 
 // ---- 호출 ----
 
+/** 회사 메일 발신 계정. 비밀번호는 서버가 돌려주지 않는다. */
+export type MailAccount = {
+  host: string
+  port: number
+  username: string
+  fromName: string | null
+  startTls: boolean
+  updatedAt: string
+}
+
+export type MailAccountInput = {
+  host: string
+  port: number
+  username: string
+  /** 비우면 저장된 비밀번호를 그대로 쓴다. */
+  password?: string
+  fromName?: string
+}
+
+/** 운행기록부 받는 사람(회사 지정). 차 설정의 받는 사람 목록에 "회사"로 들어간다. */
+export type Recipient = {
+  id: number
+  email: string
+  name: string | null
+}
+
 export const api = {
   login: (email: string, password: string) => request<LoginResult>('POST', '/auth/login', { email, password }),
   signup: (orgName: string, email: string, password: string) =>
@@ -165,6 +191,13 @@ export const api = {
   deletePlace: (id: string) => request<void>('DELETE', `/places/${id}`),
   importPlaces: (csv: File) => request<{ imported: number }>('POST', '/places/import', csv, 'text/csv'),
 
+  /** 계정이 없으면 undefined(204). */
+  mailAccount: () => request<MailAccount | undefined>('GET', '/mail-account'),
+  saveMailAccount: (a: MailAccountInput) => request<MailAccount>('PUT', '/mail-account', a),
+  deleteMailAccount: () => request<void>('DELETE', '/mail-account'),
+  recipients: () => request<Recipient[]>('GET', '/recipients'),
+  addRecipient: (email: string, name?: string) => request<void>('POST', '/recipients', { email, name }),
+  deleteRecipient: (id: number) => request<void>('DELETE', `/recipients/${id}`),
   vehicles: () => request<Vehicle[]>('GET', '/vehicles'),
   createVehicle: (plateNo: string, model?: string) =>
     request<{ vehicleId: string; vehicleCode: string }>('POST', '/vehicles', { plateNo, model }),

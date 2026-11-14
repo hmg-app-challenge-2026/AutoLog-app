@@ -15,7 +15,7 @@ class SettingsReducerTest {
     private val now = 1_794_446_640_000 // 2026-11-12 10:24 KST
     private val app = AppInfo("0.1.0", demo = true)
 
-    private fun sources(link: ServerLink = ServerLink.NotLinked) = SettingsSources(
+    private fun sources(link: ServerLink = ServerLink.NotLinked, mailAccount: String? = null) = SettingsSources(
         link = link,
         upload = UploadInfo(enabled = true, pendingCount = 2, lastUploadAt = now - 3_600_000, lastError = null),
         recipients = listOf(
@@ -24,6 +24,7 @@ class SettingsReducerTest {
         ),
         users = listOf(UserInfo("u-2", "이현장"), UserInfo("u-1", "김영업", origin = Origin.LOCAL)),
         autoMonthlySend = false,
+        mailAccount = mailAccount,
     )
 
     @Test
@@ -50,9 +51,12 @@ class SettingsReducerTest {
     }
 
     @Test
-    fun `메일 칸은 호스트·아이디·비밀번호·숫자 포트가 다 있어야 완성`() {
-        assertFalse(MailForm().complete)
-        assertTrue(MailForm("smtp.example.com", "587", "me@example.com", "pw").complete)
-        assertFalse(MailForm("smtp.example.com", "", "me@example.com", "pw").complete)
+    fun `메일은 연결된 주소가 있어야 연결됨`() {
+        assertFalse(reduceSettings(SettingsLocal(), sources(), app, now).mailConnected)
+
+        val linked = reduceSettings(SettingsLocal(), sources(mailAccount = "autolog@acme.co.kr"), app, now)
+
+        assertTrue(linked.mailConnected)
+        assertEquals("autolog@acme.co.kr", linked.mailAccount)
     }
 }

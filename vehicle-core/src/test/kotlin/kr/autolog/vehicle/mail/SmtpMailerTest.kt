@@ -2,6 +2,7 @@ package kr.autolog.vehicle.mail
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.test.runTest
+import kr.autolog.shared.MailAccountDto
 import kr.autolog.vehicle.core.MailError
 import kr.autolog.vehicle.core.MailResult
 import kr.autolog.vehicle.core.ReportFile
@@ -120,6 +121,37 @@ class SmtpMailerTest {
 
         assertEquals(MailResult.Ok, ok)
         assertTrue(service.smtpConfigured())
+    }
+
+    @Test
+    fun `관리자 웹에서 온 계정이 차의 메일 계정을 덮어쓰고 그 계정으로 보낸다`() = runTest {
+        store.save(config.copy(username = "old@example.com", password = "other"))
+
+        service.applyServerAccount(
+            MailAccountDto("127.0.0.1", server.port, "me@example.com", "app-pass", startTls = false),
+        )
+        val sent = service.send(report, listOf("boss@example.com"))
+
+        assertEquals(MailResult.Ok, sent)
+        assertEquals("me@example.com", service.account.value)
+    }
+
+    @Test
+    fun `관리자 웹에서 계정을 지우면 차의 메일 계정도 지운다`() {
+        store.save(config)
+
+        service.applyServerAccount(null)
+
+        assertNull(store.load())
+        assertNull(service.account.value)
+    }
+
+    @Test
+    fun `비밀번호가 빠진 계정 편지는 반영하지 않는다`() {
+        val applied = service.applyServerAccount(MailAccountDto("smtp.example.com", username = "a@example.com"))
+
+        assertFalse(applied)
+        assertNull(store.load())
     }
 }
 
