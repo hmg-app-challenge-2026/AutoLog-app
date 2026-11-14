@@ -20,7 +20,12 @@ import org.springframework.web.client.RestClient
 class GeminiReceiptClientTest {
     private val props =
         RelayProperties(
-            gemini = RelayProperties.Gemini(apiKey = "test-key", baseUrl = "https://gemini.test", maxAttempts = 2),
+            gemini = RelayProperties.Gemini(
+                apiKey = "test-key",
+                baseUrl = "https://gemini.test",
+                maxAttempts = 2,
+                timeoutSec = 0,
+            ),
         )
     private val builder = RestClient.builder()
     private val server = MockRestServiceServer.bindTo(builder).build()
@@ -36,7 +41,7 @@ class GeminiReceiptClientTest {
     @Test
     fun `Gemini 응답 JSON에서 필드와 확신도를 읽는다`() {
         server
-            .expect(requestTo("https://gemini.test/v1beta/models/gemini-2.5-flash:generateContent"))
+            .expect(requestTo("https://gemini.test/v1beta/models/gemini-3.5-flash-lite:generateContent"))
             .andExpect(method(HttpMethod.POST))
             .andExpect(header("x-goog-api-key", "test-key"))
             .andRespond(withSuccess(okBody, MediaType.APPLICATION_JSON))
@@ -55,7 +60,7 @@ class GeminiReceiptClientTest {
         server
             .expect(
                 ExpectedCount.times(2),
-                requestTo("https://gemini.test/v1beta/models/gemini-2.5-flash:generateContent"),
+                requestTo("https://gemini.test/v1beta/models/gemini-3.5-flash-lite:generateContent"),
             )
             .andRespond(withStatus(HttpStatus.SERVICE_UNAVAILABLE))
 

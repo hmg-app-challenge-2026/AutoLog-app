@@ -93,13 +93,23 @@ class ReceiptServiceTest {
     }
 
     @Test
-    fun `같은 영수증은 두 번 저장하지 않는다`() = runTest {
+    fun `같은 영수증 편지는 두 번 저장하지 않는다`() = runTest {
         service.confirm(r, null, r.fields)
 
         val again = service.confirm(r, null, r.fields)
 
         assertTrue(again is ConfirmResult.Rejected)
         assertEquals(1, store.expenses.size)
+    }
+
+    @Test
+    fun `같은 사진을 다시 보낸 영수증은 또 저장한다`() = runTest {
+        service.confirm(r, null, r.fields)
+
+        val again = service.confirm(r.copy(receiptId = "${r.receiptId}-2"), null, r.fields)
+
+        assertTrue(again is ConfirmResult.Saved)
+        assertEquals(2, store.expenses.size)
     }
 
     @Test

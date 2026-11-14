@@ -22,12 +22,15 @@ data class ReceiptRecord(
     val confidence: Map<String, Double>,
     val arithOk: Boolean?,
     val expiresAt: Instant,
+    /** 이 영수증을 올린 QR 토큰의 해시. 같은 QR로 두 장이 들어가지 않게 한다(유니크). */
+    val qrTokenHash: String? = null,
 )
 
 interface ReceiptRepository {
-    fun exists(vehicleId: UUID, sha256: String): Boolean
+    /** 이 QR 토큰으로 이미 들어간 영수증이 있는지. */
+    fun existsForToken(qrTokenHash: String): Boolean
 
-    /** (vehicle_id, sha256) 유니크 위반이면 DuplicateKeyException. */
+    /** 같은 QR 토큰(qr_token 유니크)이면 DuplicateKeyException. */
     fun insert(r: ReceiptRecord)
 
     /** 그 차의 영수증 썸네일 키. 없거나(만료 삭제) 다른 차 것이면 null. */
@@ -39,10 +42,9 @@ interface ReceiptRepository {
 
 @Repository
 class JdbcReceiptRepository(private val jdbc: JdbcClient) : ReceiptRepository {
-    override fun exists(vehicleId: UUID, sha256: String): Boolean = jdbc
-        .sql("SELECT count(*) FROM receipts WHERE vehicle_id = :v AND sha256 = :h")
-        .param("v", vehicleId)
-        .param("h", sha256)
+    override fun existsForToken(qrTokenHash: String): Boolean = jdbc
+        .sql("SELECT count(*) FROM receipts WHERE qr_token = :t")
+        .param("t", qrTokenHash)
         .query(Long::class.java)
         .single() > 0
 
@@ -51,8 +53,8 @@ class JdbcReceiptRepository(private val jdbc: JdbcClient) : ReceiptRepository {
             .sql(
                 """
                 INSERT INTO receipts (receipt_id, vehicle_id, sha256, storage_key, thumb_key, taken_at,
-                  ocr_status, ocr_fields, ocr_confidence, arith_ok, expires_at)
-                VALUES (:id, :v, :h, :sk, :tk, :taken, :status, CAST(:fields AS jsonb), CAST(:conf AS jsonb), :arith, :exp)
+                  ocr_status, ocr_fields, ocr_confidence, arith_ok, expires_at, qr_token)
+                VALUES (:id, :v, :h, :sk, :tk, :taken, :status, CAST(:fields AS jsonb), CAST(:conf AS jsonb), :arith, :exp, :qt)
                 """.trimIndent(),
             ).param("id", r.receiptId)
             .param("v", r.vehicleId)
@@ -68,6 +70,7 @@ class JdbcReceiptRepository(private val jdbc: JdbcClient) : ReceiptRepository {
             )
             .param("arith", r.arithOk)
             .param("exp", Timestamp.from(r.expiresAt))
+            .param("qt", r.qrTokenHash)
             .update()
     }
 

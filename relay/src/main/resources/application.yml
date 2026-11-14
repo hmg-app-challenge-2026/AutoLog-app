@@ -27,7 +27,7 @@ autolog:
   inbox-retention-days: 30
   gemini:
     api-key: ${GEMINI_API_KEY:}        # 서버 환경변수에만. APK·웹에 두지 않는다.
-    model: gemini-2.5-flash
+    model: ${GEMINI_MODEL:gemini-3.5-flash-lite}   # 2.5-flash는 새 키에서 막혔다(2026-11). 바꾸려면 .env GEMINI_MODEL
     base-url: https://generativelanguage.googleapis.com
     max-attempts: 3
   storage:

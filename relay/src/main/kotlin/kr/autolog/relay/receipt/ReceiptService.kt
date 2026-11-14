@@ -21,8 +21,11 @@ import java.util.UUID
 
 /**
  * 영수증 파이프라인 (F-41, 기술명세 4.5).
- * QR 토큰 소모 → 중복 확인 → Gemini OCR → 마스킹·검산 → 원본·썸네일(EXIF 회전 반영) 저장
- * → receipts 기록 + 차 inbox(RECEIPT).
+ * QR 재전송 확인 → QR 토큰 확인 → Gemini OCR → 마스킹·검산 → 원본·썸네일(EXIF 회전 반영) 저장
+ * → (한 트랜잭션) QR 토큰 소모 + receipts 기록 + 차 inbox(RECEIPT).
+ * 토큰은 끝까지 성공했을 때만 소모한다 — 중간에 실패하거나 폰 연결이 끊기면 같은 QR로 다시 보낼 수 있다.
+ * 같은 사진을 새 QR로 여러 번 보내는 것은 막지 않는다(2026-11-15 사용자 결정). 막는 것은 QR 하나로 두 장이다 —
+ * 응답만 못 받고 같은 QR로 다시 보내면 409(이미 보냄)로 알려 준다.
  * OCR이 실패해도 썸네일만 담아 차로 보낸다(차에서 수동 입력).
  */
 @Service
@@ -42,9 +45,11 @@ class ReceiptService(
         if (image.isEmpty() || !mimeType.startsWith("image/")) {
             throw ApiException(HttpStatus.BAD_REQUEST, "RECEIPT_NOT_IMAGE", "이미지 파일만 올릴 수 있습니다")
         }
-        val vehicleId = qr.consume(vehicleCode, token)
+        val vehicleId = qr.vehicleOf(vehicleCode, token)
+        val tokenHash = Tokens.sha256Hex(token.orEmpty())
+        if (repo.existsForToken(tokenHash)) throw duplicate()
+        qr.requireValid(vehicleCode, token)
         val sha = Tokens.sha256Hex(image)
-        if (repo.exists(vehicleId, sha)) throw duplicate()
 
         val now = clock.instant()
         val receiptId = UUID.randomUUID()
@@ -80,8 +85,10 @@ class ReceiptService(
                     arithOk = arithOk,
                     ocrStatus = status,
                 )
-            // receipts 행과 inbox 편지는 함께 들어가거나 함께 빠진다.
+            // 토큰 소모·receipts 행·inbox 편지는 함께 들어가거나 함께 빠진다.
             tx.executeWithoutResult {
+                // 같은 QR로 두 장이 동시에 올라오면 하나만 소모에 성공한다
+                qr.consume(vehicleCode, token)
                 repo.insert(
                     ReceiptRecord(
                         receiptId = receiptId,
@@ -95,6 +102,7 @@ class ReceiptService(
                         confidence = ocrResult?.confidence.orEmpty(),
                         arithOk = arithOk,
                         expiresAt = now.plus(Duration.ofDays(props.receiptRetentionDays)),
+                        qrTokenHash = tokenHash,
                     ),
                 )
                 inbox.deliver(vehicleId, payload)
@@ -103,7 +111,7 @@ class ReceiptService(
         } catch (e: Exception) {
             // 저장해 둔 파일이 행 없이 남지 않게 지운다.
             stored.forEach { key -> runCatching { storage.delete(key) }.onFailure { log.warn("파일 정리 실패 {}", key) } }
-            // 같은 사진이 동시에 두 번 올라오면 exists 검사를 둘 다 통과하고 유니크 인덱스에서 걸린다.
+            // 같은 QR로 동시에 두 번 올라오면 검사를 둘 다 통과하고 qr_token 유니크 인덱스에서 걸린다.
             if (e is DuplicateKeyException) throw duplicate()
             throw e
         }
@@ -117,7 +125,7 @@ class ReceiptService(
         if (keys.isNotEmpty()) log.info("영수증 만료 삭제 파일 {}개", keys.size)
     }
 
-    private fun duplicate() = ApiException(HttpStatus.CONFLICT, "RECEIPT_DUPLICATE", "이미 등록된 영수증입니다")
+    private fun duplicate() = ApiException(HttpStatus.CONFLICT, "RECEIPT_DUPLICATE", "이 QR로 이미 보낸 영수증입니다")
 
     private companion object {
         const val JPEG = "image/jpeg"

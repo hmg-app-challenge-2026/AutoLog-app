@@ -40,6 +40,17 @@ class QrTokenService(
         return repo.consume(vehicleCode, Tokens.sha256Hex(token), clock.instant()) ?: throw invalid()
     }
 
+    /** 토큰이 가리키는 차량(만료·사용 여부 무관). 모르는 토큰이면 401. */
+    fun vehicleOf(vehicleCode: String, token: String?): UUID {
+        if (token.isNullOrBlank()) throw invalid()
+        return repo.vehicleOf(vehicleCode, Tokens.sha256Hex(token)) ?: throw invalid()
+    }
+
+    /** 아직 쓸 수 있는지만 본다. 못 쓰면 401. */
+    fun requireValid(vehicleCode: String, token: String?) {
+        if (!isValid(vehicleCode, token)) throw invalid()
+    }
+
     fun isValid(vehicleCode: String, token: String?): Boolean =
         !token.isNullOrBlank() && repo.isValid(vehicleCode, Tokens.sha256Hex(token), clock.instant())
 

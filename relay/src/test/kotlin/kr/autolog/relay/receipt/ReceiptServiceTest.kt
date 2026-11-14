@@ -87,18 +87,53 @@ class ReceiptServiceTest {
     }
 
     @Test
-    fun `같은 차에 같은 사진을 다시 올리면 409`() {
+    fun `같은 사진도 새 QR로 보내면 또 들어간다`() {
         service().handleUpload("car1", "tok", image, "image/jpeg")
-        qrRepo.reset()
+        qrRepo.issue("tok2")
+
+        val again = service().handleUpload("car1", "tok2", image, "image/jpeg")
+
+        assertEquals(2, receipts.rows.size)
+        assertEquals(2, inboxRepo.rows.size)
+        assertEquals(receipts.rows[0].sha256, again.sha256)
+    }
+
+    @Test
+    fun `도중에 실패하면 QR을 쓰지 않아 같은 QR로 다시 보낼 수 있다`() {
+        storage.failPut = true
+        assertThrows<IllegalStateException> { service().handleUpload("car1", "tok", image, "image/jpeg") }
+        assertEquals(false, qrRepo.used)
+
+        storage.failPut = false
+        val payload = service().handleUpload("car1", "tok", image, "image/jpeg")
+
+        assertEquals(OcrStatus.OK, payload.ocrStatus)
+        assertEquals(true, qrRepo.used)
+    }
+
+    @Test
+    fun `응답을 못 받아 쓴 QR로 같은 사진을 다시 보내면 만료 대신 409`() {
+        service().handleUpload("car1", "tok", image, "image/jpeg")
 
         val e = assertThrows<ApiException> { service().handleUpload("car1", "tok", image, "image/jpeg") }
 
         assertEquals("RECEIPT_DUPLICATE", e.code)
+        assertEquals(1, inboxRepo.rows.size)
     }
 
     @Test
-    fun `동시에 같은 사진이 올라와 유니크 인덱스에 걸리면 409이고 파일을 지운다`() {
-        receipts.failInsertWith = DuplicateKeyException("uq receipts(vehicle_id, sha256)")
+    fun `쓴 QR로 다른 사진을 보내도 409 — QR 하나로는 한 장만`() {
+        service().handleUpload("car1", "tok", image, "image/jpeg")
+
+        val e = assertThrows<ApiException> { service().handleUpload("car1", "tok", realJpeg(), "image/jpeg") }
+
+        assertEquals("RECEIPT_DUPLICATE", e.code)
+        assertEquals(1, receipts.rows.size)
+    }
+
+    @Test
+    fun `같은 QR로 동시에 올라와 유니크 인덱스에 걸리면 409이고 파일을 지운다`() {
+        receipts.failInsertWith = DuplicateKeyException("uq receipts(qr_token)")
 
         val e = assertThrows<ApiException> { service().handleUpload("car1", "tok", realJpeg(), "image/jpeg") }
 
@@ -145,9 +180,13 @@ class ReceiptServiceTest {
 
 private class OneTokenRepo(private val vehicleId: UUID) : QrTokenRepository {
     var used = false
-    private val validHash = kr.autolog.relay.common.Tokens.sha256Hex("tok")
+    private val issued = mutableSetOf(kr.autolog.relay.common.Tokens.sha256Hex("tok"))
+    private var validHash = issued.single()
 
-    fun reset() {
+    /** 차가 QR을 새로 띄운 것처럼 새 토큰을 쓸 수 있게 한다. */
+    fun issue(token: String) {
+        validHash = kr.autolog.relay.common.Tokens.sha256Hex(token)
+        issued += validHash
         used = false
     }
 
@@ -162,13 +201,15 @@ private class OneTokenRepo(private val vehicleId: UUID) : QrTokenRepository {
         }
 
     override fun isValid(vehicleCode: String, tokenHash: String, now: Instant) = !used && tokenHash == validHash
+
+    override fun vehicleOf(vehicleCode: String, tokenHash: String): UUID? = vehicleId.takeIf { tokenHash in issued }
 }
 
 private class MemReceipts : ReceiptRepository {
     val rows = mutableListOf<ReceiptRecord>()
     var failInsertWith: Exception? = null
 
-    override fun exists(vehicleId: UUID, sha256: String) = rows.any { it.vehicleId == vehicleId && it.sha256 == sha256 }
+    override fun existsForToken(qrTokenHash: String) = rows.any { it.qrTokenHash == qrTokenHash }
 
     override fun insert(r: ReceiptRecord) {
         failInsertWith?.let { throw it }
@@ -184,8 +225,10 @@ private class MemReceipts : ReceiptRepository {
 private class MemStorage : ReceiptStorage {
     val objects = mutableMapOf<String, ByteArray>()
     var signVersion = 1
+    var failPut = false
 
     override fun put(key: String, bytes: ByteArray, contentType: String) {
+        if (failPut) error("저장소 다운")
         objects[key] = bytes
     }
 

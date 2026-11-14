@@ -157,9 +157,9 @@ class ReceiptUploadIntegrationTest {
         assertEquals(HttpStatus.OK, upload.statusCode)
         assertEquals("OK", upload.body!!["ocrStatus"])
 
-        // 같은 QR로 다시 올리면 401 (1회용)
+        // 같은 QR로 다시 올리면 409 — QR 하나로는 한 장만, 응답을 놓쳐 다시 보낸 경우 "이미 보냄"으로 알린다
         assertEquals(
-            HttpStatus.UNAUTHORIZED,
+            HttpStatus.CONFLICT,
             http.postForEntity(
                 path,
                 HttpEntity(

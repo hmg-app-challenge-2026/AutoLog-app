@@ -26,7 +26,7 @@ import java.time.Clock
  *   (기술명세 3.2 "QR 화면 열린 동안 주기 동기화", F-30 "QR 스캔부터 차 화면 카드까지 15초 내").
  *   새 편지가 들어오면(=영수증 도착) 또는 QR이 만료되면 멈춘다. QR을 다시 발급하면 이전 폴링은 취소한다.
  * - 후보: [ReceiptMatcher].
- * - 확정: 검산·중복 확인 → 비용 저장 → inbox ack. 고친 필드는 editedFields로 남긴다.
+ * - 확정: 검산 → 비용 저장(같은 사진도 다시 저장 가능) → inbox ack. 고친 필드는 editedFields로 남긴다.
  */
 class ReceiptService(
     private val store: DomainStore,
@@ -38,6 +38,9 @@ class ReceiptService(
     private val pollIntervalMs: Long = QR_POLL_MS,
 ) : ReceiptApi {
     @Volatile private var polling: Job? = null
+
+    /** 이 프로세스에서 확정한 영수증 편지(receiptId). 같은 편지를 두 번 저장하지 않게. */
+    private val confirmedIds = mutableSetOf<String>()
 
     override suspend fun issueQr(): QrResult {
         val result =
@@ -96,7 +99,11 @@ class ReceiptService(
             return ConfirmResult.Rejected("금액이 수량 × 단가 − 할인과 맞지 않습니다")
         }
         return try {
-            if (store.hasReceipt(receipt.sha256)) return ConfirmResult.Rejected("이미 저장된 영수증입니다")
+            // 같은 사진(sha256)도 다시 보내면 다시 저장한다(2026-11-15 사용자 결정). 겹친 것은 검토의 '중복 영수증'이 알려 준다(F-23).
+            // 막는 것은 같은 편지(receiptId)를 두 번 확정하는 것뿐이다 — 확정하면 ack돼 inbox에서 빠지므로 이 프로세스 안만 보면 된다.
+            if (!synchronized(confirmedIds) { confirmedIds.add(receipt.receiptId) }) {
+                return ConfirmResult.Rejected("이미 저장된 영수증입니다")
+            }
             val draft =
                 ExpenseDraft(
                     tripId = tripId,
@@ -114,7 +121,9 @@ class ReceiptService(
                     ocrConfidence = receipt.confidence,
                     editedFields = editedFields(receipt.fields, edits),
                 )
-            val id = store.saveExpense(draft)
+            val id = runCatching { store.saveExpense(draft) }
+                .onFailure { synchronized(confirmedIds) { confirmedIds.remove(receipt.receiptId) } }
+                .getOrThrow()
             // ack가 실패해도 비용은 저장됐다. InboxSyncWorker가 다음에 다시 ack한다.
             runCatching { store.ackReceipt(receipt.receiptId) }.onFailure { log("영수증 ack 실패 ${receipt.receiptId}") }
             ConfirmResult.Saved(id)

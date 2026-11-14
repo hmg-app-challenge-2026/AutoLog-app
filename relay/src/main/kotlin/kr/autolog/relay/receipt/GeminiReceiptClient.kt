@@ -16,6 +16,7 @@ import kr.autolog.relay.common.RelayProperties
 import kr.autolog.shared.ReceiptFields
 import org.slf4j.LoggerFactory
 import org.springframework.http.MediaType
+import org.springframework.http.client.SimpleClientHttpRequestFactory
 import org.springframework.stereotype.Component
 import org.springframework.web.client.RestClient
 import org.springframework.web.client.RestClientException
@@ -37,13 +38,29 @@ fun interface ReceiptOcr {
 @Component
 class GeminiReceiptClient(private val props: RelayProperties, restClientBuilder: RestClient.Builder) : ReceiptOcr {
     private val log = LoggerFactory.getLogger(javaClass)
-    private val rest = restClientBuilder.baseUrl(props.gemini.baseUrl).build()
+    private val rest = restClientBuilder.baseUrl(props.gemini.baseUrl)
+        .apply {
+            if (props.gemini.timeoutSec > 0) {
+                it.requestFactory(
+                    SimpleClientHttpRequestFactory().apply {
+                        setConnectTimeout(CONNECT_TIMEOUT_MS)
+                        setReadTimeout(props.gemini.timeoutSec * 1_000)
+                    },
+                )
+            }
+        }.build()
     private val json = Json { ignoreUnknownKeys = true }
 
     override fun extract(image: ByteArray, mimeType: String): OcrResult {
         check(props.gemini.apiKey.isNotBlank()) { "GEMINI_API_KEY가 설정되지 않았습니다" }
         var last: Exception? = null
+        val startedAt = System.nanoTime()
         repeat(props.gemini.maxAttempts) { attempt ->
+            val elapsedSec = (System.nanoTime() - startedAt) / 1_000_000_000
+            if (attempt > 0 && elapsedSec + props.gemini.timeoutSec > props.gemini.budgetSec) {
+                log.warn("Gemini OCR 시간 예산 {}초를 넘겨 재시도를 멈춘다", props.gemini.budgetSec)
+                throw IllegalStateException("Gemini OCR 시간 초과", last)
+            }
             try {
                 return parse(call(image, mimeType))
             } catch (e: RestClientException) {
@@ -139,6 +156,7 @@ class GeminiReceiptClient(private val props: RelayProperties, restClientBuilder:
 
     companion object {
         private const val BACKOFF_MS = 1_000L
+        private const val CONNECT_TIMEOUT_MS = 5_000
 
         /** 기술명세 4.5 프롬프트. */
         const val PROMPT =
