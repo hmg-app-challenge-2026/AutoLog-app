@@ -137,16 +137,17 @@ class SettingsViewModelTest {
     }
 
     @Test
-    fun `메일 계정 — 칸을 채우고 연결 확인하면 연결됨, 비밀번호 칸은 비운다`() = runTest {
-        val (_, vm) = open()
-        vm.onAction(SettingsAction.EditMail(MailField.HOST, "smtp.example.com"))
-        vm.onAction(SettingsAction.EditMail(MailField.USERNAME, "me@example.com"))
-        vm.onAction(SettingsAction.EditMail(MailField.PASSWORD, "app-pw"))
-        vm.onAction(SettingsAction.SaveMail)
+    fun `메일 계정 — 관리자 웹에서 온 주소를 보여 주고 바뀌면 따라 바뀐다`() = runTest {
+        val (g, vm) = open()
+        backgroundScope.launch { vm.uiState.collect {} }
+        advanceUntilIdle()
+        assertEquals("me@example.com", vm.uiState.value.mailAccount)
+
+        g.sources.mail.account.value = "autolog@company.example"
         advanceUntilIdle()
 
+        assertEquals("autolog@company.example", vm.uiState.value.mailAccount)
         assertTrue(vm.uiState.value.mailConnected)
-        assertEquals("", vm.uiState.value.mail.password)
     }
 
     @Test

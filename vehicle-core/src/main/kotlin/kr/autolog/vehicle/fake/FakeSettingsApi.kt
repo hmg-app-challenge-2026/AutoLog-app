@@ -41,7 +41,6 @@ class FakeSettingsApi(var nextSync: SyncResult = SyncResult.Ok(received = 2)) : 
 
     override suspend fun removeRecipient(email: String): SettingsResult {
         val r = recipientState.value.firstOrNull { it.email == email } ?: return SettingsResult.Invalid("없는 수신자입니다")
-        if (r.origin == Origin.SERVER) return SettingsResult.Invalid("관리자가 배포한 수신자는 지울 수 없습니다")
         recipientState.value = recipientState.value - r
         return SettingsResult.Ok
     }

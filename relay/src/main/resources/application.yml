@@ -20,6 +20,8 @@ autolog:
     signups-per-hour: 30               # 회사 가입(/admin/auth/signup) 서버 전체 시간당 상한 — 자동 대량 가입 방지
   ops:
     token: ${OPS_TOKEN:${ADMIN_TOKEN:}}   # 운영자 토큰 — 회사·관리자 계정 만들기(/ops). 비어 있으면 /ops 비활성. 예전 ADMIN_TOKEN도 받는다
+  mail:
+    secret-key: ${MAIL_SECRET_KEY:}    # 회사 메일 앱 비밀번호 암호화 키. 서버 .env에만. 바꾸면 저장된 비밀번호를 다시 넣어야 한다
   connect-code-ttl-hours: 24
   qr-token-ttl-minutes: 10
   inbox-retention-days: 30

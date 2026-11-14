@@ -20,7 +20,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.Lifecycle
@@ -32,12 +31,10 @@ import kr.autolog.vehicle.ui.design.Size
 import kr.autolog.vehicle.ui.design.Space
 import kr.autolog.vehicle.ui.design.components.ButtonNote
 import kr.autolog.vehicle.ui.design.components.CheckRow
-import kr.autolog.vehicle.ui.design.components.InputField
 import kr.autolog.vehicle.ui.design.components.PrimaryButton
 import kr.autolog.vehicle.ui.design.components.RoundIconButton
 import kr.autolog.vehicle.ui.design.components.SecondaryButton
 import kr.autolog.vehicle.ui.design.motion.ExpandSwap
-import kr.autolog.vehicle.ui.mail.mailErrorText
 import kr.autolog.vehicle.ui.trips.tripWhenText
 
 /** 열린 섹션의 내용(스펙 7.9 순서). 위에서 아래로: 지금 상태 → 고칠 칸·목록 → 버튼 → 마지막 결과 한 줄. */
@@ -47,7 +44,7 @@ internal fun SectionDetail(section: SettingsSection, state: SettingsUiState, onA
         when (section) {
             SettingsSection.VEHICLE -> Vehicle(state, onAction)
             SettingsSection.SERVER -> Server(state, onAction)
-            SettingsSection.MAIL -> Mail(state, onAction)
+            SettingsSection.MAIL -> Mail(state)
             SettingsSection.RECIPIENTS -> Recipients(state, onAction)
             SettingsSection.STAFF -> Staff(state, onAction)
             SettingsSection.AUTOMATION -> Automation(state, onAction)
@@ -151,9 +148,12 @@ private fun Server(state: SettingsUiState, onAction: (SettingsAction) -> Unit) {
     ResultLine(state, SettingsTask.UPLOAD)
 }
 
-/** 3. 메일 — 발신 계정(SMTP 호스트·포트·아이디·앱 비밀번호) + [연결 확인]. 비밀번호는 항상 가리고, 성공하면 칸을 비운다. */
+/**
+ * 3. 메일 — 연결된 발신 메일 주소만 보여 준다. 계정은 회사 관리자 웹 [메일 설정]에서 정해 서버로 온다(2026-11-14 사용자 결정:
+ * 메일 계정은 하나, 차에서는 입력하지 않는다).
+ */
 @Composable
-private fun Mail(state: SettingsUiState, onAction: (SettingsAction) -> Unit) {
+private fun Mail(state: SettingsUiState) {
     val c = AutoLogTheme.colors
     Text(
         stringResource(
@@ -162,41 +162,12 @@ private fun Mail(state: SettingsUiState, onAction: (SettingsAction) -> Unit) {
         style = AutoLogTheme.type.body,
         color = if (state.mailConnected) c.success else c.textSecondary,
     )
-    val f = state.mail
-    InputField(
-        stringResource(R.string.settings_mail_host),
-        f.host,
-        { onAction(SettingsAction.EditMail(MailField.HOST, it)) },
-        keyboardType = KeyboardType.Uri,
-        placeholder = stringResource(R.string.settings_mail_host_hint),
+    state.mailAccount?.let { Text(it, style = AutoLogTheme.type.body, color = c.textPrimary) }
+    Text(
+        stringResource(R.string.settings_mail_managed_note),
+        style = AutoLogTheme.type.caption,
+        color = c.textSecondary,
     )
-    InputField(
-        stringResource(R.string.settings_mail_port),
-        f.port,
-        { onAction(SettingsAction.EditMail(MailField.PORT, it)) },
-        keyboardType = KeyboardType.Number,
-    )
-    InputField(
-        stringResource(R.string.settings_mail_username),
-        f.username,
-        { onAction(SettingsAction.EditMail(MailField.USERNAME, it)) },
-        keyboardType = KeyboardType.Email,
-        placeholder = stringResource(R.string.settings_mail_username_hint),
-    )
-    InputField(
-        stringResource(R.string.settings_mail_password),
-        f.password,
-        { onAction(SettingsAction.EditMail(MailField.PASSWORD, it)) },
-        secret = true,
-    )
-    PrimaryButton(
-        stringResource(R.string.settings_mail_save),
-        onClick = { onAction(SettingsAction.SaveMail) },
-        modifier = Modifier.fillMaxWidth(),
-        enabled = f.complete,
-        loading = state.running == SettingsTask.MAIL,
-    )
-    ResultLine(state, SettingsTask.MAIL)
 }
 
 /** 4. 받는 사람 — 회사 지정(잠금, 못 지움) 먼저 + 직접 추가(지우기 1회 확인) + [받는 사람 추가]. */
@@ -207,10 +178,10 @@ private fun Recipients(state: SettingsUiState, onAction: (SettingsAction) -> Uni
     state.recipients.forEach { r ->
         PersonRow(
             primary = r.name ?: r.email,
-            // 회사 지정은 아래 줄 앞에 — 오른쪽엔 자물쇠만 두어 좁은 창에서도 주소가 한 줄에
+            // 회사 지정은 아래 줄 앞에. 회사 지정도 이 차에서는 뺄 수 있다(2026-11-14 사용자 결정)
             secondary = listOfNotNull(company.takeIf { r.fromServer }, r.email.takeIf { r.name != null })
                 .joinToString(separator).ifEmpty { null },
-            locked = r.fromServer,
+            locked = false,
             onRemove = { onAction(SettingsAction.AskRemoveRecipient(r.email)) },
         )
     }
@@ -411,7 +382,6 @@ internal fun ResultLine(state: SettingsUiState, task: SettingsTask) {
         null -> null
         TaskResult.Done -> stringResource(doneText(task)) to c.success
         is TaskResult.Failed -> r.reason to c.danger
-        is TaskResult.MailFailed -> stringResource(mailErrorText(r.error)) to c.danger
     }
     // 결과가 생기면 펼쳐지고, 바뀌면 그 자리에서 교체되고, 사라지면 접힌다
     ExpandSwap(line) { (text, color) -> Text(text, style = AutoLogTheme.type.body, color = color) }
@@ -420,7 +390,6 @@ internal fun ResultLine(state: SettingsUiState, task: SettingsTask) {
 private fun doneText(task: SettingsTask): Int = when (task) {
     SettingsTask.REGISTER -> R.string.settings_done_register
     SettingsTask.UPLOAD -> R.string.settings_done_upload
-    SettingsTask.MAIL -> R.string.settings_done_mail
     SettingsTask.ADD_RECIPIENT -> R.string.settings_done_add_recipient
     SettingsTask.REMOVE_RECIPIENT -> R.string.settings_done_remove_recipient
     SettingsTask.ADD_STAFF -> R.string.settings_done_add_staff

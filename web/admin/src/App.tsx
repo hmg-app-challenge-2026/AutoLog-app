@@ -3,16 +3,17 @@ import { api, ApiError, getToken, setToken, SESSION_EXPIRED, type Me } from './a
 import { VehiclesScreen } from './VehiclesScreen'
 import { PlacesScreen } from './PlacesScreen'
 import { SchedulesScreen } from './SchedulesScreen'
+import { MailScreen } from './MailScreen'
 import { ErrorBox } from './ErrorBox'
 
 // 운영 웹 (F-50~54). 회사마다 관리자 한 명이 이메일·비밀번호로 로그인하고, 자기 회사 데이터만 본다.
-// 운행·비용 화면은 없다 — 운행 데이터는 서버에 없음(차 Room이 원본). 직원·수신자는 API만 있고 화면은 아직이다.
+// 운행·비용 화면은 없다 — 운행 데이터는 서버에 없음(차 Room이 원본). 직원은 API만 있고 화면은 아직이다. 수신자는 [메일 설정] 화면 안에 있다.
 const SCREENS = [
   { key: 'vehicles', label: '차량', id: 'F-50', ready: true },
   { key: 'places', label: '장소', id: 'F-52', ready: true },
   { key: 'schedules', label: '배차', id: 'F-53', ready: true },
   { key: 'users', label: '직원', id: 'F-51', ready: false },
-  { key: 'recipients', label: '수신자', id: 'F-54', ready: false },
+  { key: 'mail', label: '메일 설정', id: 'F-24·F-54', ready: true },
   { key: 'account', label: '내 계정', id: '', ready: true },
 ] as const
 
@@ -82,6 +83,7 @@ export default function App() {
         {current === 'vehicles' && <VehiclesScreen />}
         {current === 'places' && <PlacesScreen />}
         {current === 'schedules' && <SchedulesScreen />}
+        {current === 'mail' && <MailScreen />}
         {current === 'account' && <AccountScreen me={me} />}
       </main>
     </div>

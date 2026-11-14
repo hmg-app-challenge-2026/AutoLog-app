@@ -6,6 +6,7 @@ import kr.autolog.shared.AutoLogJson
 import kr.autolog.shared.InboxItem
 import kr.autolog.shared.InboxKind
 import kr.autolog.shared.InboxPayload
+import kr.autolog.shared.MailAccountPayload
 import kr.autolog.shared.PlacesPayload
 import kr.autolog.shared.ReceiptPayload
 import kr.autolog.shared.RecipientsPayload
@@ -34,7 +35,7 @@ fun interface InboxPayloadRefresher {
  * 서버 → 차 우체통 (F-42, F-43). 차 → 서버 방향은 없다.
  *
  * - RECEIPT: 쌓인다(영수증마다 1통).
- * - USERS·PLACES·SCHEDULES·RECIPIENTS: 항상 전체 목록이라, 차가 아직 안 가져간 이전 편지는 지우고 최신 1통만 둔다.
+ * - USERS·PLACES·SCHEDULES·RECIPIENTS·MAIL_ACCOUNT: 항상 전체(최신) 값이라, 차가 아직 안 가져간 이전 편지는 지우고 최신 1통만 둔다.
  */
 @Service
 class InboxService(
@@ -94,6 +95,7 @@ class InboxService(
             is PlacesPayload -> InboxKind.PLACES
             is SchedulesPayload -> InboxKind.SCHEDULES
             is RecipientsPayload -> InboxKind.RECIPIENTS
+            is MailAccountPayload -> InboxKind.MAIL_ACCOUNT
         }
     }
 }

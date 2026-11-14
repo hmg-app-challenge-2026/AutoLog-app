@@ -16,7 +16,7 @@ class SettingsScreenshotTest {
     private val base = SettingsUiState(
         link = LinkUi.Linked("12가3456", "https://autolog.acme.co.kr", TripWhen(TripDay.TODAY, 11, 12, "10:14")),
         upload = UploadUi(enabled = true, pending = 2, lastUpload = TripWhen(TripDay.TODAY, 11, 12, "09:24")),
-        mailConnected = true,
+        mailAccount = "autolog@acme.co.kr",
         recipients = listOf(
             RecipientRowUi("accounting@example.com", "회계팀", fromServer = true),
             RecipientRowUi("me@example.com", "나", fromServer = false),
@@ -42,11 +42,14 @@ class SettingsScreenshotTest {
         SettingsScreen(
             base.copy(
                 section = SettingsSection.MAIL,
-                mailConnected = false,
-                mail = MailForm("smtp.example.com", "587", "me@example.com", "pw"),
             ),
             onAction = {},
         )
+    }
+
+    @Test
+    fun mailNotConnected() = captureAll("settings_mail_not_connected") {
+        SettingsScreen(base.copy(section = SettingsSection.MAIL, mailAccount = null), onAction = {})
     }
 
     @Test

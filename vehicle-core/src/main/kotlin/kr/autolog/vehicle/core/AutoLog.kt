@@ -30,6 +30,7 @@ import kr.autolog.vehicle.location.LocationGateway
 import kr.autolog.vehicle.mail.EncryptedSmtpCredentialStore
 import kr.autolog.vehicle.mail.MailService
 import kr.autolog.vehicle.mail.PrefsAutoSendPreference
+import kr.autolog.vehicle.mail.PrefsHiddenRecipients
 import kr.autolog.vehicle.navi.NaviGateway
 import kr.autolog.vehicle.report.MonthlyReportWorker
 import kr.autolog.vehicle.report.MonthlySender
@@ -140,8 +141,10 @@ object AutoLog {
             log = log,
         )
 
-        val settings = SettingsService(store, inbox, PrefsAutoSendPreference(app), log = log)
+        val settings =
+            SettingsService(store, inbox, PrefsAutoSendPreference(app), PrefsHiddenRecipients(app), log = log)
         val mail = MailService(EncryptedSmtpCredentialStore(app))
+        inbox.onMailAccount = { mail.applyServerAccount(it) }
         val components = AutoLogComponents(
             session = session,
             local = RoomLocalStore(db.tripDao(), db.expenseDao()),
