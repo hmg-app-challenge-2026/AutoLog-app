@@ -5,7 +5,7 @@ import kotlinx.serialization.Serializable
 
 /** 서버 우체통(inbox) 편지 종류. 서버 → 차 단방향. */
 @Serializable
-enum class InboxKind { RECEIPT, USERS, PLACES, SCHEDULES, RECIPIENTS, MAIL_ACCOUNT }
+enum class InboxKind { RECEIPT, USERS, PLACES, SCHEDULES, RECIPIENTS, MAIL_ACCOUNT, PURPOSES }
 
 /** GET /v1/inbox 응답의 한 항목. */
 @Serializable
@@ -93,11 +93,38 @@ data class MailAccountDto(
         "MailAccountDto(host=$host, port=$port, username=$username, password=***, fromName=$fromName, startTls=$startTls)"
 }
 
+/**
+ * 회사 목적과 출발→도착 목적 규칙 (F-08). 관리자 웹에서 바뀌면 회사의 모든 차에 **전체**를 보낸다.
+ * 차는 이 둘을 "회사 지정"으로 들고, 차에서 추가한 목적·규칙은 따로 둔다.
+ */
+@Serializable
+@SerialName("PURPOSES")
+data class PurposesPayload(
+    val purposes: List<PurposeDto> = emptyList(),
+    val rules: List<PurposeRuleDto> = emptyList(),
+) : InboxPayload
+
+/** 회사가 추가한 목적. [category]는 BUSINESS·COMMUTE·NON_BUSINESS. */
+@Serializable
+data class PurposeDto(val label: String, val category: String)
+
+/**
+ * 출발 장소 → 도착 장소 = 목적. [originPlaceId]가 null이면 출발지는 어디서든.
+ * [purpose]는 차의 PurposeDetail.name — 기본 목적 이름(CLIENT_VISIT 등) 또는 `custom:<구분>:<이름>`.
+ */
+@Serializable
+data class PurposeRuleDto(
+    val ruleId: String,
+    val originPlaceId: String? = null,
+    val destPlaceId: String,
+    val purpose: String,
+)
+
 @Serializable
 data class UserDto(val userId: String, val name: String, val dept: String?, val email: String?)
 
 @Serializable
-enum class PlaceKind { OFFICE, BRANCH, CLIENT, GAS_STATION, HOME }
+enum class PlaceKind { OFFICE, BRANCH, CLIENT, GAS_STATION, HOME, OTHER }
 
 @Serializable
 data class PlaceDto(

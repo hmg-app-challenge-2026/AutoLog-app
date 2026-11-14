@@ -2,6 +2,7 @@ package kr.autolog.vehicle.domain
 
 import kr.autolog.shared.PlaceKind
 import kr.autolog.vehicle.core.PurposeDetail
+import kr.autolog.vehicle.core.PurposeRouteRule
 import kr.autolog.vehicle.core.PurposeRuleId
 import kr.autolog.vehicle.core.Suggestion
 import java.time.DayOfWeek
@@ -30,6 +31,8 @@ data class TripContext(
     val schedules: List<ScheduleCandidate> = emptyList(),
     /** 같은 목적지에서 과거에 CONFIRMED된 세부 목적들. */
     val pastConfirmedAtDestination: List<PurposeDetail> = emptyList(),
+    /** 출발→도착 목적 규칙(회사 지정 먼저). [PurposeBook.rules]. */
+    val routeRules: List<PurposeRouteRule> = emptyList(),
 )
 
 /** 규칙 하나. 해당하면 추천, 아니면 null. */
@@ -55,6 +58,19 @@ class PurposeRules(private val zone: ZoneId = SEOUL) {
                         val detail = PurposeDetail.fromName(s.purposeDetail) ?: PurposeDetail.CLIENT_VISIT
                         Suggestion(detail, 0.97, PurposeRuleId.SCHEDULE, s.scheduleId)
                     }
+            },
+            // a2. 목적 규칙: 출발 장소·도착 장소가 둘 다 맞으면 그 목적 (관리자 웹·차 설정에서 정함)
+            PurposeRule { ctx ->
+                val from = ctx.origin?.placeId ?: return@PurposeRule null
+                val to = ctx.destination?.placeId ?: return@PurposeRule null
+                ctx.routeRules.firstOrNull { it.originPlaceId == from && it.destPlaceId == to }
+                    ?.let { Suggestion(it.purpose, 0.96, PurposeRuleId.ROUTE) }
+            },
+            // a3. 목적 규칙: 출발지 "어디서든" + 도착 장소가 맞으면 그 목적
+            PurposeRule { ctx ->
+                val to = ctx.destination?.placeId ?: return@PurposeRule null
+                ctx.routeRules.firstOrNull { it.originPlaceId == null && it.destPlaceId == to }
+                    ?.let { Suggestion(it.purpose, 0.93, PurposeRuleId.ROUTE_ANY_ORIGIN) }
             },
             // b. 자택 → 회사, 평일 05:00–10:59 → 출근
             PurposeRule { ctx ->

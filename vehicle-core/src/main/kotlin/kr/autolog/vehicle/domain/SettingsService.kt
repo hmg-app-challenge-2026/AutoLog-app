@@ -7,8 +7,16 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kr.autolog.shared.PlaceKind
 import kr.autolog.vehicle.core.DomainStore
 import kr.autolog.vehicle.core.Origin
+import kr.autolog.vehicle.core.PlaceAddResult
+import kr.autolog.vehicle.core.PlaceCandidate
+import kr.autolog.vehicle.core.PlaceInfo
+import kr.autolog.vehicle.core.PlaceSearchResult
+import kr.autolog.vehicle.core.PurposeCategory
+import kr.autolog.vehicle.core.PurposeInfo
+import kr.autolog.vehicle.core.PurposeRuleInfo
 import kr.autolog.vehicle.core.RecipientInfo
 import kr.autolog.vehicle.core.RelayClient
 import kr.autolog.vehicle.core.SettingsApi
@@ -54,6 +62,11 @@ class SettingsService(
     private val relay: RelayClient,
     private val autoSend: AutoSendPreference,
     private val hidden: HiddenRecipientStore = HiddenRecipientStore.InMemory(),
+    private val purposeBook: PurposeBook = PurposeBook(),
+    /** 장소 검색(중계 서버 `/v1/geo/search`). 실제 앱은 AutoLog가 잇는다. */
+    private val search: suspend (String) -> PlaceSearchResult = { PlaceSearchResult.Failed("서버에 연결되지 않았어요") },
+    /** 지금 차 위치 + 주소. */
+    private val here: suspend () -> PlaceCandidate? = { null },
     private val newId: () -> String = { "local-${UUID.randomUUID()}" },
     private val log: (String) -> Unit = {},
 ) : SettingsApi {
@@ -131,6 +144,85 @@ class SettingsService(
         SyncResult.Failed("서버에 연결하지 못했습니다")
     }
 
+    // ---- 목적·출발→도착 목적 규칙 (F-08) ----
+
+    override fun purposes(): Flow<List<PurposeInfo>> = purposeBook.data.map { purposeBook.purposes(it) }
+
+    override suspend fun addPurpose(label: String, category: PurposeCategory): SettingsResult =
+        purposeBook.addPurpose(label, category).toSettings()
+
+    override suspend fun removePurpose(name: String): SettingsResult = purposeBook.removePurpose(name).toSettings()
+
+    override fun purposeRules(): Flow<List<PurposeRuleInfo>> = purposeBook.data.map { d ->
+        val places = runCatching { store.places() }.getOrElse { emptyList() }.associateBy { it.placeId }
+        purposeBook.rules(d).map { r ->
+            PurposeRuleInfo(
+                ruleId = r.ruleId,
+                originLabel = r.originPlaceId?.let { places[it]?.label },
+                originMissing = r.originPlaceId != null && places[r.originPlaceId] == null,
+                destLabel = places[r.destPlaceId]?.label,
+                purpose = r.purpose,
+                origin = r.origin,
+            )
+        }
+    }
+
+    override suspend fun places(): List<PlaceInfo> =
+        runCatching { store.places() }.getOrElse { emptyList() }.sortedWith(compareBy(KOREAN) { it.label })
+
+    override suspend fun addPurposeRule(
+        originPlaceId: String?,
+        destPlaceId: String,
+        purposeName: String,
+    ): SettingsResult = purposeBook.addRule(originPlaceId, destPlaceId, purposeName).toSettings()
+
+    override suspend fun removePurposeRule(ruleId: String): SettingsResult = purposeBook.removeRule(ruleId).toSettings()
+
+    override suspend fun searchPlaces(query: String): PlaceSearchResult {
+        val q = query.trim()
+        if (q.length < 2) return PlaceSearchResult.Failed("두 글자 이상 입력해 주세요")
+        return try {
+            search(q)
+        } catch (e: Exception) {
+            log("장소 검색 실패: ${e.message}")
+            PlaceSearchResult.Failed("장소를 찾지 못했습니다")
+        }
+    }
+
+    override suspend fun currentPlace(): PlaceSearchResult = try {
+        here()?.let { PlaceSearchResult.Found(listOf(it)) } ?: PlaceSearchResult.Failed("지금 위치를 알 수 없어요")
+    } catch (e: Exception) {
+        log("지금 위치 실패: ${e.message}")
+        PlaceSearchResult.Failed("지금 위치를 알 수 없어요")
+    }
+
+    override suspend fun addPlace(label: String, lat: Double, lng: Double): PlaceAddResult {
+        val name = label.trim()
+        if (name.isEmpty()) return PlaceAddResult.Invalid("장소 이름을 입력해 주세요")
+        if (name.length > MAX_PLACE_LABEL) return PlaceAddResult.Invalid("장소 이름은 ${MAX_PLACE_LABEL}자 안으로 입력해 주세요")
+        return try {
+            val places = store.places()
+            PlaceMatcher.match(
+                lat,
+                lng,
+                places.map {
+                    it.toPlace()
+                },
+            )?.let { return PlaceAddResult.Added(it.placeId, existing = true) }
+            val id = newId()
+            store.savePlace(PlaceInfo(id, name, PlaceKind.OTHER, lat, lng, origin = Origin.LOCAL))
+            PlaceAddResult.Added(id)
+        } catch (e: Exception) {
+            log("장소 저장 실패: ${e.message}")
+            PlaceAddResult.Invalid("저장하지 못했습니다")
+        }
+    }
+
+    private fun Result<*>.toSettings(): SettingsResult = fold(
+        onSuccess = { SettingsResult.Ok },
+        onFailure = { SettingsResult.Invalid(it.message ?: "저장하지 못했습니다") },
+    )
+
     private suspend fun guarded(what: String, block: suspend () -> SettingsResult): SettingsResult = try {
         block()
     } catch (e: Exception) {
@@ -139,6 +231,8 @@ class SettingsService(
     }
 
     private companion object {
+        const val MAX_PLACE_LABEL = 30
+        val KOREAN: Collator = Collator.getInstance(Locale.KOREAN)
         val NAME_ORDER: Comparator<UserInfo> =
             Collator.getInstance(Locale.KOREAN).let { c -> Comparator { a, b -> c.compare(a.name, b.name) } }
     }

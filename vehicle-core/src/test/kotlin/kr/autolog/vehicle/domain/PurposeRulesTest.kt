@@ -3,6 +3,7 @@ package kr.autolog.vehicle.domain
 import kr.autolog.shared.PlaceKind
 import kr.autolog.vehicle.core.PurposeCategory
 import kr.autolog.vehicle.core.PurposeDetail
+import kr.autolog.vehicle.core.PurposeRouteRule
 import kr.autolog.vehicle.core.PurposeRuleId
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -149,5 +150,30 @@ class PurposeRulesTest {
             )
 
         assertEquals(PurposeDetail.CLIENT_VISIT, rules.suggest(ctx).detail)
+    }
+
+    private val delivery = PurposeDetail.custom("납품", PurposeCategory.BUSINESS)
+
+    @Test
+    fun `목적 규칙은 출발과 도착이 둘 다 맞아야 그 목적을 추천한다`() {
+        val rule = PurposeRouteRule("r-1", office.placeId, client.placeId, delivery)
+        val base = TripContext(at("2026-11-02T14:00:00"), office, client, routeRules = listOf(rule))
+
+        val hit = rules.suggest(base)
+        val otherOrigin = rules.suggest(base.copy(origin = branch))
+
+        assertEquals(delivery, hit.detail)
+        assertEquals(PurposeRuleId.ROUTE, hit.rule)
+        assertEquals(PurposeRuleId.CLIENT, otherOrigin.rule) // 출발이 다르면 원래 규칙(거래처)로
+    }
+
+    @Test
+    fun `출발 어디서든 규칙은 도착만 맞으면 쓰고 출발까지 맞는 규칙이 먼저다`() {
+        val anywhere = PurposeRouteRule("r-any", null, client.placeId, PurposeDetail.MEETING)
+        val exact = PurposeRouteRule("r-exact", office.placeId, client.placeId, delivery)
+        val ctx = TripContext(at("2026-11-02T14:00:00"), branch, client, routeRules = listOf(anywhere, exact))
+
+        assertEquals(PurposeRuleId.ROUTE_ANY_ORIGIN, rules.suggest(ctx).rule)
+        assertEquals(delivery, rules.suggest(ctx.copy(origin = office)).detail)
     }
 }

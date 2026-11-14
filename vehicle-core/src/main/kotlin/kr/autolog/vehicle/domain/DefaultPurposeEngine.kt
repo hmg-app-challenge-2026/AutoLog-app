@@ -11,6 +11,7 @@ import kr.autolog.vehicle.core.PlaceInfo
 import kr.autolog.vehicle.core.PurposeCategory
 import kr.autolog.vehicle.core.PurposeDetail
 import kr.autolog.vehicle.core.PurposeEngine
+import kr.autolog.vehicle.core.PurposeRouteRule
 import kr.autolog.vehicle.core.PurposeRuleId
 import kr.autolog.vehicle.core.SettingsResult
 import kr.autolog.vehicle.core.Suggestion
@@ -29,6 +30,8 @@ class DefaultPurposeEngine(
     private val rules: PurposeRules = PurposeRules(),
     private val newId: () -> String = { "local-${UUID.randomUUID()}" },
     private val log: (String) -> Unit = {},
+    /** 출발→도착 목적 규칙. 실제 앱은 [PurposeBook.rules]. */
+    private val routeRules: () -> List<PurposeRouteRule> = { emptyList() },
 ) : PurposeEngine {
     override suspend fun suggest(trip: TripFacts): Suggestion = try {
         val places = store.places().map { it.toPlace() }
@@ -48,7 +51,7 @@ class DefaultPurposeEngine(
                     .filter { t -> t.confirmedPurpose != null && at(t.endLat, t.endLng, listOf(destination)) != null }
                     .mapNotNull { it.confirmedPurpose }
             }
-        rules.suggest(TripContext(trip.startTime, origin, destination, schedules, past))
+        rules.suggest(TripContext(trip.startTime, origin, destination, schedules, past, routeRules()))
     } catch (e: Exception) {
         log("목적 추천 실패 trip=${trip.tripId}: ${e.message}")
         Suggestion(PurposeDetail.NEEDS_CHECK, FALLBACK_CONFIDENCE, PurposeRuleId.FALLBACK)

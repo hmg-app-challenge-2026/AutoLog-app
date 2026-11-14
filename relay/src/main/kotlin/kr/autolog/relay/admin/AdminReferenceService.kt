@@ -74,6 +74,7 @@ class AdminReferenceService(
     private val repo: ReferenceRepository,
     private val publisher: ReferencePublisher,
     private val geocoder: Geocoder,
+    private val purposes: kr.autolog.relay.purpose.PurposeService,
 ) {
     // ===== 직원 (F-51) =====
 
@@ -148,6 +149,7 @@ class AdminReferenceService(
         if (!deleted) throw notFound("PLACE_NOT_FOUND", "장소가 없습니다")
         publisher.publishPlaces(org)
         publisher.publishSchedules(org, vehicles)
+        purposes.publish(org) // 이 장소를 쓰던 목적 규칙은 DB에서 함께 지워졌다(FK) — 차에도 알린다
     }
 
     /** CSV: label, kind, address, lat, lng, radius_m, default_purpose (좌표가 비면 주소로 지오코딩) */
@@ -415,6 +417,7 @@ class AdminReferenceService(
                 "고객사" to PlaceKind.CLIENT,
                 "주유소" to PlaceKind.GAS_STATION,
                 "자택" to PlaceKind.HOME,
+                "기타" to PlaceKind.OTHER,
             )
 
         fun parseKind(raw: String): PlaceKind = KIND_NAMES[raw.trim()]

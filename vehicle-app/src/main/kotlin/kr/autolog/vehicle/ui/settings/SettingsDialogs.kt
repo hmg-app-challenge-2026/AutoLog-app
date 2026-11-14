@@ -3,15 +3,19 @@ package kr.autolog.vehicle.ui.settings
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import kr.autolog.vehicle.R
+import kr.autolog.vehicle.core.PurposeCategory
 import kr.autolog.vehicle.data.repository.ConnectCode
 import kr.autolog.vehicle.ui.design.AutoLogTheme
 import kr.autolog.vehicle.ui.design.Space
+import kr.autolog.vehicle.ui.design.components.ChoiceRow
 import kr.autolog.vehicle.ui.design.components.CodeField
 import kr.autolog.vehicle.ui.design.components.DangerButton
 import kr.autolog.vehicle.ui.design.components.InputField
@@ -19,6 +23,8 @@ import kr.autolog.vehicle.ui.design.components.ModalCard
 import kr.autolog.vehicle.ui.design.components.ModalHost
 import kr.autolog.vehicle.ui.design.components.ModalText
 import kr.autolog.vehicle.ui.design.components.PrimaryButton
+import kr.autolog.vehicle.ui.design.components.SecondaryButton
+import kr.autolog.vehicle.ui.design.components.TertiaryButton
 
 /**
  * 설정 팝업(모두 `ModalCard` — 오른쪽 위 X로 닫는다, D-30). 결정 버튼은 하단 고정(`footer`).
@@ -153,8 +159,199 @@ private fun SettingsDialogCard(
                 DialogError(state, SettingsTask.REMOVE_RECIPIENT)
             }
         }
+        is SettingsDialog.AddPurpose -> ModalCard(
+            title = stringResource(R.string.settings_add_purpose),
+            onClose = dismiss,
+            footer = {
+                PrimaryButton(
+                    stringResource(R.string.action_add),
+                    onClick = submit,
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = d.label.isNotBlank(),
+                    loading = state.running == SettingsTask.ADD_PURPOSE,
+                )
+            },
+        ) {
+            DialogBody {
+                InputField(
+                    stringResource(R.string.settings_purpose_name),
+                    d.label,
+                    { onAction(SettingsAction.EditDialog(DialogField.NAME, it)) },
+                    placeholder = stringResource(R.string.settings_purpose_name_hint),
+                )
+                ChoiceLabel(stringResource(R.string.settings_purpose_category))
+                PURPOSE_CATEGORIES.forEach { cat ->
+                    ChoiceRow(
+                        stringResource(purposeCategoryText(cat)),
+                        selected = d.category == cat,
+                        onClick = { onAction(SettingsAction.SetPurposeCategory(cat)) },
+                    )
+                }
+                DialogError(state, SettingsTask.ADD_PURPOSE)
+            }
+        }
+        is SettingsDialog.RemovePurpose -> ModalCard(
+            title = stringResource(R.string.settings_remove_purpose_title),
+            onClose = dismiss,
+            footer = {
+                DangerButton(
+                    stringResource(R.string.action_remove),
+                    onClick = submit,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            },
+        ) {
+            DialogBody {
+                ModalText(stringResource(R.string.settings_remove_purpose_body, d.label))
+                DialogError(state, SettingsTask.REMOVE_PURPOSE)
+            }
+        }
+        is SettingsDialog.AddPurposeRule -> ModalCard(
+            title = stringResource(R.string.settings_add_purpose_rule),
+            onClose = dismiss,
+            footer = {
+                PrimaryButton(
+                    stringResource(R.string.action_add),
+                    onClick = submit,
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = d.complete,
+                    loading = state.running == SettingsTask.ADD_PURPOSE_RULE,
+                )
+            },
+        ) {
+            DialogBody {
+                if (d.places.isEmpty()) ModalText(stringResource(R.string.settings_rule_no_places))
+                ChoiceLabel(stringResource(R.string.settings_rule_origin))
+                ChoiceRow(
+                    stringResource(R.string.settings_rule_anywhere),
+                    selected = d.originPlaceId == null,
+                    onClick = { onAction(SettingsAction.PickRuleOrigin(null)) },
+                )
+                d.places.forEach { p ->
+                    ChoiceRow(p.label, d.originPlaceId == p.placeId, {
+                        onAction(SettingsAction.PickRuleOrigin(p.placeId))
+                    })
+                }
+                TertiaryButton(
+                    stringResource(R.string.settings_new_place),
+                    onClick = { onAction(SettingsAction.StartAddPlace(RuleTarget.ORIGIN)) },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                ChoiceLabel(stringResource(R.string.settings_rule_dest))
+                d.places.forEach { p ->
+                    ChoiceRow(p.label, d.destPlaceId == p.placeId, { onAction(SettingsAction.PickRuleDest(p.placeId)) })
+                }
+                TertiaryButton(
+                    stringResource(R.string.settings_new_place),
+                    onClick = { onAction(SettingsAction.StartAddPlace(RuleTarget.DEST)) },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                ChoiceLabel(stringResource(R.string.settings_rule_purpose))
+                d.purposes.forEach { p ->
+                    ChoiceRow(
+                        stringResource(
+                            R.string.settings_purpose_with_category,
+                            p.label,
+                            stringResource(purposeCategoryText(p.category)),
+                        ),
+                        d.purposeName == p.name,
+                        { onAction(SettingsAction.PickRulePurpose(p.name)) },
+                    )
+                }
+                DialogError(state, SettingsTask.ADD_PURPOSE_RULE)
+            }
+        }
+        is SettingsDialog.AddPlace -> ModalCard(
+            title = stringResource(R.string.settings_new_place_title),
+            onClose = dismiss,
+            footer = {
+                PrimaryButton(
+                    stringResource(R.string.action_add),
+                    onClick = submit,
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = d.complete,
+                    loading = state.running == SettingsTask.ADD_PLACE,
+                )
+            },
+        ) {
+            DialogBody {
+                InputField(
+                    stringResource(R.string.settings_place_query),
+                    d.query,
+                    { onAction(SettingsAction.EditDialog(DialogField.QUERY, it)) },
+                    placeholder = stringResource(R.string.settings_place_query_hint),
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(Space.s3)) {
+                    SecondaryButton(
+                        stringResource(R.string.settings_place_search),
+                        onClick = { onAction(SettingsAction.SearchPlace) },
+                        modifier = Modifier.weight(1f),
+                        enabled = d.query.trim().length >= 2 && state.running == null,
+                    )
+                    SecondaryButton(
+                        stringResource(R.string.settings_place_here),
+                        onClick = { onAction(SettingsAction.UseCurrentPlace) },
+                        modifier = Modifier.weight(1f),
+                        enabled = state.running == null,
+                    )
+                }
+                DialogError(state, SettingsTask.SEARCH_PLACE)
+                val separator = stringResource(R.string.meta_separator)
+                val here = stringResource(R.string.settings_place_here)
+                d.candidates?.let { list ->
+                    if (list.isEmpty()) ModalText(stringResource(R.string.settings_place_none))
+                    list.forEachIndexed { i, c ->
+                        ChoiceRow(
+                            listOfNotNull(c.name, c.address).distinct().joinToString(separator).ifEmpty { here },
+                            selected = d.picked == i,
+                            onClick = { onAction(SettingsAction.PickCandidate(i)) },
+                        )
+                    }
+                }
+                if (d.picked != null) {
+                    InputField(
+                        stringResource(R.string.settings_place_name),
+                        d.label,
+                        { onAction(SettingsAction.EditDialog(DialogField.NAME, it)) },
+                        placeholder = stringResource(R.string.settings_place_name_hint),
+                    )
+                }
+                DialogError(state, SettingsTask.ADD_PLACE)
+            }
+        }
+        is SettingsDialog.RemovePurposeRule -> ModalCard(
+            title = stringResource(R.string.settings_remove_purpose_rule_title),
+            onClose = dismiss,
+            footer = {
+                DangerButton(
+                    stringResource(R.string.action_remove),
+                    onClick = submit,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            },
+        ) {
+            DialogBody {
+                ModalText(
+                    stringResource(
+                        R.string.settings_remove_purpose_rule_body,
+                        ruleRouteText(d.rule),
+                        d.rule.purposeLabel,
+                    ),
+                )
+                DialogError(state, SettingsTask.REMOVE_PURPOSE_RULE)
+            }
+        }
     }
 }
+
+/** 고르기 묶음 위 작은 제목(출발·도착·목적·구분). */
+@Composable
+private fun ChoiceLabel(text: String) {
+    Text(text, style = AutoLogTheme.type.section, color = AutoLogTheme.colors.textSecondary)
+}
+
+/** 목적 추가에서 고르는 구분 — 미확정은 고르지 않는다. */
+private val PURPOSE_CATEGORIES = listOf(PurposeCategory.BUSINESS, PurposeCategory.COMMUTE, PurposeCategory.NON_BUSINESS)
 
 /** 팝업 내용 묶음 — 칸·글자 사이 16 dp(`ModalCard` 내용 영역은 간격을 주지 않는다). */
 @Composable

@@ -5,6 +5,7 @@ export const PLACE_KINDS: { value: PlaceKind; label: string }[] = [
   { value: 'BRANCH', label: '지점' },
   { value: 'OFFICE', label: '본사' },
   { value: 'GAS_STATION', label: '주유소' },
+  { value: 'OTHER', label: '기타' },
 ]
 
 /** 차 안 PurposeDetail과 같은 코드 (자택·확인 필요는 관리자가 고르지 않는다). */

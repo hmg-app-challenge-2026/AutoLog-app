@@ -15,7 +15,6 @@ import org.robolectric.annotation.GraphicsMode
 class SettingsScreenshotTest {
     private val base = SettingsUiState(
         link = LinkUi.Linked("12가3456", "https://autolog.acme.co.kr", TripWhen(TripDay.TODAY, 11, 12, "10:14")),
-        upload = UploadUi(enabled = true, pending = 2, lastUpload = TripWhen(TripDay.TODAY, 11, 12, "09:24")),
         mailAccount = "autolog@acme.co.kr",
         recipients = listOf(
             RecipientRowUi("accounting@example.com", "회계팀", fromServer = true),
@@ -31,11 +30,6 @@ class SettingsScreenshotTest {
     /** 넓은 창: 목록 + 첫 섹션(차량 연결) / 좁은·세로 창: 목록만. */
     @Test
     fun list() = captureAll("settings") { SettingsScreen(base, onAction = {}) }
-
-    @Test
-    fun server() = captureAll("settings_server") {
-        SettingsScreen(base.copy(section = SettingsSection.SERVER), onAction = {})
-    }
 
     @Test
     fun mail() = captureAll("settings_mail") {

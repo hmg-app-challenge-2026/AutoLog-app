@@ -11,6 +11,7 @@ import kr.autolog.shared.AutoLogJson
 import kr.autolog.shared.DeviceRegisterRequest
 import kr.autolog.shared.DeviceRegisterResponse
 import kr.autolog.shared.InboxItem
+import kr.autolog.shared.PlaceSearchResponse
 import kr.autolog.shared.QrTokenResponse
 import kr.autolog.shared.ReverseGeocodeResponse
 import okhttp3.MediaType.Companion.toMediaType
@@ -68,6 +69,16 @@ class RelayHttp(
     ): RelayResult<ReverseGeocodeResponse> = call(
         Request.Builder().url("$baseUrl/v1/geo/reverse?lat=$lat&lng=$lng").get().bearer(token),
         ReverseGeocodeResponse.serializer(),
+        quickClient,
+    )
+
+    /** 목적 규칙에 쓸 새 장소 찾기 (F-08, 앱 B 설정이 쓴다). */
+    suspend fun searchPlaces(baseUrl: String, token: String, query: String): RelayResult<PlaceSearchResponse> = call(
+        Request.Builder()
+            .url("$baseUrl/v1/geo/search?q=${java.net.URLEncoder.encode(query, Charsets.UTF_8)}")
+            .get()
+            .bearer(token),
+        PlaceSearchResponse.serializer(),
         quickClient,
     )
 

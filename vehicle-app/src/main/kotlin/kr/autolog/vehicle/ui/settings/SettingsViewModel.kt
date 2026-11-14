@@ -10,6 +10,8 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kr.autolog.vehicle.common.AppClock
+import kr.autolog.vehicle.core.PlaceAddResult
+import kr.autolog.vehicle.core.PlaceSearchResult
 import kr.autolog.vehicle.data.repository.ConnectCode
 import kr.autolog.vehicle.data.repository.Outcome
 import kr.autolog.vehicle.data.repository.OverlayPermissionRepository
@@ -37,12 +39,17 @@ class SettingsViewModel(
     private val sources =
         combine(
             settings.link,
-            settings.upload,
             settings.recipients(),
             settings.users(),
-            combine(settings.autoMonthlySend, settings.mailAccount, ::Pair),
-        ) { link, upload, recipients, users, (autoSend, mailAccount) ->
-            SettingsSources(link, upload, recipients, users, autoSend, mailAccount)
+            combine(
+                settings.autoMonthlySend,
+                settings.mailAccount,
+                settings.purposes(),
+                settings.purposeRules(),
+                ::Extra,
+            ),
+        ) { link, recipients, users, e ->
+            SettingsSources(link, recipients, users, e.autoSend, e.mailAccount, e.purposes, e.rules)
         }
 
     val uiState: StateFlow<SettingsUiState> =
@@ -60,13 +67,51 @@ class SettingsViewModel(
             SettingsAction.Back -> navigator.pop()
             SettingsAction.StartRegister ->
                 openDialog(SettingsDialog.Register(), SettingsTask.REGISTER)
-            SettingsAction.UploadNow -> run(SettingsTask.UPLOAD) { settings.uploadNow().toResult() }
             SettingsAction.StartAddRecipient -> openDialog(SettingsDialog.AddRecipient(), SettingsTask.ADD_RECIPIENT)
             is SettingsAction.AskRemoveRecipient -> {
                 val name = uiState.value.recipients.firstOrNull { it.email == action.email }?.name
                 openDialog(SettingsDialog.RemoveRecipient(action.email, name), SettingsTask.REMOVE_RECIPIENT)
             }
             SettingsAction.StartAddStaff -> openDialog(SettingsDialog.AddStaff(), SettingsTask.ADD_STAFF)
+            SettingsAction.StartAddPurpose -> openDialog(SettingsDialog.AddPurpose(), SettingsTask.ADD_PURPOSE)
+            is SettingsAction.SetPurposeCategory -> editDialog<SettingsDialog.AddPurpose> {
+                it.copy(category = action.category)
+            }
+            is SettingsAction.AskRemovePurpose -> {
+                val p = uiState.value.purposes.firstOrNull { it.name == action.name } ?: return
+                openDialog(SettingsDialog.RemovePurpose(p.name, p.label), SettingsTask.REMOVE_PURPOSE)
+            }
+            SettingsAction.StartAddPurposeRule -> viewModelScope.launch {
+                val places = settings.places().map { PlaceChoice(it.placeId, it.label) }
+                val purposes = uiState.value.purposes.map { PurposeChoice(it.name, it.label, it.category) }
+                openDialog(SettingsDialog.AddPurposeRule(places, purposes), SettingsTask.ADD_PURPOSE_RULE)
+            }
+            is SettingsAction.PickRuleOrigin -> editDialog<SettingsDialog.AddPurposeRule> {
+                it.copy(originPlaceId = action.placeId)
+            }
+            is SettingsAction.PickRuleDest -> editDialog<SettingsDialog.AddPurposeRule> {
+                it.copy(destPlaceId = action.placeId)
+            }
+            is SettingsAction.PickRulePurpose -> editDialog<SettingsDialog.AddPurposeRule> {
+                it.copy(purposeName = action.name)
+            }
+            is SettingsAction.StartAddPlace -> editDialog<SettingsDialog.AddPurposeRule> {
+                SettingsDialog.AddPlace(back = it, target = action.target)
+            }.also {
+                local.update { l -> l.copy(results = l.results - SettingsTask.SEARCH_PLACE - SettingsTask.ADD_PLACE) }
+            }
+            SettingsAction.SearchPlace -> (local.value.dialog as? SettingsDialog.AddPlace)?.let { d ->
+                findPlaces { settings.searchPlaces(d.query) }
+            }
+            SettingsAction.UseCurrentPlace -> findPlaces { settings.currentPlace() }
+            is SettingsAction.PickCandidate -> editDialog<SettingsDialog.AddPlace> { d ->
+                val c = d.candidates?.getOrNull(action.index) ?: return@editDialog d
+                d.copy(picked = action.index, label = c.name ?: d.label)
+            }
+            is SettingsAction.AskRemovePurposeRule -> {
+                val r = uiState.value.purposeRules.firstOrNull { it.ruleId == action.ruleId } ?: return
+                openDialog(SettingsDialog.RemovePurposeRule(r), SettingsTask.REMOVE_PURPOSE_RULE)
+            }
             is SettingsAction.SetAutoMonthlySend -> viewModelScope.launch {
                 settings.setAutoMonthlySend(action.enabled)
             }
@@ -75,7 +120,16 @@ class SettingsViewModel(
                 it.copy(dialog = it.dialog?.edit(action.field, action.value))
             }
             SettingsAction.SubmitDialog -> submitDialog()
-            SettingsAction.DismissDialog -> local.update { if (it.running == null) it.copy(dialog = null) else it }
+            // 새 장소 팝업의 X는 규칙 팝업으로 돌아간다
+            SettingsAction.DismissDialog -> local.update {
+                when {
+                    it.running != null -> it
+                    it.dialog is SettingsDialog.AddPlace -> it.copy(
+                        dialog = (it.dialog as SettingsDialog.AddPlace).back,
+                    )
+                    else -> it.copy(dialog = null)
+                }
+            }
             // 허용됐으면 "권한 화면 없음" 안내도 지운다
             SettingsAction.RefreshOverlay -> local.update { l ->
                 l.copy(overlay = l.overlay?.let { OverlayUi(allowed = overlay.isAllowed(), it.settingsUnavailable) })
@@ -86,6 +140,9 @@ class SettingsViewModel(
             }
         }
     }
+
+    private inline fun <reified D : SettingsDialog> editDialog(crossinline f: (D) -> SettingsDialog) =
+        local.update { l -> (l.dialog as? D)?.let { l.copy(dialog = f(it)) } ?: l }
 
     private fun openDialog(dialog: SettingsDialog, task: SettingsTask) =
         local.update { it.copy(dialog = dialog, results = it.results - task) }
@@ -106,7 +163,83 @@ class SettingsViewModel(
             }
             is SettingsDialog.RemoveRecipient ->
                 run(SettingsTask.REMOVE_RECIPIENT) { settings.removeRecipient(d.email).toResult() }
+            is SettingsDialog.AddPurpose -> {
+                if (d.label.isBlank()) return
+                run(SettingsTask.ADD_PURPOSE) { settings.addPurpose(d.label, d.category).toResult() }
+            }
+            is SettingsDialog.RemovePurpose ->
+                run(SettingsTask.REMOVE_PURPOSE) { settings.removePurpose(d.name).toResult() }
+            is SettingsDialog.AddPurposeRule -> {
+                val dest = d.destPlaceId ?: return
+                val purpose = d.purposeName ?: return
+                if (!d.complete) return
+                run(SettingsTask.ADD_PURPOSE_RULE) {
+                    settings.addPurposeRule(d.originPlaceId, dest, purpose).toResult()
+                }
+            }
+            is SettingsDialog.AddPlace -> addPlace(d)
+            is SettingsDialog.RemovePurposeRule ->
+                run(SettingsTask.REMOVE_PURPOSE_RULE) { settings.removePurposeRule(d.rule.ruleId).toResult() }
             null -> Unit
+        }
+    }
+
+    /** 새 장소 후보 찾기(검색·지금 위치). 팝업은 닫지 않고 후보만 바꾼다. */
+    private fun findPlaces(block: suspend () -> PlaceSearchResult) = work(SettingsTask.SEARCH_PLACE) {
+        when (val r = block()) {
+            is PlaceSearchResult.Found -> {
+                val list = r.candidates.map { PlaceCandidateUi(it.name, it.address, it.lat, it.lng) }
+                // 후보가 하나뿐(지금 위치)이면 바로 고른다
+                editDialog<SettingsDialog.AddPlace> {
+                    it.copy(
+                        candidates = list,
+                        picked = if (list.size ==
+                            1
+                        ) {
+                            0
+                        } else {
+                            null
+                        },
+                        label = list.singleOrNull()?.name ?: it.label,
+                    )
+                }
+                TaskResult.Done
+            }
+            is PlaceSearchResult.Failed -> TaskResult.Failed(r.reason)
+        }
+    }
+
+    /** 새 장소 저장 → 규칙 팝업으로 돌아가 그 장소를 고른다. */
+    private fun addPlace(d: SettingsDialog.AddPlace) {
+        val c = d.picked?.let { d.candidates?.getOrNull(it) } ?: return
+        if (d.label.isBlank()) return
+        work(SettingsTask.ADD_PLACE) {
+            when (val r = settings.addPlace(d.label, c.lat, c.lng)) {
+                is PlaceAddResult.Added -> {
+                    val places = settings.places().map { PlaceChoice(it.placeId, it.label) }
+                    val back = d.back.copy(places = places)
+                    local.update {
+                        it.copy(
+                            dialog = when (d.target) {
+                                RuleTarget.ORIGIN -> back.copy(originPlaceId = r.placeId)
+                                RuleTarget.DEST -> back.copy(destPlaceId = r.placeId)
+                            },
+                        )
+                    }
+                    TaskResult.Done
+                }
+                is PlaceAddResult.Invalid -> TaskResult.Failed(r.reason)
+            }
+        }
+    }
+
+    /** 팝업을 닫지 않는 작업(검색처럼 팝업 안에서 이어 가는 것). */
+    private fun work(task: SettingsTask, block: suspend () -> TaskResult) {
+        if (local.value.running != null) return
+        local.update { it.copy(running = task, results = it.results - task) }
+        viewModelScope.launch {
+            val result = block()
+            local.update { it.copy(running = null, results = it.results + (task to result)) }
         }
     }
 
@@ -149,5 +282,26 @@ private fun SettingsDialog.edit(field: DialogField, value: String): SettingsDial
         DialogField.EMAIL -> copy(email = value)
         else -> this
     }
-    is SettingsDialog.RemoveRecipient -> this
+    is SettingsDialog.AddPlace -> when (field) {
+        DialogField.QUERY -> copy(query = value)
+        DialogField.NAME -> copy(label = value)
+        else -> this
+    }
+    is SettingsDialog.AddPurpose -> when (field) {
+        DialogField.NAME -> copy(label = value)
+        else -> this
+    }
+    is SettingsDialog.RemoveRecipient,
+    is SettingsDialog.RemovePurpose,
+    is SettingsDialog.AddPurposeRule,
+    is SettingsDialog.RemovePurposeRule,
+    -> this
 }
+
+/** 설정 원천 중 combine 칸(5개)을 넘는 것들. */
+private data class Extra(
+    val autoSend: Boolean,
+    val mailAccount: String?,
+    val purposes: List<kr.autolog.vehicle.core.PurposeInfo>,
+    val rules: List<kr.autolog.vehicle.core.PurposeRuleInfo>,
+)

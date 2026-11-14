@@ -76,7 +76,7 @@ function safeParse(text: string): unknown {
 
 // ---- 타입 (relay 응답과 같은 모양) ----
 
-export type PlaceKind = 'OFFICE' | 'BRANCH' | 'CLIENT' | 'GAS_STATION'
+export type PlaceKind = 'OFFICE' | 'BRANCH' | 'CLIENT' | 'GAS_STATION' | 'HOME' | 'OTHER'
 
 export interface Place {
   placeId: string
@@ -177,6 +177,28 @@ export type Recipient = {
   name: string | null
 }
 
+export type PurposeCategory = 'BUSINESS' | 'COMMUTE' | 'NON_BUSINESS'
+
+/** 목적. [name]은 규칙에 쓰는 값(기본 목적 이름 또는 custom:구분:이름). 기본 목적은 id 없음·지울 수 없음. */
+export type Purpose = {
+  id: number | null
+  name: string
+  label: string
+  category: PurposeCategory
+  builtIn: boolean
+}
+
+/** 출발 장소 → 도착 장소 = 목적. originPlaceId null = 출발지 어디서든. */
+export type PurposeRule = {
+  ruleId: string
+  originPlaceId: string | null
+  destPlaceId: string
+  purpose: string
+}
+
+/** 장소 검색 후보(카카오). */
+export type PlaceCandidate = { name: string; address: string | null; lat: number; lng: number }
+
 export const api = {
   login: (email: string, password: string) => request<LoginResult>('POST', '/auth/login', { email, password }),
   signup: (orgName: string, email: string, password: string) =>
@@ -188,6 +210,8 @@ export const api = {
 
   places: () => request<Place[]>('GET', '/places'),
   createPlace: (p: PlaceInput) => request<Place>('POST', '/places', p),
+  searchPlaces: (q: string) =>
+    request<{ results: PlaceCandidate[] }>('GET', `/places/search?q=${encodeURIComponent(q)}`),
   deletePlace: (id: string) => request<void>('DELETE', `/places/${id}`),
   importPlaces: (csv: File) => request<{ imported: number }>('POST', '/places/import', csv, 'text/csv'),
 
@@ -195,6 +219,13 @@ export const api = {
   mailAccount: () => request<MailAccount | undefined>('GET', '/mail-account'),
   saveMailAccount: (a: MailAccountInput) => request<MailAccount>('PUT', '/mail-account', a),
   deleteMailAccount: () => request<void>('DELETE', '/mail-account'),
+  purposes: () => request<Purpose[]>('GET', '/purposes'),
+  addPurpose: (label: string, category: PurposeCategory) => request<Purpose>('POST', '/purposes', { label, category }),
+  deletePurpose: (id: number) => request<void>('DELETE', `/purposes/${id}`),
+  purposeRules: () => request<PurposeRule[]>('GET', '/purpose-rules'),
+  addPurposeRule: (r: { originPlaceId: string | null; destPlaceId: string; purpose: string }) =>
+    request<PurposeRule>('POST', '/purpose-rules', r),
+  deletePurposeRule: (id: string) => request<void>('DELETE', `/purpose-rules/${id}`),
   recipients: () => request<Recipient[]>('GET', '/recipients'),
   addRecipient: (email: string, name?: string) => request<void>('POST', '/recipients', { email, name }),
   deleteRecipient: (id: number) => request<void>('DELETE', `/recipients/${id}`),

@@ -311,6 +311,36 @@ interface SettingsApi {
     /** 프론트: 수신자 삭제. 서버 배포분(회사 지정)도 이 차에서만 빼고 기억한다 — 다시 추가하면 돌아온다. */
     suspend fun removeRecipient(email: String): SettingsResult
 
+    /** 프론트: 목적 목록. 기본 목적 → 회사 지정 → 이 차에서 추가 순. 이 차에서 뺀 회사 지정은 빠진다. */
+    fun purposes(): Flow<List<PurposeInfo>>
+
+    /** 프론트: 목적 추가(이 차). 이름이 비었거나 같은 이름이 이미 있으면 Invalid. */
+    suspend fun addPurpose(label: String, category: PurposeCategory): SettingsResult
+
+    /** 프론트: 목적 빼기. 회사 지정은 이 차에서만 뺀다. 기본 목적은 Invalid. 그 목적을 쓰는 이 차의 규칙도 함께 뺀다. */
+    suspend fun removePurpose(name: String): SettingsResult
+
+    /** 프론트: 출발→도착 목적 규칙(회사 지정 먼저). */
+    fun purposeRules(): Flow<List<PurposeRuleInfo>>
+
+    /** 프론트: 규칙 추가 화면의 장소 고르기. 등록 장소 전부(회사·이 차). */
+    suspend fun places(): List<PlaceInfo>
+
+    /** 프론트: 새 장소 찾기(장소 이름·주소). 서버(카카오)에 묻는다. 예외를 던지지 않는다. */
+    suspend fun searchPlaces(query: String): PlaceSearchResult
+
+    /** 프론트: 지금 차 위치(주소 붙임) — Found(1개). 위치를 모르면 Failed. */
+    suspend fun currentPlace(): PlaceSearchResult
+
+    /** 프론트: 새 장소를 이 차에 저장(종류 = 기타). 같은 자리(반경 안)에 이미 장소가 있으면 그 장소를 돌려준다. */
+    suspend fun addPlace(label: String, lat: Double, lng: Double): PlaceAddResult
+
+    /** 프론트: 규칙 추가(이 차). [originPlaceId] null = 어디서든. 같은 출발·도착 규칙이 있으면 Invalid. */
+    suspend fun addPurposeRule(originPlaceId: String?, destPlaceId: String, purposeName: String): SettingsResult
+
+    /** 프론트: 규칙 빼기. 회사 지정은 이 차에서만 뺀다. */
+    suspend fun removePurposeRule(ruleId: String): SettingsResult
+
     /** 프론트: 직원 목록. 이름순. */
     fun users(): Flow<List<UserInfo>>
 

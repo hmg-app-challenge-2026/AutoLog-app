@@ -24,6 +24,7 @@ import kr.autolog.vehicle.data.RoomDomainStore
 import kr.autolog.vehicle.data.RoomLocalStore
 import kr.autolog.vehicle.data.RoomReportSource
 import kr.autolog.vehicle.domain.DefaultPurposeEngine
+import kr.autolog.vehicle.domain.PurposeBook
 import kr.autolog.vehicle.domain.ReceiptService
 import kr.autolog.vehicle.domain.SettingsService
 import kr.autolog.vehicle.location.LocationGateway
@@ -31,6 +32,7 @@ import kr.autolog.vehicle.mail.EncryptedSmtpCredentialStore
 import kr.autolog.vehicle.mail.MailService
 import kr.autolog.vehicle.mail.PrefsAutoSendPreference
 import kr.autolog.vehicle.mail.PrefsHiddenRecipients
+import kr.autolog.vehicle.mail.PrefsPurposeBookStore
 import kr.autolog.vehicle.navi.NaviGateway
 import kr.autolog.vehicle.report.MonthlyReportWorker
 import kr.autolog.vehicle.report.MonthlySender
@@ -115,9 +117,17 @@ object AutoLog {
 
         // 앱 B 로직
         val ctx = GatewayContext(navi, location, scope)
-        val purpose = DefaultPurposeEngine(store, log = log)
+        val purposeBook = PurposeBook(PrefsPurposeBookStore(app))
+        inbox.onPurposes = { purposeBook.applyServer(it) }
+        val purpose = DefaultPurposeEngine(store, log = log, routeRules = { purposeBook.rules() })
 
         // 앱 A 세션·조회·운행기록부
+        // 출발·도착 주소: 중계 서버(카카오) → 실패하면 내비 현재 위치 주소 (F-06, F-07)
+        val geocode = RelayGeocode(
+            relay = { lat, lng -> device.call { url, token -> reverseGeocode(url, token, lat, lng) } },
+            context = ctx,
+            log = { Log.i("AutoLog/data", it) },
+        )
         val session = TripSessionManager(
             vehicle = vehicle,
             dao = db.tripDao(),
@@ -126,12 +136,7 @@ object AutoLog {
             scope = scope,
             vehicleId = { device.vehicleId ?: TripSessionManager.UNREGISTERED_VEHICLE },
             log = { Log.i("AutoLog/session", it) },
-            // 출발·도착 주소: 중계 서버(카카오) → 실패하면 내비 현재 위치 주소 (F-06, F-07)
-            geocode = RelayGeocode(
-                relay = { lat, lng -> device.call { url, token -> reverseGeocode(url, token, lat, lng) } },
-                context = ctx,
-                log = { Log.i("AutoLog/data", it) },
-            ),
+            geocode = geocode,
         )
         inbox.onSynced = { session.fillMissingAddresses() }
         val report = ReportBuilder(
@@ -142,7 +147,31 @@ object AutoLog {
         )
 
         val settings =
-            SettingsService(store, inbox, PrefsAutoSendPreference(app), PrefsHiddenRecipients(app), log = log)
+            SettingsService(
+                store,
+                inbox,
+                PrefsAutoSendPreference(app),
+                PrefsHiddenRecipients(app),
+                purposeBook,
+                log = log,
+                search = { q ->
+                    when (val r = device.call { url, token -> searchPlaces(url, token, q) }) {
+                        is RelayResult.Ok ->
+                            PlaceSearchResult.Found(
+                                r.value.results.map {
+                                    PlaceCandidate(it.name, it.address, it.lat, it.lng)
+                                },
+                            )
+                        is RelayResult.Failure -> PlaceSearchResult.Failed(r.message)
+                    }
+                },
+                here = {
+                    ctx.freshFix()?.let { fix ->
+                        val address = geocode.reverse(fix.lat, fix.lng, isCurrentPosition = true)?.address
+                        PlaceCandidate(null, address, fix.lat, fix.lng)
+                    }
+                },
+            )
         val mail = MailService(EncryptedSmtpCredentialStore(app))
         inbox.onMailAccount = { mail.applyServerAccount(it) }
         val components = AutoLogComponents(
