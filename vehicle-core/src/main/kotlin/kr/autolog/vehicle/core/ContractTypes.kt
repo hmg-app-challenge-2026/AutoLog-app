@@ -186,28 +186,123 @@ enum class PurposeCategory(val labelKo: String) {
     UNDETERMINED("미확정"),
 }
 
-/** 세부 목적. 저장할 때는 name 문자열로 쓴다(TripEntity.purposeDetail). */
-enum class PurposeDetail(val category: PurposeCategory, val labelKo: String) {
-    CLIENT_VISIT(PurposeCategory.BUSINESS, "거래처 방문"),
-    FIELD_WORK(PurposeCategory.BUSINESS, "외근"),
-    BUSINESS_TRIP(PurposeCategory.BUSINESS, "출장"),
-    MEETING(PurposeCategory.BUSINESS, "회의"),
-    BRANCH_MOVE(PurposeCategory.BUSINESS, "지점 이동"),
-    COMMUTE_IN(PurposeCategory.COMMUTE, "출근"),
-    COMMUTE_OUT(PurposeCategory.COMMUTE, "퇴근"),
-    PERSONAL(PurposeCategory.NON_BUSINESS, "개인 이동"),
-    NEEDS_CHECK(PurposeCategory.UNDETERMINED, "확인 필요"),
-    ;
+/**
+ * 세부 목적. 저장할 때는 [name] 문자열로 쓴다(TripEntity.purposeDetail).
+ *
+ * 기본 목적은 아래 상수들이고, 회사(관리자 웹)나 차(설정)에서 **추가한 목적**은 [custom]으로 만든다.
+ * 추가 목적의 [name]은 `custom:<구분>:<이름>`이라 저장된 문자열만으로 구분·이름을 되살린다
+ * — 운행 기록·엑셀이 목적 목록을 몰라도 된다. 나중에 목록에서 지워도 지난 기록의 이름은 그대로 남는다.
+ */
+class PurposeDetail private constructor(val name: String, val category: PurposeCategory, val labelKo: String) {
+    /** 회사·차에서 추가한 목적이면 true. */
+    val isCustom: Boolean get() = name.startsWith(CUSTOM_PREFIX)
+
+    override fun equals(other: Any?): Boolean = other is PurposeDetail && other.name == name
+
+    override fun hashCode(): Int = name.hashCode()
+
+    override fun toString(): String = name
 
     companion object {
-        /** 서버·Room 문자열을 안전하게 읽는다. 모르는 값이면 null. */
-        fun fromName(name: String?): PurposeDetail? = entries.firstOrNull { it.name == name }
+        val CLIENT_VISIT = PurposeDetail("CLIENT_VISIT", PurposeCategory.BUSINESS, "거래처 방문")
+        val FIELD_WORK = PurposeDetail("FIELD_WORK", PurposeCategory.BUSINESS, "외근")
+        val BUSINESS_TRIP = PurposeDetail("BUSINESS_TRIP", PurposeCategory.BUSINESS, "출장")
+        val MEETING = PurposeDetail("MEETING", PurposeCategory.BUSINESS, "회의")
+        val BRANCH_MOVE = PurposeDetail("BRANCH_MOVE", PurposeCategory.BUSINESS, "지점 이동")
+        val COMMUTE_IN = PurposeDetail("COMMUTE_IN", PurposeCategory.COMMUTE, "출근")
+        val COMMUTE_OUT = PurposeDetail("COMMUTE_OUT", PurposeCategory.COMMUTE, "퇴근")
+        val PERSONAL = PurposeDetail("PERSONAL", PurposeCategory.NON_BUSINESS, "개인 이동")
+        val NEEDS_CHECK = PurposeDetail("NEEDS_CHECK", PurposeCategory.UNDETERMINED, "확인 필요")
+
+        /** 기본 목적(추가 목적 제외). */
+        val entries: List<PurposeDetail> = listOf(
+            CLIENT_VISIT,
+            FIELD_WORK,
+            BUSINESS_TRIP,
+            MEETING,
+            BRANCH_MOVE,
+            COMMUTE_IN,
+            COMMUTE_OUT,
+            PERSONAL,
+            NEEDS_CHECK,
+        )
+
+        private const val CUSTOM_PREFIX = "custom:"
+        const val MAX_LABEL = 30
+
+        /** 추가 목적. 이름 앞뒤 공백은 지운다. 미확정 구분은 받지 않는다. */
+        fun custom(label: String, category: PurposeCategory): PurposeDetail {
+            val l = label.trim()
+            require(l.isNotEmpty() && l.length <= MAX_LABEL) { "목적 이름은 1~${MAX_LABEL}자" }
+            require(category != PurposeCategory.UNDETERMINED) { "미확정 구분에는 목적을 추가하지 않는다" }
+            return PurposeDetail("$CUSTOM_PREFIX${category.name}:$l", category, l)
+        }
+
+        /** 서버·Room 문자열을 안전하게 읽는다. 기본 목적 이름이거나 `custom:구분:이름`이면 값, 모르면 null. */
+        fun fromName(name: String?): PurposeDetail? {
+            if (name == null) return null
+            entries.firstOrNull { it.name == name }?.let { return it }
+            if (!name.startsWith(CUSTOM_PREFIX)) return null
+            val rest = name.removePrefix(CUSTOM_PREFIX)
+            val sep = rest.indexOf(':').takeIf { it > 0 } ?: return null
+            val category = PurposeCategory.entries.firstOrNull { it.name == rest.substring(0, sep) } ?: return null
+            return runCatching { custom(rest.substring(sep + 1), category) }.getOrNull()
+        }
     }
 }
+
+/** 새 장소 후보(검색 결과·지금 위치). [name]은 장소 이름(지금 위치면 null — 사람이 붙인다). */
+data class PlaceCandidate(val name: String?, val address: String?, val lat: Double, val lng: Double)
+
+sealed interface PlaceSearchResult {
+    data class Found(val candidates: List<PlaceCandidate>) : PlaceSearchResult
+
+    /** [reason]은 사람이 읽을 문장(서버 연결 안 됨·검색 꺼짐 등). */
+    data class Failed(val reason: String) : PlaceSearchResult
+}
+
+sealed interface PlaceAddResult {
+    /** 저장했다. 같은 자리에 이미 장소가 있으면 그 장소([existing] = true). */
+    data class Added(val placeId: String, val existing: Boolean = false) : PlaceAddResult
+
+    data class Invalid(val reason: String) : PlaceAddResult
+}
+
+/** 목적 목록의 한 줄(설정 화면). 기본 목적은 [origin] = null. */
+data class PurposeInfo(val detail: PurposeDetail, val origin: Origin?)
+
+/**
+ * 출발 장소 → 도착 장소 = 목적 규칙 (F-08). [originPlaceId]가 null이면 출발지는 어디서든.
+ * 회사가 정한 것은 [origin] = SERVER(관리자 웹), 차에서 만든 것은 LOCAL.
+ */
+data class PurposeRouteRule(
+    val ruleId: String,
+    val originPlaceId: String?,
+    val destPlaceId: String,
+    val purpose: PurposeDetail,
+    val origin: Origin = Origin.LOCAL,
+)
+
+/** 설정 화면에 보일 규칙 — 장소 이름을 붙였다. 장소가 지워졌으면 이름 대신 null(화면은 "지운 장소"). */
+data class PurposeRuleInfo(
+    val ruleId: String,
+    /** null = 어디서든. */
+    val originLabel: String?,
+    val originMissing: Boolean,
+    val destLabel: String?,
+    val purpose: PurposeDetail,
+    val origin: Origin,
+)
 
 /** 어느 규칙이 추천했는지. 출처를 남기기 위한 값(CONVENTIONS 7.1). */
 enum class PurposeRuleId {
     SCHEDULE,
+
+    /** 출발 장소·도착 장소가 둘 다 맞는 목적 규칙. */
+    ROUTE,
+
+    /** 출발지 "어디서든" + 도착 장소가 맞는 목적 규칙. */
+    ROUTE_ANY_ORIGIN,
     COMMUTE_IN,
     COMMUTE_OUT,
     CLIENT,

@@ -10,6 +10,12 @@ import kr.autolog.vehicle.BuildConfig
 import kr.autolog.vehicle.core.ConnectionState
 import kr.autolog.vehicle.core.DeviceApi
 import kr.autolog.vehicle.core.MailApi
+import kr.autolog.vehicle.core.PlaceAddResult
+import kr.autolog.vehicle.core.PlaceInfo
+import kr.autolog.vehicle.core.PlaceSearchResult
+import kr.autolog.vehicle.core.PurposeCategory
+import kr.autolog.vehicle.core.PurposeInfo
+import kr.autolog.vehicle.core.PurposeRuleInfo
 import kr.autolog.vehicle.core.RecipientInfo
 import kr.autolog.vehicle.core.RegisterResult
 import kr.autolog.vehicle.core.SettingsApi
@@ -38,6 +44,28 @@ interface SettingsRepository {
     suspend fun removeRecipient(email: String): Outcome
 
     fun users(): Flow<List<UserInfo>>
+
+    /** 목적 목록·출발→도착 목적 규칙(F-08). 회사 지정은 관리자 웹에서, 이 차 것은 여기서 더한다. */
+    fun purposes(): Flow<List<PurposeInfo>>
+
+    suspend fun addPurpose(label: String, category: PurposeCategory): Outcome
+
+    suspend fun removePurpose(name: String): Outcome
+
+    fun purposeRules(): Flow<List<PurposeRuleInfo>>
+
+    suspend fun places(): List<PlaceInfo>
+
+    suspend fun addPurposeRule(originPlaceId: String?, destPlaceId: String, purposeName: String): Outcome
+
+    /** 새 장소 찾기·지금 위치·저장(규칙 팝업의 [+ 새 장소]). */
+    suspend fun searchPlaces(query: String): PlaceSearchResult
+
+    suspend fun currentPlace(): PlaceSearchResult
+
+    suspend fun addPlace(label: String, lat: Double, lng: Double): PlaceAddResult
+
+    suspend fun removePurposeRule(ruleId: String): Outcome
 
     suspend fun addUser(name: String, dept: String?, email: String?): Outcome
 
@@ -84,6 +112,29 @@ class DefaultSettingsRepository(
     override suspend fun removeRecipient(email: String): Outcome = settings.removeRecipient(email).toOutcome()
 
     override fun users(): Flow<List<UserInfo>> = settings.users()
+
+    override fun purposes(): Flow<List<PurposeInfo>> = settings.purposes()
+
+    override suspend fun addPurpose(label: String, category: PurposeCategory): Outcome =
+        settings.addPurpose(label.trim(), category).toOutcome()
+
+    override suspend fun removePurpose(name: String): Outcome = settings.removePurpose(name).toOutcome()
+
+    override fun purposeRules(): Flow<List<PurposeRuleInfo>> = settings.purposeRules()
+
+    override suspend fun places(): List<PlaceInfo> = settings.places()
+
+    override suspend fun addPurposeRule(originPlaceId: String?, destPlaceId: String, purposeName: String): Outcome =
+        settings.addPurposeRule(originPlaceId, destPlaceId, purposeName).toOutcome()
+
+    override suspend fun removePurposeRule(ruleId: String): Outcome = settings.removePurposeRule(ruleId).toOutcome()
+
+    override suspend fun searchPlaces(query: String): PlaceSearchResult = settings.searchPlaces(query)
+
+    override suspend fun currentPlace(): PlaceSearchResult = settings.currentPlace()
+
+    override suspend fun addPlace(label: String, lat: Double, lng: Double): PlaceAddResult =
+        settings.addPlace(label, lat, lng)
 
     override suspend fun addUser(name: String, dept: String?, email: String?): Outcome =
         settings.addUser(name.trim(), dept?.trim()?.ifEmpty { null }, email?.trim()?.ifEmpty { null }).toOutcome()

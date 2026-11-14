@@ -120,6 +120,22 @@ class SettingsServiceTest {
     fun `지금 동기화는 서버 결과를 그대로 돌려준다`() = runTest {
         assertEquals(SyncResult.Ok(3), settings.syncNow())
     }
+
+    @Test
+    fun `새 장소는 기타 종류의 이 차 장소로 저장하고 같은 자리에 장소가 있으면 그 장소를 돌려준다`() = runTest {
+        val first = settings.addPlace(" 물류센터 ", 37.39, 127.11)
+
+        assertTrue(first is kr.autolog.vehicle.core.PlaceAddResult.Added)
+        val saved = store.places().single()
+        assertEquals("물류센터", saved.label)
+        assertEquals(kr.autolog.shared.PlaceKind.OTHER, saved.kind)
+        assertEquals(Origin.LOCAL, saved.origin)
+
+        val again = settings.addPlace("다른 이름", 37.39, 127.11) as kr.autolog.vehicle.core.PlaceAddResult.Added
+        assertTrue(again.existing)
+        assertEquals(1, store.places().size)
+        assertTrue(settings.addPlace(" ", 37.0, 127.0) is kr.autolog.vehicle.core.PlaceAddResult.Invalid)
+    }
 }
 
 private class MemPref : AutoSendPreference {

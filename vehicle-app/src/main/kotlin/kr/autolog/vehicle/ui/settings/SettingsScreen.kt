@@ -13,9 +13,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Badge
-import androidx.compose.material.icons.rounded.CloudUpload
 import androidx.compose.material.icons.rounded.DirectionsCar
 import androidx.compose.material.icons.rounded.Event
+import androidx.compose.material.icons.rounded.Flag
 import androidx.compose.material.icons.rounded.Group
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Mail
@@ -139,9 +139,9 @@ private fun SectionList(
 @StringRes
 internal fun sectionTitle(section: SettingsSection): Int = when (section) {
     SettingsSection.VEHICLE -> R.string.settings_vehicle
-    SettingsSection.SERVER -> R.string.settings_server
     SettingsSection.MAIL -> R.string.settings_mail
     SettingsSection.RECIPIENTS -> R.string.settings_recipients
+    SettingsSection.PURPOSES -> R.string.settings_purposes
     SettingsSection.STAFF -> R.string.settings_staff
     SettingsSection.AUTOMATION -> R.string.settings_automation
     SettingsSection.SYNC -> R.string.settings_sync
@@ -150,9 +150,9 @@ internal fun sectionTitle(section: SettingsSection): Int = when (section) {
 
 private fun sectionIcon(section: SettingsSection): ImageVector = when (section) {
     SettingsSection.VEHICLE -> Icons.Rounded.DirectionsCar
-    SettingsSection.SERVER -> Icons.Rounded.CloudUpload
     SettingsSection.MAIL -> Icons.Rounded.Mail
     SettingsSection.RECIPIENTS -> Icons.Rounded.Group
+    SettingsSection.PURPOSES -> Icons.Rounded.Flag
     SettingsSection.STAFF -> Icons.Rounded.Badge
     SettingsSection.AUTOMATION -> Icons.Rounded.Event
     SettingsSection.SYNC -> Icons.Rounded.Sync
@@ -167,17 +167,16 @@ private fun sectionSummary(section: SettingsSection, state: SettingsUiState): St
         is LinkUi.Linked -> stringResource(R.string.settings_linked_vehicle, l.vehicle)
         is LinkUi.Unreachable -> stringResource(R.string.settings_unreachable_vehicle, l.vehicle)
     }
-    SettingsSection.SERVER ->
-        if (state.link == LinkUi.NotLinked) {
-            stringResource(R.string.settings_not_linked)
-        } else {
-            stringResource(R.string.settings_upload_pending, state.upload.pending)
-        }
     SettingsSection.MAIL ->
         stringResource(
             if (state.mailConnected) R.string.settings_mail_connected else R.string.settings_mail_not_connected,
         )
     SettingsSection.RECIPIENTS -> stringResource(R.string.settings_people_count, state.recipients.size)
+    SettingsSection.PURPOSES -> stringResource(
+        R.string.settings_purpose_summary,
+        state.purposes.size,
+        state.purposeRules.size,
+    )
     SettingsSection.STAFF -> stringResource(R.string.settings_people_count, state.staff.size)
     SettingsSection.AUTOMATION -> stringResource(
         if (state.autoMonthlySend) R.string.settings_on else R.string.settings_off,

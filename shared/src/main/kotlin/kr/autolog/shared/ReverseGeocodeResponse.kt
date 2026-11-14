@@ -14,3 +14,14 @@ data class ReverseGeocodeResponse(
     /** 건물 이름(카카오 `building_name`). 없으면 null. */
     @SerialName("place_name") val placeName: String? = null,
 )
+
+/**
+ * GET /v1/geo/search?q= (차) · GET /admin/places/search?q= (운영 웹) 응답. 장소 이름·주소로 찾은 후보.
+ * 목적 규칙에 쓸 장소를 새로 만들 때 고른다. 서버는 검색어를 저장하지 않는다.
+ */
+@Serializable
+data class PlaceSearchResponse(val results: List<PlaceCandidateDto> = emptyList())
+
+/** [name]은 장소 이름(주소 검색이면 주소), [address]는 도로명(없으면 지번) 주소. */
+@Serializable
+data class PlaceCandidateDto(val name: String, val address: String?, val lat: Double, val lng: Double)

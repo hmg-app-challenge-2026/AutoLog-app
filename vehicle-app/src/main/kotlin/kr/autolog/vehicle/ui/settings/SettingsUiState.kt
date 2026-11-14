@@ -1,9 +1,10 @@
 package kr.autolog.vehicle.ui.settings
 
+import kr.autolog.vehicle.core.PurposeCategory
 import kr.autolog.vehicle.ui.trips.TripWhen
 
 /** 설정 섹션(스펙 7.9) — 선언 순서 = 목록 순서. 이름·아이콘·요약 문구는 화면이 정한다. */
-enum class SettingsSection { VEHICLE, SERVER, MAIL, RECIPIENTS, STAFF, AUTOMATION, SYNC, ABOUT }
+enum class SettingsSection { VEHICLE, MAIL, RECIPIENTS, PURPOSES, STAFF, AUTOMATION, SYNC, ABOUT }
 
 /** 연결 코드 자릿수(앱 A `DeviceApi.register` 규칙). */
 
@@ -15,11 +16,14 @@ data class SettingsUiState(
     /** 열린 섹션. null = 목록만(좁은·세로 창). 넓은 창은 null이면 첫 섹션을 오른쪽에 연다. */
     val section: SettingsSection? = null,
     val link: LinkUi = LinkUi.NotLinked,
-    val upload: UploadUi = UploadUi(),
     /** 연결된 발신 메일 주소. 관리자 웹에서 정해 서버로 온다(차에서는 입력하지 않는다). null = 아직 없음. */
     val mailAccount: String? = null,
     val recipients: List<RecipientRowUi> = emptyList(),
     val staff: List<StaffRowUi> = emptyList(),
+    /** 목적 목록(기본 → 회사 지정 → 이 차). */
+    val purposes: List<PurposeRowUi> = emptyList(),
+    /** 출발→도착 목적 규칙(회사 지정 먼저). */
+    val purposeRules: List<PurposeRuleRowUi> = emptyList(),
     val autoMonthlySend: Boolean = false,
     /** 지금 진행 중인 작업(버튼 로딩). 한 번에 하나. */
     val running: SettingsTask? = null,
@@ -48,13 +52,6 @@ sealed interface LinkUi {
     data class Unreachable(val vehicle: String, val serverUrl: String) : LinkUi
 }
 
-data class UploadUi(
-    val enabled: Boolean = false,
-    val pending: Int = 0,
-    val lastUpload: TripWhen? = null,
-    val lastError: String? = null,
-)
-
 data class RecipientRowUi(val email: String, val name: String?, val fromServer: Boolean)
 
 data class StaffRowUi(
@@ -65,10 +62,53 @@ data class StaffRowUi(
     val fromServer: Boolean,
 )
 
+/** 목적 한 줄. [name]은 저장소 키(지울 때 씀). [builtIn]이면 지울 수 없다. */
+data class PurposeRowUi(
+    val name: String,
+    val label: String,
+    val category: PurposeCategory,
+    val builtIn: Boolean,
+    val fromServer: Boolean,
+)
+
+/** 출발→도착 목적 규칙 한 줄. [originLabel] null = 어디서든. 장소가 지워졌으면 [originMissing]·[destLabel] null. */
+data class PurposeRuleRowUi(
+    val ruleId: String,
+    val originLabel: String?,
+    val originMissing: Boolean,
+    val destLabel: String?,
+    val purposeLabel: String,
+    val fromServer: Boolean,
+)
+
+/** 새 장소 후보(검색 결과·지금 위치). [name] null = 지금 위치(사람이 이름을 붙인다). */
+data class PlaceCandidateUi(val name: String?, val address: String?, val lat: Double, val lng: Double)
+
+/** [+ 새 장소]를 누른 곳 — 만든 장소를 출발과 도착 중 어디에 넣을지. */
+enum class RuleTarget { ORIGIN, DEST }
+
+/** 규칙 추가 팝업에서 고르는 장소. */
+data class PlaceChoice(val placeId: String, val label: String)
+
+/** 규칙 추가 팝업에서 고르는 목적. */
+data class PurposeChoice(val name: String, val label: String, val category: PurposeCategory)
+
 data class AppInfo(val version: String, val demo: Boolean)
 
 /** 결과를 남기는 작업. */
-enum class SettingsTask { REGISTER, UPLOAD, ADD_RECIPIENT, REMOVE_RECIPIENT, ADD_STAFF, SYNC }
+enum class SettingsTask {
+    REGISTER,
+    ADD_RECIPIENT,
+    REMOVE_RECIPIENT,
+    ADD_PURPOSE,
+    REMOVE_PURPOSE,
+    ADD_PURPOSE_RULE,
+    REMOVE_PURPOSE_RULE,
+    SEARCH_PLACE,
+    ADD_PLACE,
+    ADD_STAFF,
+    SYNC,
+}
 
 sealed interface TaskResult {
     data object Done : TaskResult
@@ -88,10 +128,47 @@ sealed interface SettingsDialog {
 
     /** 직접 추가한 받는 사람 지우기 — 되돌릴 수 없어 한 번 묻는다. */
     data class RemoveRecipient(val email: String, val name: String?) : SettingsDialog
+
+    /** 목적 추가: 이름 + 운행기록부 구분(일반 업무용·출퇴근용·비업무용). */
+    data class AddPurpose(val label: String = "", val category: PurposeCategory = PurposeCategory.BUSINESS) :
+        SettingsDialog
+
+    data class RemovePurpose(val name: String, val label: String) : SettingsDialog
+
+    /**
+     * 출발→도착 규칙 추가: 출발(어디서든 또는 장소) · 도착(장소) · 목적을 고른다.
+     * [originPlaceId] null = 어디서든. 도착·목적을 다 골라야 [추가]가 켜진다.
+     */
+    data class AddPurposeRule(
+        val places: List<PlaceChoice>,
+        val purposes: List<PurposeChoice>,
+        val originPlaceId: String? = null,
+        val destPlaceId: String? = null,
+        val purposeName: String? = null,
+    ) : SettingsDialog {
+        val complete: Boolean get() = destPlaceId != null && purposeName != null && destPlaceId != originPlaceId
+    }
+
+    data class RemovePurposeRule(val rule: PurposeRuleRowUi) : SettingsDialog
+
+    /**
+     * 규칙 팝업의 [+ 새 장소]: 이름·주소로 찾거나 [지금 위치] → 후보 하나 고르고 이름 붙여 [추가].
+     * 추가하면(또는 X) [back] 규칙 팝업으로 돌아가고, 만든 장소가 [target]에 골라져 있다.
+     */
+    data class AddPlace(
+        val back: AddPurposeRule,
+        val target: RuleTarget,
+        val query: String = "",
+        val candidates: List<PlaceCandidateUi>? = null,
+        val picked: Int? = null,
+        val label: String = "",
+    ) : SettingsDialog {
+        val complete: Boolean get() = picked != null && label.isNotBlank()
+    }
 }
 
 /** 팝업 입력 칸 이름 — 칸 하나를 바꾸는 액션을 하나로 쓰기 위해. */
-enum class DialogField { CONNECT_CODE, EMAIL, NAME, DEPT }
+enum class DialogField { CONNECT_CODE, EMAIL, NAME, DEPT, QUERY }
 
 sealed interface SettingsAction {
     data class Open(val section: SettingsSection) : SettingsAction
@@ -104,13 +181,37 @@ sealed interface SettingsAction {
 
     data object StartRegister : SettingsAction
 
-    data object UploadNow : SettingsAction
-
     data object StartAddRecipient : SettingsAction
 
     data class AskRemoveRecipient(val email: String) : SettingsAction
 
     data object StartAddStaff : SettingsAction
+
+    data object StartAddPurpose : SettingsAction
+
+    data class SetPurposeCategory(val category: PurposeCategory) : SettingsAction
+
+    data class AskRemovePurpose(val name: String) : SettingsAction
+
+    data object StartAddPurposeRule : SettingsAction
+
+    /** 규칙 팝업: 출발 고르기. null = 어디서든. */
+    data class PickRuleOrigin(val placeId: String?) : SettingsAction
+
+    data class PickRuleDest(val placeId: String) : SettingsAction
+
+    data class PickRulePurpose(val name: String) : SettingsAction
+
+    data class AskRemovePurposeRule(val ruleId: String) : SettingsAction
+
+    /** 규칙 팝업: [+ 새 장소]. */
+    data class StartAddPlace(val target: RuleTarget) : SettingsAction
+
+    data object SearchPlace : SettingsAction
+
+    data object UseCurrentPlace : SettingsAction
+
+    data class PickCandidate(val index: Int) : SettingsAction
 
     data class SetAutoMonthlySend(val enabled: Boolean) : SettingsAction
 

@@ -93,19 +93,7 @@ class SettingsViewModelTest {
     }
 
     @Test
-    fun `지금 전송하면 전송 대기가 0건`() = runTest {
-        val (_, vm) = open()
-        assertEquals(2, vm.uiState.first { it.upload.pending > 0 }.upload.pending)
-
-        vm.onAction(SettingsAction.UploadNow)
-        advanceUntilIdle()
-
-        assertEquals(0, vm.uiState.value.upload.pending)
-        assertEquals(TaskResult.Done, vm.uiState.value.results[SettingsTask.UPLOAD])
-    }
-
-    @Test
-    fun `받는 사람 추가와 지우기 — 회사 지정은 지울 수 없다`() = runTest {
+    fun `받는 사람 추가와 지우기 — 회사 지정도 이 차에서 뺄 수 있다`() = runTest {
         val (_, vm) = open()
         vm.onAction(SettingsAction.StartAddRecipient)
         vm.onAction(SettingsAction.EditDialog(DialogField.EMAIL, "boss@example.com"))
@@ -121,7 +109,8 @@ class SettingsViewModelTest {
         vm.onAction(SettingsAction.AskRemoveRecipient("accounting@example.com"))
         vm.onAction(SettingsAction.SubmitDialog)
         advanceUntilIdle()
-        assertTrue(vm.uiState.value.results[SettingsTask.REMOVE_RECIPIENT] is TaskResult.Failed)
+        assertEquals(TaskResult.Done, vm.uiState.value.results[SettingsTask.REMOVE_RECIPIENT])
+        assertTrue(vm.uiState.value.recipients.none { it.email == "accounting@example.com" })
     }
 
     @Test
@@ -213,5 +202,68 @@ class SettingsViewModelTest {
             OverlayUi(allowed = false, settingsUnavailable = true),
             vm.uiState.first { it.overlay?.settingsUnavailable == true }.overlay,
         )
+    }
+
+    @Test
+    fun `목적 추가와 출발→도착 규칙 추가`() = runTest {
+        val (_, vm) = open()
+        backgroundScope.launch { vm.uiState.collect {} }
+
+        vm.onAction(SettingsAction.StartAddPurpose)
+        vm.onAction(SettingsAction.EditDialog(DialogField.NAME, "현장 점검"))
+        vm.onAction(SettingsAction.SubmitDialog)
+        advanceUntilIdle()
+        val added = vm.uiState.value.purposes.single { it.label == "현장 점검" }
+        assertTrue(!added.builtIn && !added.fromServer)
+
+        vm.onAction(SettingsAction.StartAddPurposeRule)
+        advanceUntilIdle()
+        vm.onAction(SettingsAction.PickRuleDest("p-client"))
+        vm.onAction(SettingsAction.PickRulePurpose(added.name))
+        vm.onAction(SettingsAction.SubmitDialog)
+        advanceUntilIdle()
+
+        assertTrue(
+            vm.uiState.value.purposeRules.any {
+                it.destLabel == "한빛상사" &&
+                    it.originLabel == null &&
+                    it.purposeLabel == "현장 점검"
+            },
+        )
+    }
+
+    @Test
+    fun `규칙 팝업의 새 장소 — 찾아서 고르고 추가하면 규칙 팝업으로 돌아와 도착에 골라져 있다`() = runTest {
+        val (_, vm) = open()
+        backgroundScope.launch { vm.uiState.collect {} }
+        vm.onAction(SettingsAction.StartAddPurposeRule)
+        advanceUntilIdle()
+
+        vm.onAction(SettingsAction.StartAddPlace(RuleTarget.DEST))
+        vm.onAction(SettingsAction.EditDialog(DialogField.QUERY, "물류센터"))
+        vm.onAction(SettingsAction.SearchPlace)
+        advanceUntilIdle()
+        vm.onAction(SettingsAction.PickCandidate(1))
+        assertEquals("물류센터 2호점", (vm.uiState.value.dialog as SettingsDialog.AddPlace).label)
+        vm.onAction(SettingsAction.SubmitDialog)
+        advanceUntilIdle()
+
+        val back = vm.uiState.value.dialog as SettingsDialog.AddPurposeRule
+        assertEquals("물류센터 2호점", back.places.single { it.placeId == back.destPlaceId }.label)
+    }
+
+    @Test
+    fun `새 장소 팝업의 X는 규칙 팝업으로 돌아간다`() = runTest {
+        val (_, vm) = open()
+        vm.onAction(SettingsAction.StartAddPurposeRule)
+        advanceUntilIdle()
+        vm.onAction(SettingsAction.StartAddPlace(RuleTarget.ORIGIN))
+        vm.onAction(SettingsAction.UseCurrentPlace)
+        advanceUntilIdle()
+        assertEquals(0, (vm.uiState.value.dialog as SettingsDialog.AddPlace).picked)
+
+        vm.onAction(SettingsAction.DismissDialog)
+
+        assertTrue(vm.uiState.value.dialog is SettingsDialog.AddPurposeRule)
     }
 }

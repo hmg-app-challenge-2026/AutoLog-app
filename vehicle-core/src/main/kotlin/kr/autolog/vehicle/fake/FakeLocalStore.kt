@@ -7,10 +7,10 @@ import kotlinx.coroutines.flow.map
 import kr.autolog.shared.ReceiptPayload
 import kr.autolog.vehicle.core.LocalStore
 import kr.autolog.vehicle.core.PurposeDetail
-import kr.autolog.vehicle.core.PurposeDetail.BRANCH_MOVE
-import kr.autolog.vehicle.core.PurposeDetail.CLIENT_VISIT
-import kr.autolog.vehicle.core.PurposeDetail.COMMUTE_IN
-import kr.autolog.vehicle.core.PurposeDetail.FIELD_WORK
+import kr.autolog.vehicle.core.PurposeDetail.Companion.BRANCH_MOVE
+import kr.autolog.vehicle.core.PurposeDetail.Companion.CLIENT_VISIT
+import kr.autolog.vehicle.core.PurposeDetail.Companion.COMMUTE_IN
+import kr.autolog.vehicle.core.PurposeDetail.Companion.FIELD_WORK
 import kr.autolog.vehicle.core.TripRow
 import java.time.Clock
 import java.time.Instant

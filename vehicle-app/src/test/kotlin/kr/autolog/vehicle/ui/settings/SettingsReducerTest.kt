@@ -4,7 +4,6 @@ import kr.autolog.vehicle.core.Origin
 import kr.autolog.vehicle.core.RecipientInfo
 import kr.autolog.vehicle.core.UserInfo
 import kr.autolog.vehicle.data.repository.ServerLink
-import kr.autolog.vehicle.data.repository.UploadInfo
 import kr.autolog.vehicle.ui.trips.TripDay
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -17,7 +16,6 @@ class SettingsReducerTest {
 
     private fun sources(link: ServerLink = ServerLink.NotLinked, mailAccount: String? = null) = SettingsSources(
         link = link,
-        upload = UploadInfo(enabled = true, pendingCount = 2, lastUploadAt = now - 3_600_000, lastError = null),
         recipients = listOf(
             RecipientInfo("me@example.com", "나", Origin.LOCAL),
             RecipientInfo("accounting@example.com", "회계팀", Origin.SERVER),
@@ -38,7 +36,7 @@ class SettingsReducerTest {
     }
 
     @Test
-    fun `연결 상태와 마지막 동기화·전송 시각은 오늘이면 오늘 시각으로`() {
+    fun `연결 상태와 마지막 동기화 시각은 오늘이면 오늘 시각으로`() {
         val linked = ServerLink.Linked("12가3456", "https://autolog.acme.co.kr", lastSyncAt = now - 600_000)
         val s = reduceSettings(SettingsLocal(), sources(linked), app, now)
 
@@ -46,8 +44,6 @@ class SettingsReducerTest {
         assertEquals("12가3456", link.vehicle)
         assertEquals(TripDay.TODAY, link.lastSync!!.day)
         assertEquals("10:14", link.lastSync!!.time)
-        assertEquals("09:24", s.upload.lastUpload!!.time)
-        assertEquals(2, s.upload.pending)
     }
 
     @Test

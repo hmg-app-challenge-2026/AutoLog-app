@@ -25,6 +25,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import kr.autolog.vehicle.R
+import kr.autolog.vehicle.core.PurposeCategory
 import kr.autolog.vehicle.ui.design.AutoLogTheme
 import kr.autolog.vehicle.ui.design.Radius
 import kr.autolog.vehicle.ui.design.Size
@@ -43,9 +44,9 @@ internal fun SectionDetail(section: SettingsSection, state: SettingsUiState, onA
     Column(verticalArrangement = Arrangement.spacedBy(Space.s4)) {
         when (section) {
             SettingsSection.VEHICLE -> Vehicle(state, onAction)
-            SettingsSection.SERVER -> Server(state, onAction)
             SettingsSection.MAIL -> Mail(state)
             SettingsSection.RECIPIENTS -> Recipients(state, onAction)
+            SettingsSection.PURPOSES -> Purposes(state, onAction)
             SettingsSection.STAFF -> Staff(state, onAction)
             SettingsSection.AUTOMATION -> Automation(state, onAction)
             SettingsSection.SYNC -> Sync(state, onAction)
@@ -117,37 +118,6 @@ private fun RecordingPermission(overlay: OverlayUi, onAction: (SettingsAction) -
     }
 }
 
-/** 2. 회사 정보(사내 서버, 8장) — 주소 · 상태 · 전송 대기 · 마지막 전송 + [지금 전송]. 차량을 연결하기 전엔 [차량 정보로] 안내. */
-@Composable
-private fun Server(state: SettingsUiState, onAction: (SettingsAction) -> Unit) {
-    val link = state.link
-    if (link == LinkUi.NotLinked) {
-        NeedsLink(onAction)
-        return
-    }
-    val c = AutoLogTheme.colors
-    val url = (link as? LinkUi.Linked)?.serverUrl ?: (link as LinkUi.Unreachable).serverUrl
-    InfoCard(
-        listOf(
-            stringResource(R.string.settings_server_url) to url,
-            stringResource(R.string.settings_server_state) to
-                stringResource(if (link is LinkUi.Linked) R.string.settings_linked else R.string.settings_unreachable),
-            stringResource(R.string.settings_upload_pending_label) to
-                stringResource(R.string.settings_count, state.upload.pending),
-            stringResource(R.string.settings_last_upload) to
-                (state.upload.lastUpload?.let { tripWhenText(it) } ?: stringResource(R.string.settings_never)),
-        ),
-    )
-    state.upload.lastError?.let { ButtonNote(it, style = AutoLogTheme.type.caption, color = c.danger) }
-    PrimaryButton(
-        stringResource(R.string.settings_upload_now),
-        onClick = { onAction(SettingsAction.UploadNow) },
-        modifier = Modifier.fillMaxWidth(),
-        loading = state.running == SettingsTask.UPLOAD,
-    )
-    ResultLine(state, SettingsTask.UPLOAD)
-}
-
 /**
  * 3. 메일 — 연결된 발신 메일 주소만 보여 준다. 계정은 회사 관리자 웹 [메일 설정]에서 정해 서버로 온다(2026-11-14 사용자 결정:
  * 메일 계정은 하나, 차에서는 입력하지 않는다).
@@ -192,6 +162,81 @@ private fun Recipients(state: SettingsUiState, onAction: (SettingsAction) -> Uni
     )
     ResultLine(state, SettingsTask.ADD_RECIPIENT)
     ResultLine(state, SettingsTask.REMOVE_RECIPIENT)
+}
+
+/**
+ * 목적 — 목적 목록(기본·회사 지정·이 차) + [목적 추가], 출발→도착 규칙 + [규칙 추가] (F-08, 2026-11-14 사용자 결정).
+ * 결과 화면은 구분만 고른다(D-27) — 여기서 정한 목적은 규칙이 추천할 때 그 이름으로 저장된다.
+ * 회사 지정도 이 차에서는 뺄 수 있다(받는 사람과 같다). 기본 목적은 뺄 수 없다.
+ */
+@Composable
+private fun Purposes(state: SettingsUiState, onAction: (SettingsAction) -> Unit) {
+    val c = AutoLogTheme.colors
+    val company = stringResource(R.string.settings_from_company)
+    val builtIn = stringResource(R.string.settings_purpose_builtin)
+    val separator = stringResource(R.string.meta_separator)
+    Text(stringResource(R.string.settings_purpose_list), style = AutoLogTheme.type.section, color = c.textSecondary)
+    state.purposes.forEach { p ->
+        PersonRow(
+            primary = p.label,
+            secondary = listOfNotNull(
+                stringResource(purposeCategoryText(p.category)),
+                builtIn.takeIf { p.builtIn },
+                company.takeIf { p.fromServer },
+            ).joinToString(separator),
+            locked = false,
+            onRemove = if (p.builtIn) null else ({ onAction(SettingsAction.AskRemovePurpose(p.name)) }),
+        )
+    }
+    SecondaryButton(
+        stringResource(R.string.settings_add_purpose),
+        onClick = { onAction(SettingsAction.StartAddPurpose) },
+        modifier = Modifier.fillMaxWidth(),
+    )
+    ResultLine(state, SettingsTask.ADD_PURPOSE)
+    ResultLine(state, SettingsTask.REMOVE_PURPOSE)
+
+    Text(stringResource(R.string.settings_purpose_rules), style = AutoLogTheme.type.section, color = c.textSecondary)
+    Text(
+        stringResource(R.string.settings_purpose_rules_note),
+        style = AutoLogTheme.type.caption,
+        color = c.textSecondary,
+    )
+    state.purposeRules.forEach { r ->
+        PersonRow(
+            primary = ruleRouteText(r),
+            secondary = listOfNotNull(r.purposeLabel, company.takeIf { r.fromServer }).joinToString(separator),
+            locked = false,
+            onRemove = { onAction(SettingsAction.AskRemovePurposeRule(r.ruleId)) },
+        )
+    }
+    SecondaryButton(
+        stringResource(R.string.settings_add_purpose_rule),
+        onClick = { onAction(SettingsAction.StartAddPurposeRule) },
+        modifier = Modifier.fillMaxWidth(),
+    )
+    ResultLine(state, SettingsTask.ADD_PURPOSE_RULE)
+    ResultLine(state, SettingsTask.REMOVE_PURPOSE_RULE)
+}
+
+/** "본사 → 물류센터". 출발 어디서든·지운 장소도 글자로. */
+@Composable
+internal fun ruleRouteText(r: PurposeRuleRowUi): String {
+    val missing = stringResource(R.string.settings_place_missing)
+    val origin = when {
+        r.originMissing -> missing
+        r.originLabel == null -> stringResource(R.string.settings_rule_anywhere)
+        else -> r.originLabel
+    }
+    return stringResource(R.string.settings_rule_route, origin, r.destLabel ?: missing)
+}
+
+@androidx.annotation.StringRes
+internal fun purposeCategoryText(category: PurposeCategory): Int = when (category) {
+    PurposeCategory.BUSINESS -> R.string.purpose_class_business
+    PurposeCategory.COMMUTE -> R.string.purpose_class_commute
+    PurposeCategory.NON_BUSINESS -> R.string.purpose_class_personal
+    PurposeCategory.UNDETERMINED -> R.string.trip_no_purpose
 }
 
 /** 5. 직원 — 목록(이름 · 부서 · 이메일) + [직원 추가]. 회사 지정 직원은 잠금 표시. */
@@ -389,9 +434,14 @@ internal fun ResultLine(state: SettingsUiState, task: SettingsTask) {
 
 private fun doneText(task: SettingsTask): Int = when (task) {
     SettingsTask.REGISTER -> R.string.settings_done_register
-    SettingsTask.UPLOAD -> R.string.settings_done_upload
     SettingsTask.ADD_RECIPIENT -> R.string.settings_done_add_recipient
     SettingsTask.REMOVE_RECIPIENT -> R.string.settings_done_remove_recipient
+    SettingsTask.ADD_PURPOSE -> R.string.settings_done_add_purpose
+    SettingsTask.REMOVE_PURPOSE -> R.string.settings_done_remove_purpose
+    SettingsTask.ADD_PURPOSE_RULE -> R.string.settings_done_add_purpose_rule
+    SettingsTask.REMOVE_PURPOSE_RULE -> R.string.settings_done_remove_purpose_rule
+    SettingsTask.SEARCH_PLACE -> R.string.settings_done_search_place
+    SettingsTask.ADD_PLACE -> R.string.settings_done_add_place
     SettingsTask.ADD_STAFF -> R.string.settings_done_add_staff
     SettingsTask.SYNC -> R.string.settings_done_sync
 }
