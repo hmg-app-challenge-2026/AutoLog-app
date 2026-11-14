@@ -34,7 +34,7 @@ class ReceiptMatcherTest {
     )
 
     @Test
-    fun `주유소에서 정차한 운행이 시각이 더 먼 운행보다 먼저`() {
+    fun `주유소에서 정차한 운행이 시각이 더 먼 운행보다 먼저 뽑힌다`() {
         val near = trip("near", kst(9), kst(9, 50))
         val fuel = trip("fuel", kst(10, 30), kst(11), stops = listOf("SK 판교주유소"))
 
@@ -63,18 +63,48 @@ class ReceiptMatcherTest {
     }
 
     @Test
-    fun `후보는 최대 3개이고 운행 시간 안이 가장 가깝다`() {
+    fun `후보는 가까운 3개를 뽑아 최근 출발이 위로 온다`() {
         val trips = (0..4).map { trip("t$it", kst(8) + it * 20 * MINUTE, kst(8) + it * 20 * MINUTE + 10 * MINUTE) }
 
         val c = ReceiptMatcher.candidates(kst(8, 45), trips, emptyList())
 
-        assertEquals(3, c.size)
-        assertEquals("t2", c[0].tripId)
+        assertEquals(listOf("t3", "t2", "t1"), c.map { it.tripId })
     }
 
     @Test
-    fun `라벨은 출발 시각과 출발지 도착지`() {
-        assertEquals("09:12 본사 → 거래처", ReceiptMatcher.label(trip("t", kst(9, 12), null)))
+    fun `지금 기록 중인 운행은 시각이 멀어도 후보에 들어가고 맨 위다`() {
+        val done = (0..2).map { trip("t$it", kst(8) + it * 10 * MINUTE, kst(8) + it * 10 * MINUTE + 5 * MINUTE) }
+        val recording = trip("now", kst(9, 30), null)
+
+        val c = ReceiptMatcher.candidates(kst(8, 20), done + recording, emptyList())
+
+        assertEquals(3, c.size)
+        assertEquals("now", c[0].tripId)
+    }
+
+    @Test
+    fun `기록 중인 운행이 시작된 뒤의 영수증은 그 운행 안이다`() {
+        assertEquals(0L, ReceiptMatcher.gap(trip("now", kst(9), null), kst(11)))
+    }
+
+    @Test
+    fun `라벨은 출발 시각과 도착지`() {
+        assertEquals("09:12 출발 → 거래처", ReceiptMatcher.label(trip("t", kst(9, 12), kst(9, 30))))
+        assertEquals(
+            "09:12 출발 → 지금 기록 중",
+            ReceiptMatcher.label(trip("t", kst(9, 12), null).copy(destinationLabel = null)),
+        )
+    }
+
+    @Test
+    fun `도착지 이름이 없으면 주소, 그것도 없으면 도착지 모름과 거리`() {
+        val t = trip("t", kst(9, 12), kst(9, 30)).copy(destinationLabel = null, distanceKm = 0.7)
+
+        assertEquals(
+            "09:12 출발 → 사근동 왕십리로 222",
+            ReceiptMatcher.label(t.copy(destinationAddress = "서울 성동구 사근동 왕십리로 222")),
+        )
+        assertEquals("09:12 출발 → 도착지 모름 · 0.7 km", ReceiptMatcher.label(t))
     }
 
     @Test

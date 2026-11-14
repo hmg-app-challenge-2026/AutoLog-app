@@ -71,12 +71,16 @@ class FuelEntryReducerTest {
     }
 
     @Test
-    fun `모든 칸 확인됨 · 검산 통과 · 후보 하나면 그 후보를 고른 채로 연다`() {
+    fun `연결할 운행은 맨 위 후보를 고른 채로 연다`() {
         val sure = receipt.copy(confidence = receipt.confidence.mapValues { 0.99 })
 
         assertEquals("t-1", reduceReceiptEntry(sure, oneCandidate).selectedTripId)
-        assertNull(reduceReceiptEntry(sure, FakeReceiptApi.SAMPLE_CANDIDATES).selectedTripId)
-        assertNull(reduceReceiptEntry(receipt, oneCandidate).selectedTripId) // 리터 0.93 — 확인 필요
+        assertEquals(
+            FakeReceiptApi.SAMPLE_CANDIDATES.first().tripId,
+            reduceReceiptEntry(sure, FakeReceiptApi.SAMPLE_CANDIDATES).selectedTripId,
+        ) // 후보가 여럿이어도 맨 위
+        assertEquals("t-1", reduceReceiptEntry(receipt, oneCandidate).selectedTripId) // 확인 필요 칸이 있어도
+        assertNull(reduceReceiptEntry(sure, emptyList()).selectedTripId) // 후보가 없으면 연결 안 함
     }
 
     @Test
@@ -176,5 +180,22 @@ class FuelEntryReducerTest {
         assertEquals(FuelNotice.ArithOk, reduceReceiptEntry(sure, oneCandidate).notice)
         val filled = reduceManualEntry(TripSession.Idle).copy(values = mapOf(FuelField.AMOUNT to "50000"))
         assertNull(filled.notice) // 직접 입력은 검산이 없다 — 금액만 있으면 할 일 없음
+    }
+
+    @Test
+    fun `리터 계산과 결제 금액이 100원 안으로 다르면 검산 통과`() {
+        val receipt = FakeReceiptApi.SAMPLE_RECEIPT.copy(
+            fields = FakeReceiptApi.SAMPLE_RECEIPT.fields.copy(
+                liters = 35.353,
+                unitPrice = 1980,
+                discountWon = 0,
+                amountWon = 70_000,
+            ),
+        )
+
+        val state = reduceReceiptEntry(receipt, oneCandidate)
+
+        assertEquals(true, state.arithOk)
+        assertTrue(state.notice != FuelNotice.ArithFailed)
     }
 }
