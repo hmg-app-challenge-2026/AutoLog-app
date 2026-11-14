@@ -125,6 +125,22 @@ class AutoLogRootTest {
     }
 
     @Test
+    fun `주행 중 돌아갈 앱이 없으면 기록 중 Home에 남는다`() {
+        val graph = TestAppGraph(scope, start = Route.Home)
+        runBlocking { graph.trip.startSession() }
+        var backgroundCount = 0
+        compose.setContent {
+            AutoLogRoot(graph, onRequestBackground = { backgroundCount++ }, hasPreviousApp = { false })
+        }
+
+        graph.trip.setMotion(VehicleMotion.MOVING)
+        compose.mainClock.advanceTimeBy(1_100)
+
+        assertEquals(0, backgroundCount)
+        compose.onNodeWithText("기록 중").assertIsDisplayed()
+    }
+
+    @Test
     @Config(qualifiers = "w1024dp-h640dp")
     fun `기록 중 Home엔 운전자 배지가 없다 — 대기 중에만`() {
         val graph = TestAppGraph(scope, start = Route.Home)

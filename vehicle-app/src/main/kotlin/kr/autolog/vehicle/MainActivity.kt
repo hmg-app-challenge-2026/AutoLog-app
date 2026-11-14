@@ -9,6 +9,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import kr.autolog.vehicle.core.DeepLink
+import kr.autolog.vehicle.data.usage.PreviousAppDetector
 import kr.autolog.vehicle.di.AppGraph
 import kr.autolog.vehicle.di.runtimePermissions
 import kr.autolog.vehicle.nav.deepLinkRoute
@@ -25,6 +26,7 @@ class MainActivity : ComponentActivity() {
     /** 그래프를 만들고 화면을 띄웠는가. 그 전에 온 알림 Intent는 [pendingIntent]에 두었다가 띄울 때 적용한다. */
     private var started = false
     private var pendingIntent: Intent? = null
+    private val previousAppDetector by lazy { PreviousAppDetector(this) }
 
     private val askPermissions =
         registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { start() }
@@ -49,6 +51,7 @@ class MainActivity : ComponentActivity() {
             AutoLogRoot(
                 graph = appGraph,
                 onRequestBackground = { moveTaskToBack(true) },
+                hasPreviousApp = { BuildConfig.FLAVOR == "demo" || previousAppDetector.hasReturnTarget() },
                 deferBackgroundUntilMotionKnown = screenOnBoot,
             )
         }
