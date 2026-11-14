@@ -3,9 +3,10 @@
 > 차 안 로컬 DB(Room)와 중계 서버 DB(PostgreSQL)의 테이블·컬럼 정리.
 > **원본은 코드다.** 이 문서와 코드가 다르면 코드를 따르고 이 문서를 고친다.
 > - 차: `vehicle-core/src/main/kotlin/kr/autolog/vehicle/data/TripEntities.kt`, `ReferenceEntities.kt`, 자동 생성 스키마 `vehicle-core/schemas/kr.autolog.vehicle.data.AutoLogDb/2.json`
-> - 서버: `relay/src/main/resources/db/migration/V1__init.sql`, `V2__reference_indexes.sql`
+> - 서버: `relay/src/main/resources/db/migration/V1__init.sql` ~ `V5__purposes.sql`
+> - 차의 메일 계정·목적·목적 규칙은 Room이 아니라 SharedPreferences에 있다(아래 1.14)
 >
-> 기준: Room v2, Flyway V2 (2026-11-09)
+> 기준: Room v3, Flyway V5 (2026-11-14)
 
 ---
 
@@ -16,8 +17,10 @@
         │                     │
         ▼                     ▼
  ┌────────────── 서버 PostgreSQL (우체통) ──────────────┐
- │ organizations · vehicles · connect_codes · qr_tokens │
+ │ organizations · admins · admin_sessions              │
+ │ vehicles · connect_codes · qr_tokens                 │
  │ users · places · schedules · recipients   (원본)     │
+ │ org_mail_accounts · org_purposes · org_purpose_rules │
  │ receipts (30일)  ·  inbox (30일)                     │
  └───────────────────────┬──────────────────────────────┘
                          │ inbox (서버 → 차, 단방향)
@@ -35,6 +38,8 @@
 |---|---|---|
 | 운행·정차·비용·운행기록부 | 차 Room | 서버에 없음 |
 | 직원·장소·배차·수신자 | 서버 (관리자 입력) | 차에 사본(`origin=SERVER`) + 차 안 직접 입력(`origin=LOCAL`) |
+| 회사 메일 계정 | 서버 `org_mail_accounts`(비밀번호 암호화) | 차에 하나(암호화 SharedPreferences) — 운영 웹이 바꾸면 덮어씀 |
+| 목적·목적 규칙 | 서버 `org_purposes`·`org_purpose_rules` | 차에 사본 + 차에서 만든 것(SharedPreferences JSON) |
 | 영수증 OCR 결과 | 서버 `receipts` (30일 뒤 삭제) | 차 `receipt_inbox` → 확정하면 `expenses` |
 
 ### 공통 규칙 (CONVENTIONS 6.3)
@@ -85,7 +90,7 @@
 | `destinationSource` | TEXT | ✓ | `PlaceSource` |
 | `originAddress`, `destinationAddress` | TEXT | ✓ | v3. `광역 기초 읍면동 도로명 번호`(예: `경기 성남시 분당구 정자동 정자일로 1`). 시작·종료 직후 비동기로 채운다 |
 | `originAddressSource`, `destinationAddressSource` | TEXT | ✓ | v3. `AddressSource`: KAKAO_RELAY(서버 `/v1/geo/reverse`) · NAVI_HELPER(서버 실패 때 내비 주소). NAVI_HELPER·NULL은 동기화 뒤 서버로 다시 채운다(최근 30일, 20건씩) |
-| `purposeDetail` | TEXT | ✓ | 확정된 세부 목적 `PurposeDetail.name` (CLIENT_VISIT, COMMUTE_IN …) |
+| `purposeDetail` | TEXT | ✓ | 확정된 세부 목적 `PurposeDetail.name` (CLIENT_VISIT, COMMUTE_IN … 또는 추가 목적 `custom:<구분>:<이름>`) |
 | `purposeNote` | TEXT | ✓ | 메모 또는 음성 원문(F-09) |
 | `purposeInputMode` | TEXT | ✓ | TAP · VOICE |
 | `purposeSource` | TEXT | | `PurposeSource`: UNSET · RULE_SUGGESTED · USER_CONFIRMED. **USER_CONFIRMED만 확정**으로 본다 |
@@ -147,11 +152,11 @@
 |---|---|---|---|
 | `placeId` | TEXT **PK** | | 서버 UUID 또는 `local-…` |
 | `label` | TEXT | | 이름 |
-| `kind` | TEXT | | `PlaceKind`: OFFICE · BRANCH · CLIENT · GAS_STATION · HOME |
+| `kind` | TEXT | | `PlaceKind`: OFFICE · BRANCH · CLIENT · GAS_STATION · HOME · OTHER(기타 — 설정 목적 규칙의 [+ 새 장소]) |
 | `lat`, `lng` | REAL | | 좌표 |
 | `radiusM` | INTEGER | | 매칭 반경(m), 기본 150 (+ 여유 50 m) |
 | `defaultPurpose` | TEXT | ✓ | 이 장소의 기본 세부 목적 |
-| `origin` | TEXT | | SERVER · LOCAL (F-17 차 안 거래처 등록은 LOCAL) |
+| `origin` | TEXT | | SERVER · LOCAL (F-17 차 안 거래처 등록, 설정 [+ 새 장소]는 LOCAL) |
 
 ### 1.7 schedules — 배차 (이 차 것만)
 
@@ -238,11 +243,22 @@ ack가 실패해 같은 편지가 다시 와도 두 번 반영하지 않기 위�
 | `createdAt` | INTEGER | 만든 시각 |
 | `dataHash` | TEXT | 같은 데이터로 다시 만들지 않기 위한 해시 |
 
+### 1.14 Room 밖 저장 (SharedPreferences, 앱 B)
+
+| 파일 · 키 | 내용 | 암호화 |
+|---|---|---|
+| `autolog_smtp` | 메일 계정 하나(host·port·username·password·fromName·startTls). 운영 웹이 정해 MAIL_ACCOUNT로 온다 | ✓ EncryptedSharedPreferences |
+| `autolog_settings` · `purpose_book` | `PurposeBookData` JSON — 회사 목적·규칙(serverPurposes·serverRules), 이 차 목적·규칙(localPurposes·localRules), 이 차에서 숨긴 회사 지정(hiddenServer) | |
+| `autolog_settings` · `hidden_server_recipients` | 이 차에서 뺀 회사 지정 받는 사람 이메일(소문자) | |
+| `autolog_settings` · `auto_monthly_send` | 월말 자동 발송 스위치 | |
+
+운행의 목적은 `trips.purposeDetail`에 `PurposeDetail.name`으로 남는다. 추가 목적은 `custom:<구분>:<이름>`이라 목록에서 지워도 지난 운행의 이름은 그대로다.
+
 ---
 
 ## 2. 중계 서버 DB — PostgreSQL (앱 B)
 
-- 마이그레이션: Flyway. 서버가 시작할 때 `V1__init.sql` → `V2__reference_indexes.sql` 순서로 적용
+- 마이그레이션: Flyway. 서버가 시작할 때 `V1__init.sql` → `V2__reference_indexes.sql` → `V3__admin_accounts.sql` → `V4__org_mail_account.sql` → `V5__purposes.sql` 순서로 적용
 - **한 번 main에 들어간 마이그레이션 파일은 고치지 않는다.** 바꿀 것은 `V3__…sql`로 추가 (CONVENTIONS 8장)
 - 운행·비용 테이블은 없다. 모든 조회는 `org_id`(조직) 범위 안에서만 한다.
 
@@ -251,17 +267,20 @@ ack가 실패해 같은 편지가 다시 와도 두 번 반영하지 않기 위�
 | 컬럼 | 타입 | 설명 |
 |---|---|---|
 | `org_id` | UUID **PK** | |
-| `name` | TEXT NOT NULL | 조직 이름 (지금은 단일 조직, 환경변수 `ADMIN_ORG_NAME`) |
+| `name` | TEXT NOT NULL | 회사 이름. `organizations_name` UNIQUE. 회사가 운영 웹에서 가입하면 생긴다(2026-11-13) |
 | `created_at` | TIMESTAMPTZ | 기본 now() |
 
-### 2.2 admins — 관리자 (JWT 도입 시 사용, 현재 미사용)
+### 2.2 admins — 회사 관리자 (V3)
 
 | 컬럼 | 타입 | 설명 |
 |---|---|---|
 | `admin_id` | UUID **PK** | |
-| `org_id` | UUID → organizations | |
-| `email` | TEXT UNIQUE | |
-| `password_hash` | TEXT | |
+| `org_id` | UUID NOT NULL → organizations | 이 관리자가 볼 수 있는 회사 |
+| `email` | TEXT UNIQUE NOT NULL | 소문자 |
+| `password_hash` | TEXT NOT NULL | PBKDF2-HMAC-SHA256 `pbkdf2$iter$salt$hash` |
+| `created_at` | TIMESTAMPTZ | |
+
+`admin_sessions`(V3): `token_hash` CHAR(64) **PK**(세션 토큰의 sha256, 원문 저장 안 함) · `admin_id` → admins(삭제 시 함께) · `org_id` · `created_at` · `expires_at`(12시간). 로그아웃·비밀번호 변경 때 지운다.
 
 ### 2.3 vehicles — 차량
 
@@ -315,7 +334,7 @@ ack가 실패해 같은 편지가 다시 와도 두 번 반영하지 않기 위�
 | `place_id` | UUID **PK** | |
 | `org_id` | UUID | |
 | `label` | TEXT | 이름 |
-| `kind` | TEXT | OFFICE · BRANCH · CLIENT · GAS_STATION |
+| `kind` | TEXT | OFFICE · BRANCH · CLIENT · GAS_STATION · OTHER |
 | `lat`, `lng` | DOUBLE PRECISION | 좌표 (없으면 주소로 카카오 지오코딩) |
 | `radius_m` | INT | 기본 150, 30~2000 |
 | `default_purpose` | TEXT | 기본 세부 목적 코드 |
@@ -373,14 +392,52 @@ ack가 실패해 같은 편지가 다시 와도 두 번 반영하지 않기 위�
 |---|---|---|
 | `id` | BIGSERIAL **PK** | 차의 `inbox_seen.inboxId`·`receipt_inbox.inboxId` |
 | `vehicle_id` | UUID | 받는 차 |
-| `kind` | TEXT | RECEIPT · USERS · PLACES · SCHEDULES · RECIPIENTS |
+| `kind` | TEXT | RECEIPT · USERS · PLACES · SCHEDULES · RECIPIENTS · MAIL_ACCOUNT · PURPOSES |
 | `payload` | JSONB | `shared` `InboxPayload` JSON |
 | `created_at` | TIMESTAMPTZ | 기본 now() |
 | `expires_at` | TIMESTAMPTZ | +30일. ack 없이 지나면 매일 04:00 KST에 삭제 |
 
 - RECEIPT는 영수증마다 한 통씩 쌓인다.
-- USERS·PLACES·SCHEDULES·RECIPIENTS는 항상 전체 목록이라, 차가 아직 안 가져간 이전 편지는 지우고 최신 한 통만 둔다.
+- USERS·PLACES·SCHEDULES·RECIPIENTS·MAIL_ACCOUNT·PURPOSES는 항상 전체(최신) 값이라, 차가 아직 안 가져간 이전 편지는 지우고 최신 한 통만 둔다.
+- MAIL_ACCOUNT는 **비밀번호 없이** 저장하고, 차가 가져가는 순간 서버가 `org_mail_accounts`에서 풀어 채운다(`MailAccountInboxRefresher`).
 - 차가 ack하면 행을 지운다.
+
+### 2.12 org_mail_accounts — 회사 발신 메일 계정 (V4, F-54)
+
+| 컬럼 | 타입 | 설명 |
+|---|---|---|
+| `org_id` | UUID **PK** → organizations | 회사마다 하나 |
+| `host`, `port` | TEXT, INT | SMTP 서버·포트(587 STARTTLS / 465 SSL) |
+| `username` | TEXT | 보내는 메일 주소 |
+| `password_enc` | TEXT | 앱 비밀번호. AES-256-GCM `v1:<base64(iv+암호문)>`, 키는 환경변수 `MAIL_SECRET_KEY` |
+| `from_name` | TEXT | 보내는 사람 이름(선택) |
+| `start_tls` | BOOLEAN | |
+| `updated_at` | TIMESTAMPTZ | |
+
+### 2.13 org_purposes — 회사 목적 (V5, F-55)
+
+인덱스: `org_purposes_label UNIQUE (org_id, label)`. 차 쪽 이름은 `custom:<category>:<label>`.
+
+| 컬럼 | 타입 | 설명 |
+|---|---|---|
+| `id` | BIGSERIAL **PK** | |
+| `org_id` | UUID → organizations | |
+| `label` | TEXT | 목적 이름(1~30자, `:` 없음) |
+| `category` | TEXT | BUSINESS · COMMUTE · NON_BUSINESS |
+| `created_at` | TIMESTAMPTZ | |
+
+### 2.14 org_purpose_rules — 출발→도착 목적 규칙 (V5, F-55)
+
+인덱스: `(org_id, COALESCE(origin_place_id, 0…), dest_place_id)` UNIQUE — 같은 출발·도착 규칙은 하나.
+
+| 컬럼 | 타입 | 설명 |
+|---|---|---|
+| `rule_id` | UUID **PK** | 차에 그대로 간다 |
+| `org_id` | UUID → organizations | |
+| `origin_place_id` | UUID → places, NULL | NULL = 출발지 어디서든. 장소를 지우면 규칙도 지워진다 |
+| `dest_place_id` | UUID → places | |
+| `purpose` | TEXT | 기본 목적 이름(CLIENT_VISIT 등) 또는 `custom:<구분>:<이름>` |
+| `created_at` | TIMESTAMPTZ | |
 
 ---
 
@@ -393,5 +450,7 @@ ack가 실패해 같은 편지가 다시 와도 두 번 반영하지 않기 위�
 | schedules (이 차, 어제~30일 뒤) | SCHEDULES | schedules | 전부 지우고 새로 넣음 |
 | recipients | RECIPIENTS | recipients | SERVER 교체. 같은 이메일이면 서버 배포분이 남음 |
 | receipts | RECEIPT | receipt_inbox | 쌓음 → 사용자 확정 시 `expenses`(+`trip_expense_links`) 저장 후 ack |
+| org_mail_accounts | MAIL_ACCOUNT | (Room 아님) 암호화 SharedPreferences `autolog_smtp` | 하나뿐인 메일 계정을 덮어씀. 지움 편지면 지움 |
+| org_purposes · org_purpose_rules | PURPOSES | (Room 아님) SharedPreferences `autolog_settings` `purpose_book` JSON | 회사 지정 교체, 차에서 만든 것·이 차에서 숨긴 회사 지정은 보존 |
 
 서버 시각(`TIMESTAMPTZ`)은 ISO 8601 `+09:00` 문자열로 내려오고, 차에서 epoch millis로 바꿔 저장한다.
