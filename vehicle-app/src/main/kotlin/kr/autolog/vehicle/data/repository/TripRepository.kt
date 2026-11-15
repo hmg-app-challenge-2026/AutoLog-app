@@ -3,6 +3,7 @@ package kr.autolog.vehicle.data.repository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
+import kr.autolog.vehicle.core.FuelRecord
 import kr.autolog.vehicle.core.LocalStore
 import kr.autolog.vehicle.core.PurposeCategory
 import kr.autolog.vehicle.core.SettingsApi
@@ -14,6 +15,8 @@ import java.time.YearMonth
 interface TripRepository {
     fun history(month: YearMonth): Flow<List<HistoryItem>>
 
+    fun fuelRecords(month: YearMonth): Flow<List<FuelRecord>>
+
     /** 달과 상관없이 가장 최근 운행 [limit]건, 최신 순(Home "최근 운행 기록", 스펙 7.2). */
     fun recent(limit: Int): Flow<List<HistoryItem>>
 
@@ -22,6 +25,8 @@ interface TripRepository {
 
 class DefaultTripRepository(private val store: LocalStore, private val settings: SettingsApi) : TripRepository {
     override fun history(month: YearMonth): Flow<List<HistoryItem>> = items(store.trips(month))
+
+    override fun fuelRecords(month: YearMonth): Flow<List<FuelRecord>> = store.fuelRecords(month)
 
     override fun recent(limit: Int): Flow<List<HistoryItem>> = items(store.recent(limit))
 

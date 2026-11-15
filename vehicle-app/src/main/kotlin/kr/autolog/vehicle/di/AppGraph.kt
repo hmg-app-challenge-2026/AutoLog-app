@@ -11,6 +11,7 @@ import kr.autolog.vehicle.data.repository.SessionRepository
 import kr.autolog.vehicle.data.repository.SettingsRepository
 import kr.autolog.vehicle.data.repository.TripRepository
 import kr.autolog.vehicle.data.repository.TripResultRepository
+import kr.autolog.vehicle.data.usage.AppReturnGateway
 import kr.autolog.vehicle.data.usage.VehicleUsageRepository
 import kr.autolog.vehicle.nav.Navigator
 import kr.autolog.vehicle.overlay.RecordingOverlay
@@ -28,6 +29,7 @@ interface AppGraph {
     val receipts: ReceiptRepository
     val reports: ReportRepository
     val settings: SettingsRepository
+    val appReturn: AppReturnGateway get() = AppReturnGateway.Demo
 
     /** 운행 기록 알약과 그 권한(스펙 6.11). 실제 앱만 있다 — 데모·테스트는 [RecordingOverlay.None]. */
     val overlay: RecordingOverlay get() = RecordingOverlay.None

@@ -57,6 +57,20 @@ class HistoryViewModelTest {
     }
 
     @Test
+    fun `기록 필터 선택은 목록만 바꾸고 월별 합계는 유지한다`() = runTest {
+        val (_, vm) = open()
+        val all = vm.uiState.first { !it.loading }
+
+        vm.onAction(HistoryAction.SetFilter(HistoryFilter.FUELS))
+        val fuels = vm.uiState.first { it.filter == HistoryFilter.FUELS }
+
+        assertEquals(all.records, fuels.records)
+        assertEquals(all.tripCount, fuels.tripCount)
+        assertEquals(all.fuelCount, fuels.fuelCount)
+        assertEquals(fuels.records.filterIsInstance<HistoryRecordUi.Fuel>(), fuels.visibleRecords)
+    }
+
+    @Test
     fun `운전자 미확정 줄에서 후보를 고르면 그 운행의 운전자가 정해진다`() = runTest {
         val (g, vm) = open()
 

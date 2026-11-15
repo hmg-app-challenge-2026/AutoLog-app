@@ -53,7 +53,7 @@ fun ScrollColumn(
  * 이 줄은 모든 창 크기에서 맨 위에 그대로 놓인다. 제목 양옆을 뒤로 버튼 폭만큼 똑같이 비워 화면 가운데를 지킨다. 긴 제목은 두 줄까지.
  */
 @Composable
-fun ScreenHeader(title: String, onBack: () -> Unit) {
+fun ScreenHeader(title: String, trailing: (@Composable () -> Unit)? = null, onBack: () -> Unit) {
     Box(Modifier.fillMaxWidth().heightIn(min = Size.touchMin), contentAlignment = Alignment.Center) {
         Text(
             title,
@@ -64,5 +64,6 @@ fun ScreenHeader(title: String, onBack: () -> Unit) {
             maxLines = 2,
         )
         BackButton(onBack, Modifier.align(Alignment.CenterStart))
+        if (trailing != null) Box(Modifier.align(Alignment.CenterEnd)) { trailing() }
     }
 }

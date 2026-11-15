@@ -4,6 +4,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kr.autolog.shared.AutoLogJson
 import kr.autolog.shared.ReceiptPayload
+import kr.autolog.vehicle.core.FuelRecord
 import kr.autolog.vehicle.core.LocalStore
 import kr.autolog.vehicle.core.TripRow
 import java.time.YearMonth
@@ -16,6 +17,14 @@ class RoomLocalStore(private val trips: TripDao, private val expenses: ExpenseDa
         val from = month.atDay(1).atStartOfDay(zone).toInstant().toEpochMilli()
         val to = month.plusMonths(1).atDay(1).atStartOfDay(zone).toInstant().toEpochMilli()
         return trips.observeFinishedBetween(from, to).map { list -> list.map { it.toRow() } }
+    }
+
+    override fun fuelRecords(month: YearMonth): Flow<List<FuelRecord>> {
+        val from = month.atDay(1).atStartOfDay(zone).toInstant().toEpochMilli()
+        val to = month.plusMonths(1).atDay(1).atStartOfDay(zone).toInstant().toEpochMilli()
+        return expenses.observeFuelExpenses(from, to).map { records ->
+            records.map { FuelRecord(it.expenseId, it.occurredAt, it.amountWon, it.liters, it.merchant) }
+        }
     }
 
     override val pendingReviews: Flow<List<TripRow>> = trips.observePendingReviews().map { list ->

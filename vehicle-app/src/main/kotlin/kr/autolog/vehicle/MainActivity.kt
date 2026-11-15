@@ -8,10 +8,13 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.lifecycle.Lifecycle
 import kr.autolog.vehicle.core.DeepLink
+import kr.autolog.vehicle.data.usage.AppReturnController
 import kr.autolog.vehicle.di.AppGraph
 import kr.autolog.vehicle.di.runtimePermissions
 import kr.autolog.vehicle.nav.deepLinkRoute
+import kr.autolog.vehicle.session.EXTRA_SCREEN_ON_BOOT
 import kr.autolog.vehicle.ui.root.AutoLogRoot
 
 /**
@@ -24,6 +27,7 @@ class MainActivity : ComponentActivity() {
     /** 그래프를 만들고 화면을 띄웠는가. 그 전에 온 알림 Intent는 [pendingIntent]에 두었다가 띄울 때 적용한다. */
     private var started = false
     private var pendingIntent: Intent? = null
+    private val appReturnController by lazy { AppReturnController(graph.appReturn) { moveTaskToBack(true) } }
 
     private val askPermissions =
         registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { start() }
@@ -43,18 +47,34 @@ class MainActivity : ComponentActivity() {
         pendingIntent?.let(::openDeepLink)
         pendingIntent = null
         val appGraph = graph
-        setContent { AutoLogRoot(graph = appGraph, onRequestBackground = { moveTaskToBack(true) }) }
+        val screenOnBoot = intent.getBooleanExtra(EXTRA_SCREEN_ON_BOOT, false)
+        setContent {
+            AutoLogRoot(
+                graph = appGraph,
+                onRequestBackground = appReturnController::onMotionConfirmed,
+                deferBackgroundUntilMotionKnown = screenOnBoot,
+            )
+        }
         // 이 화면이 보이는 동안은 알약을 숨기고 앱 A 알림을 조용히(스펙 6.11·D-37), 창이 놓인 앱 영역 가운데를 알려 준다
         appGraph.setAppVisible(true)
         window.decorView.addOnLayoutChangeListener { view, _, _, _, _, _, _, _, _ -> reportAppArea(view) }
         window.decorView.post { reportAppArea(window.decorView) }
         appGraph.overlay.askPermissionOnce()
+        // 런타임 권한 창에서 돌아온 뒤 start()가 호출되면 첫 onResume이 이미 지났을 수 있다.
+        if (lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
+            appReturnController.onResume(appGraph.usage.motion.value)
+        }
     }
 
     // 그래프를 만들기 전(권한을 묻는 중)에는 건드리지 않는다 — 꺼내는 순간 백엔드가 조립된다
     override fun onStart() {
         super.onStart()
         if (started) graph.setAppVisible(true)
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (started) appReturnController.onResume(graph.usage.motion.value)
     }
 
     override fun onStop() {

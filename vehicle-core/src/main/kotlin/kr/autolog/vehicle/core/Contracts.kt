@@ -107,6 +107,9 @@ interface LocalStore {
     /** 프론트: 이력·운행기록부 화면. [month](Asia/Seoul 기준)에 시작한 운행, 최신 순. */
     fun trips(month: YearMonth): Flow<List<TripRow>>
 
+    /** 프론트: 확정되어 저장된 월별 주유 기록, 최신 순. */
+    fun fuelRecords(month: YearMonth): Flow<List<FuelRecord>>
+
     /** 프론트: "확인 필요 N건". 목적 미확정(purpose == null)인 끝난 운행, 최신 순. */
     val pendingReviews: Flow<List<TripRow>>
 

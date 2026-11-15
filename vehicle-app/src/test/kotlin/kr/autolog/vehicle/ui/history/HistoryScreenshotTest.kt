@@ -32,8 +32,14 @@ class HistoryScreenshotTest {
         loading = false,
         canGoNext = false,
         tripCount = 4,
-        totalKm = "73.2",
-        rows = rows,
+        fuelCount = 1,
+        records = listOf(
+            HistoryRecordUi.Trip(rows[0], 4L),
+            HistoryRecordUi.Fuel("fuel:f-1", 3L, 10, "08:30", 65000, 42.5, "판교주유소"),
+            HistoryRecordUi.Trip(rows[1], 2L),
+            HistoryRecordUi.Trip(rows[2], 1L),
+            HistoryRecordUi.Trip(rows[3], 0L),
+        ),
         driverChoices = listOf(DriverChoice("u-1", "김영업"), DriverChoice("u-2", "이현장"), DriverChoice("u-3", "박관리")),
     )
 
@@ -47,8 +53,8 @@ class HistoryScreenshotTest {
                 month = YearMonth.of(2026, 10),
                 canGoNext = true,
                 tripCount = 0,
-                totalKm = "0.0",
-                rows = emptyList(),
+                records = emptyList(),
+                fuelCount = 0,
             ),
             onAction = {
             },

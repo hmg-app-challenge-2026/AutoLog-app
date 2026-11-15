@@ -117,11 +117,11 @@ class HomeScreenTest {
     }
 
     @Test
-    fun `타일 4개 — 운행 기록 조회·설정·기록 시작`() {
+    fun `타일 4개 — 기록 조회·설정·기록 시작`() {
         val actions = mutableListOf<HomeAction>()
         show(ready, actions)
 
-        compose.onNodeWithText("운행 기록 조회").performClick()
+        compose.onNodeWithText("기록 조회").performClick()
         compose.onNodeWithText("설정").performClick()
         compose.onNodeWithText("기록 시작").performClick()
 

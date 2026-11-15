@@ -1,5 +1,6 @@
 package kr.autolog.vehicle.ui.history
 
+import kr.autolog.vehicle.core.FuelRecord
 import kr.autolog.vehicle.data.repository.DriverProfile
 import kr.autolog.vehicle.data.repository.HistoryItem
 import kr.autolog.vehicle.data.repository.MonthSummary
@@ -35,22 +36,43 @@ class HistoryReducerTest {
     }
 
     @Test
-    fun `불러오기 전엔 loading, 합계는 저장소 값 그대로`() {
+    fun `불러오기 전엔 loading, 운행 건수는 저장소 값 그대로`() {
         assertTrue(reduceHistory(nov, nov, null, null, emptyList(), now).loading)
 
         val s = reduceHistory(nov, nov, listOf(item("t-1", "김영업")), MonthSummary(6, 1234.56, 90.7, 1), drivers, now)
 
         assertFalse(s.loading)
         assertEquals(6, s.tripCount)
-        assertEquals("1,234.6", s.totalKm)
-        assertEquals("t-1", s.rows.single().tripId)
+        assertEquals("t-1", (s.records.single() as HistoryRecordUi.Trip).row.tripId)
     }
 
     @Test
     fun `운전자 미확정 줄을 표시하고 후보는 추천 순 최대 3명`() {
         val s = reduceHistory(nov, nov, listOf(item("t-1", null)), null, drivers, now)
 
-        assertTrue(s.rows.single().driverUnset)
+        assertTrue((s.records.single() as HistoryRecordUi.Trip).row.driverUnset)
         assertEquals(listOf("u-1", "u-2", "u-3"), s.driverChoices.map { it.userId })
+    }
+
+    @Test
+    fun `운행과 주유를 발생 시각으로 섞고 같은 날짜에 묶을 수 있다`() {
+        val fuel = FuelRecord("f-1", now - 1_800_000, 65000, 42.5, "판교주유소")
+        val state = reduceHistory(nov, nov, listOf(item("t-1", "김영업")), null, emptyList(), now, listOf(fuel))
+
+        assertEquals(1, state.fuelCount)
+        assertEquals(listOf("fuel:f-1", "trip:t-1"), state.records.map { it.id })
+        assertEquals(state.records.first().dayOfMonth, state.records.last().dayOfMonth)
+    }
+
+    @Test
+    fun `전체가 기본이고 종류 필터는 해당 기록만 보여준다`() {
+        val fuel = FuelRecord("f-1", now - 1_800_000, 65000, 42.5, "판교주유소")
+        val state = reduceHistory(nov, nov, listOf(item("t-1", "김영업")), null, emptyList(), now, listOf(fuel))
+
+        assertEquals(HistoryFilter.ALL, state.filter)
+        assertEquals(2, state.visibleRecords.size)
+        assertEquals(listOf("trip:t-1"), state.copy(filter = HistoryFilter.TRIPS).visibleRecords.map { it.id })
+        assertEquals(listOf("fuel:f-1"), state.copy(filter = HistoryFilter.FUELS).visibleRecords.map { it.id })
+        assertEquals(1, state.fuelCount)
     }
 }

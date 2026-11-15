@@ -14,6 +14,7 @@ import kr.autolog.vehicle.data.repository.Outcome
 import kr.autolog.vehicle.data.repository.ServerLink
 import kr.autolog.vehicle.data.repository.TripSession
 import kr.autolog.vehicle.data.upload.UnavailableUploadApi
+import kr.autolog.vehicle.data.usage.AppReturnGateway
 import kr.autolog.vehicle.data.usage.StaticCarUxSource
 import kr.autolog.vehicle.fake.FakeContext
 import kr.autolog.vehicle.fake.FakeDeviceApi
@@ -58,7 +59,7 @@ class RealAppGraphTest {
         mail = FakeMailApi(),
         settings = FakeSettingsApi(),
     )
-    private val graph = RealAppGraph(components, StaticCarUxSource(), scope)
+    private val graph = RealAppGraph(components, StaticCarUxSource(), scope, appReturn = AppReturnGateway.Demo)
 
     @Test
     fun `세션·운행 기록·서버 연결은 구성 요소에서 그대로 온다`() = runTest {

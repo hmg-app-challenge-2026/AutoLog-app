@@ -1,10 +1,11 @@
 package kr.autolog.vehicle.ui.settings
 
 import kr.autolog.vehicle.core.PurposeCategory
+import kr.autolog.vehicle.session.StartupMode
 import kr.autolog.vehicle.ui.trips.TripWhen
 
 /** 설정 섹션(스펙 7.9) — 선언 순서 = 목록 순서. 이름·아이콘·요약 문구는 화면이 정한다. */
-enum class SettingsSection { VEHICLE, MAIL, RECIPIENTS, PURPOSES, STAFF, AUTOMATION, SYNC, ABOUT }
+enum class SettingsSection { VEHICLE, MAIL, RECIPIENTS, PURPOSES, STAFF, AUTOMATION, SYNC, PERSONALIZATION, ABOUT }
 
 /** 연결 코드 자릿수(앱 A `DeviceApi.register` 규칙). */
 
@@ -25,6 +26,7 @@ data class SettingsUiState(
     /** 출발→도착 목적 규칙(회사 지정 먼저). */
     val purposeRules: List<PurposeRuleRowUi> = emptyList(),
     val autoMonthlySend: Boolean = false,
+    val startupMode: StartupMode = StartupMode.BACKGROUND,
     /** 지금 진행 중인 작업(버튼 로딩). 한 번에 하나. */
     val running: SettingsTask? = null,
     /** 작업별 마지막 결과(섹션·팝업 아래 한 줄). */
@@ -33,6 +35,8 @@ data class SettingsUiState(
     val app: AppInfo = AppInfo("", demo = false),
     /** 운행 기록 알약 권한 카드(차량 정보 섹션). null = 이 빌드에 알약이 없음(데모). */
     val overlay: OverlayUi? = null,
+    /** 이전 앱 복귀 후보 판별에 필요한 사용 정보 접근 권한. 데모는 null. */
+    val usageAccess: UsageAccessUi? = null,
 ) {
     val mailConnected: Boolean get() = mailAccount != null
 }
@@ -42,6 +46,8 @@ data class SettingsUiState(
  * 이 차량에 시스템 권한 화면이 없었다(버튼 위에 안내 한 줄).
  */
 data class OverlayUi(val allowed: Boolean, val settingsUnavailable: Boolean = false)
+
+data class UsageAccessUi(val allowed: Boolean, val settingsUnavailable: Boolean = false)
 
 /** 차량·사내 서버 연결(8장). [lastSync]는 마지막 동기화 시각. */
 sealed interface LinkUi {
@@ -173,6 +179,8 @@ sealed interface SettingsAction {
     /** 설정 화면을 나간다. */
     data object Back : SettingsAction
 
+    data class SetStartupMode(val mode: StartupMode) : SettingsAction
+
     data object StartRegister : SettingsAction
 
     data object StartAddRecipient : SettingsAction
@@ -223,4 +231,8 @@ sealed interface SettingsAction {
 
     /** [화면 위 표시 권한 허용] — 시스템 권한 화면을 연다. */
     data object OpenOverlaySettings : SettingsAction
+
+    data object RefreshUsageAccess : SettingsAction
+
+    data object OpenUsageAccessSettings : SettingsAction
 }

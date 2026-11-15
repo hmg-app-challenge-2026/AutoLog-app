@@ -20,6 +20,7 @@ import androidx.compose.material.icons.rounded.Group
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Mail
 import androidx.compose.material.icons.rounded.Sync
+import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -32,6 +33,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import kr.autolog.vehicle.R
 import kr.autolog.vehicle.di.LocalAppGraph
+import kr.autolog.vehicle.session.SharedPreferencesStartupModeStore
+import kr.autolog.vehicle.session.StartupMode
 import kr.autolog.vehicle.ui.design.LocalWindowLayout
 import kr.autolog.vehicle.ui.design.Size
 import kr.autolog.vehicle.ui.design.Space
@@ -57,7 +60,19 @@ fun SettingsRoute() {
             .getOrNull().orEmpty()
         AppInfo(version, demo = graph.demoOverlay != null)
     }
-    val vm = viewModel { SettingsViewModel(graph.settings, graph.navigator, graph.clock, app, graph.overlay) }
+    val startupModes = remember(context) { SharedPreferencesStartupModeStore(context) }
+    val vm =
+        viewModel {
+            SettingsViewModel(
+                graph.settings,
+                graph.navigator,
+                graph.clock,
+                app,
+                graph.overlay,
+                startupModes,
+                graph.appReturn,
+            )
+        }
     val state by vm.uiState.collectAsStateWithLifecycle()
     SettingsScreen(state, vm::onAction)
 }
@@ -145,6 +160,7 @@ internal fun sectionTitle(section: SettingsSection): Int = when (section) {
     SettingsSection.STAFF -> R.string.settings_staff
     SettingsSection.AUTOMATION -> R.string.settings_automation
     SettingsSection.SYNC -> R.string.settings_sync
+    SettingsSection.PERSONALIZATION -> R.string.settings_personalization
     SettingsSection.ABOUT -> R.string.settings_about
 }
 
@@ -156,6 +172,7 @@ private fun sectionIcon(section: SettingsSection): ImageVector = when (section) 
     SettingsSection.STAFF -> Icons.Rounded.Badge
     SettingsSection.AUTOMATION -> Icons.Rounded.Event
     SettingsSection.SYNC -> Icons.Rounded.Sync
+    SettingsSection.PERSONALIZATION -> Icons.Rounded.Tune
     SettingsSection.ABOUT -> Icons.Rounded.Info
 }
 
@@ -184,5 +201,12 @@ private fun sectionSummary(section: SettingsSection, state: SettingsUiState): St
     SettingsSection.SYNC -> (state.link as? LinkUi.Linked)?.lastSync
         ?.let { stringResource(R.string.settings_last_sync, tripWhenText(it)) }
         ?: stringResource(R.string.settings_sync_summary)
+    SettingsSection.PERSONALIZATION -> stringResource(
+        if (state.startupMode == StartupMode.SCREEN) {
+            R.string.settings_startup_screen
+        } else {
+            R.string.settings_startup_background
+        },
+    )
     SettingsSection.ABOUT -> stringResource(R.string.settings_version, state.app.version)
 }

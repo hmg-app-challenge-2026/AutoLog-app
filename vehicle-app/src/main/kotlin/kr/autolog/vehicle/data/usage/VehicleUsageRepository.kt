@@ -10,12 +10,13 @@ import kr.autolog.vehicle.core.VehicleMotion
 
 /** 사용 단계의 유일한 진실 (스펙 6.9 1번). */
 interface VehicleUsageRepository {
+    val motion: StateFlow<VehicleMotion?>
     val tier: StateFlow<UsageTier>
     val noKeyboard: StateFlow<Boolean>
 }
 
 class DefaultVehicleUsageRepository(
-    motion: StateFlow<VehicleMotion?>,
+    override val motion: StateFlow<VehicleMotion?>,
     carUx: StateFlow<CarUxState?>,
     scope: CoroutineScope,
 ) : VehicleUsageRepository {

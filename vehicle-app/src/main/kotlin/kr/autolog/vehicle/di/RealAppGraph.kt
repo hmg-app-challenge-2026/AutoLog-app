@@ -13,6 +13,7 @@ import kr.autolog.vehicle.data.repository.DefaultSettingsRepository
 import kr.autolog.vehicle.data.repository.DefaultTripRepository
 import kr.autolog.vehicle.data.repository.DefaultTripResultRepository
 import kr.autolog.vehicle.data.upload.UnavailableUploadApi
+import kr.autolog.vehicle.data.usage.AppReturnGateway
 import kr.autolog.vehicle.data.usage.CarUxSource
 import kr.autolog.vehicle.data.usage.DefaultVehicleUsageRepository
 import kr.autolog.vehicle.nav.Navigator
@@ -31,6 +32,7 @@ class RealAppGraph(
     override val clock: AppClock = AppClock.System,
     /** 운행 기록 알약(스펙 6.11). vehicle flavor가 `RecordingPill`을 넣는다. */
     override val overlay: RecordingOverlay = RecordingOverlay.None,
+    override val appReturn: AppReturnGateway,
 ) : AppGraph {
     override val navigator = Navigator(Route.ProfilePicker)
 

@@ -29,6 +29,11 @@ interface ExpenseDao {
     @Query("SELECT * FROM expenses WHERE occurredAt >= :from AND occurredAt < :to ORDER BY occurredAt")
     suspend fun expensesBetween(from: Long, to: Long): List<ExpenseEntity>
 
+    @Query(
+        "SELECT * FROM expenses WHERE kind = 'FUEL' AND occurredAt >= :from AND occurredAt < :to ORDER BY occurredAt DESC",
+    )
+    fun observeFuelExpenses(from: Long, to: Long): Flow<List<ExpenseEntity>>
+
     @Query("SELECT * FROM trip_expense_links WHERE expenseId IN (:expenseIds)")
     suspend fun linksForExpenses(expenseIds: List<String>): List<TripExpenseLinkEntity>
 

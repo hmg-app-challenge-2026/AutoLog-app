@@ -8,13 +8,18 @@ import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import kr.autolog.vehicle.TestAppGraph
 import kr.autolog.vehicle.common.AppClock
 import kr.autolog.vehicle.data.repository.OverlayPermissionRepository
+import kr.autolog.vehicle.data.usage.AppReturnGateway
+import kr.autolog.vehicle.data.usage.ReturnTargetStatus
 import kr.autolog.vehicle.nav.Route
 import kr.autolog.vehicle.overlay.RecordingOverlay
+import kr.autolog.vehicle.session.StartupMode
+import kr.autolog.vehicle.session.StartupModeStore
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -31,6 +36,8 @@ class SettingsViewModelTest {
     private fun TestScope.open(
         overlay: OverlayPermissionRepository = RecordingOverlay.None,
         relayUrl: String = "https://relay.example",
+        startupModes: StartupModeStore = MemoryStartupModes(),
+        appReturn: AppReturnGateway = AppReturnGateway.Demo,
     ): Pair<TestAppGraph, SettingsViewModel> {
         val g =
             TestAppGraph(
@@ -42,9 +49,62 @@ class SettingsViewModelTest {
                 relayUrl = relayUrl,
             )
         g.navigator.push(Route.Settings)
-        val vm = SettingsViewModel(g.settings, g.navigator, g.clock, AppInfo("0.1.0", demo = true), overlay)
+        val vm =
+            SettingsViewModel(
+                g.settings,
+                g.navigator,
+                g.clock,
+                AppInfo("0.1.0", demo = true),
+                overlay,
+                startupModes,
+                appReturn,
+            )
         backgroundScope.launch { vm.uiState.collect {} }
         return g to vm
+    }
+
+    private class MemoryStartupModes(var mode: StartupMode = StartupMode.BACKGROUND) : StartupModeStore {
+        override fun get(): StartupMode = mode
+
+        override fun set(mode: StartupMode) {
+            this.mode = mode
+        }
+    }
+
+    private class FakeAppReturn(var allowed: Boolean = false, var canOpen: Boolean = true) : AppReturnGateway {
+        override val supported = true
+
+        override fun targetStatus() = ReturnTargetStatus.UNKNOWN
+
+        override fun hasUsageAccess() = allowed
+
+        override fun openSettings() = canOpen
+    }
+
+    @Test
+    fun `사용 정보 접근 권한은 ViewModel에서 갱신하고 설정 화면 실패를 표시한다`() = runTest {
+        val gateway = FakeAppReturn(canOpen = false)
+        val (_, vm) = open(appReturn = gateway)
+
+        vm.onAction(SettingsAction.OpenUsageAccessSettings)
+        runCurrent()
+        assertEquals(true, vm.uiState.value.usageAccess?.settingsUnavailable)
+
+        gateway.allowed = true
+        vm.onAction(SettingsAction.RefreshUsageAccess)
+        runCurrent()
+        assertEquals(true, vm.uiState.value.usageAccess?.allowed)
+    }
+
+    @Test
+    fun `시동 실행 방법을 바꾸면 화면과 저장값에 반영된다`() = runTest {
+        val store = MemoryStartupModes()
+        val (_, vm) = open(startupModes = store)
+        assertEquals(StartupMode.BACKGROUND, vm.uiState.value.startupMode)
+        vm.onAction(SettingsAction.SetStartupMode(StartupMode.SCREEN))
+        runCurrent()
+        assertEquals(StartupMode.SCREEN, vm.uiState.value.startupMode)
+        assertEquals(StartupMode.SCREEN, store.get())
     }
 
     @Test

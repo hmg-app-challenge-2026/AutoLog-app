@@ -30,16 +30,24 @@ class HistoryViewModel(
     private val clock: AppClock,
 ) : ViewModel() {
     private val month = MutableStateFlow(clock.currentMonth())
+    private val filter = MutableStateFlow(HistoryFilter.ALL)
 
     val uiState: StateFlow<HistoryUiState> =
         month.flatMapLatest { m ->
-            combine(trips.history(m), trips.summary(m), profile.orderedProfiles()) { items, summary, drivers ->
-                reduceHistory(m, clock.currentMonth(), items, summary, drivers, clock.nowMs())
+            combine(trips.history(m), trips.summary(m), trips.fuelRecords(m), profile.orderedProfiles()) {
+                    items,
+                    summary,
+                    fuels,
+                    drivers,
+                ->
+                reduceHistory(m, clock.currentMonth(), items, summary, drivers, clock.nowMs(), fuels)
             }
-        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HistoryUiState(month.value))
+        }.combine(filter) { state, selected -> state.copy(filter = selected) }
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HistoryUiState(month.value))
 
     fun onAction(action: HistoryAction) {
         when (action) {
+            is HistoryAction.SetFilter -> filter.value = action.filter
             HistoryAction.PrevMonth -> month.update { it.minusMonths(1) }
             // 지금 달보다 뒤(미래)로는 넘어가지 않는다
             HistoryAction.NextMonth -> month.update { if (it < clock.currentMonth()) it.plusMonths(1) else it }
