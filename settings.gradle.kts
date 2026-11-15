@@ -12,7 +12,7 @@ dependencyResolutionManagement {
         create("fe") { from(files("gradle/fe.versions.toml")) }
     }
 }
-rootProject.name = "AutoLog"
+rootProject.name = "HTaxLog"
 
 // 저장소에 있는 Gradle 모듈 목록일 뿐, APK 포함 여부와는 무관하다.
 // APK에 무엇이 들어가는지는 vehicle-app/build.gradle.kts 의 dependencies 가 결정한다.

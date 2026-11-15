@@ -5,7 +5,7 @@
 | ID | 결과 | 환경 | 날짜 | 메모 |
 |---|---|---|---|---|
 | V-01 | 일부 — 기본 디스플레이 2560×1440 px · 밀도 1.0(160 dpi) · 앱 영역 ≈ 2560×1268 dp(상태 표시줄 76 px · 하단 바 96 px 제외) → WIDE. **FormFactorConsole 프리셋(12.9″ Portrait 등)과 분할 화면 한 칸의 dp는 아직** | 맥 에뮬레이터(Pleos Connect v2.1.0, API 34) | 2026-11-10 | `docs/screenshots/font-size/pleos-*.png`(2560×1440) 캡처에서 잼: 여백 `Space.s7` 48 dp = 48 px, `Size.dockIcon` 112 dp = 112 px |
-| V-02 | 성공 — `includeBuild("backend") { dependencySubstitution { substitute(module("kr.autolog:vehicle-core")).using(project(":vehicle-core")) } }` 그대로 동작. 대안(include) 불필요 | WSL | 2026-11-09 | `:backend:vehicle-core` 태스크로 빌드됨 |
+| V-02 | 성공 — `includeBuild("backend") { dependencySubstitution { substitute(module("kr.htaxlog:vehicle-core")).using(project(":vehicle-core")) } }` 그대로 동작. 대안(include) 불필요 | WSL | 2026-11-09 | `:backend:vehicle-core` 태스크로 빌드됨 |
 | V-03 | | 맥 에뮬레이터 | | |
 | V-04 | | 맥 에뮬레이터 | | |
 | V-05 | 지원 — Asta Sans GSUB 기능 목록에 `tnum` 있음(aalt·calt·ccmp·frac·fwid·liga·ordn·sinf·ss01·subs·sups·tnum·vert·vrt2) | WSL | 2026-11-09 | `fontFeatureSettings = "tnum"` 그대로 사용 |

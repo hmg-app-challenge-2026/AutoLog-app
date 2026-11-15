@@ -3,11 +3,11 @@
 // 토큰은 이 브라우저에만 저장하고, 서버가 403(만료·로그아웃)을 주면 지우고 로그인 화면으로 돌아간다.
 
 const BASE = '/admin/api'
-const TOKEN_KEY = 'autolog.adminSession'
-const LEGACY_KEY = 'autolog.adminToken' // 예전 공용 토큰 — 더는 쓰지 않으므로 지운다
+const TOKEN_KEY = 'htaxlog.adminSession'
+const LEGACY_KEY = 'htaxlog.adminToken' // 예전 공용 토큰 — 더는 쓰지 않으므로 지운다
 
 /** 세션이 끝났을 때(403) App이 로그인 화면으로 돌아가도록 알린다. */
-export const SESSION_EXPIRED = 'autolog:session-expired'
+export const SESSION_EXPIRED = 'htaxlog:session-expired'
 
 export function getToken(): string {
   try {

@@ -24,16 +24,16 @@
     <application>
         <!-- [앱 A] F-16 백그라운드 기록. 프로세스가 살아 있는 동안 포그라운드 -->
         <service
-            android:name="kr.autolog.vehicle.session.TripRecordingService"
+            android:name="kr.htaxlog.vehicle.session.TripRecordingService"
             android:exported="false"
             android:foregroundServiceType="specialUse">
             <property
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
                 android:value="Vehicle trip logging: keeps odometer and gear listeners alive while the driver uses navigation" />
         </service>
-        <!-- [앱 A] F-14 부팅·업데이트 뒤 AutoLog 조립(세션 복구·자동 시작) -->
+        <!-- [앱 A] F-14 부팅·업데이트 뒤 HTaxLog 조립(세션 복구·자동 시작) -->
         <receiver
-            android:name="kr.autolog.vehicle.session.BootReceiver"
+            android:name="kr.htaxlog.vehicle.session.BootReceiver"
             android:exported="false">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />

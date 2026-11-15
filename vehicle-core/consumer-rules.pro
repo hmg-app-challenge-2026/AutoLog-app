@@ -1,8 +1,8 @@
 # app 의 R8 에 자동 적용되는 규칙
 # kotlinx.serialization
 -keepattributes *Annotation*, InnerClasses
--keep,includedescriptorclasses class kr.autolog.**$$serializer { *; }
--keepclassmembers class kr.autolog.** { *** Companion; }
+-keep,includedescriptorclasses class kr.htaxlog.**$$serializer { *; }
+-keepclassmembers class kr.htaxlog.** { *** Companion; }
 # Jakarta/Java Mail
 -keep class javax.mail.** { *; }
 -keep class com.sun.mail.** { *; }

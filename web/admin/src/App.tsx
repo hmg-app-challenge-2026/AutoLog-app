@@ -59,7 +59,7 @@ export default function App() {
     <div className="layout">
       <nav className="nav">
         <div className="brand">
-          AutoLog 운영
+          H-TaxLog 운영
           <small className="org">{me.orgName}</small>
         </div>
         {SCREENS.map(s => (
@@ -128,7 +128,7 @@ function Login({ onDone, onSignup }: { onDone: (me: Me) => void; onSignup: () =>
   return (
     <div className="login">
       <form className="card form" onSubmit={submit}>
-        <h2>AutoLog 운영</h2>
+        <h2>H-TaxLog 운영</h2>
         <p className="muted">회사 관리자 계정으로 로그인하세요.</p>
         <label className="field">
           <span>이메일</span>
@@ -153,7 +153,7 @@ function Login({ onDone, onSignup }: { onDone: (me: Me) => void; onSignup: () =>
             회사 가입
           </button>
         </p>
-        <p className="muted small">비밀번호를 잊었으면 AutoLog 운영 담당자에게 문의하세요.</p>
+        <p className="muted small">비밀번호를 잊었으면 H-TaxLog 운영 담당자에게 문의하세요.</p>
       </form>
     </div>
   )

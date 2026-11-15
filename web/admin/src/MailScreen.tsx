@@ -132,7 +132,7 @@ export function MailScreen() {
             <input
               type="email"
               autoComplete="off"
-              placeholder="autolog@company.co.kr"
+              placeholder="htaxlog@company.co.kr"
               value={form.username}
               onChange={set('username')}
               onBlur={suggestHost}
@@ -160,7 +160,7 @@ export function MailScreen() {
           </label>
           <label className="field">
             <span>보내는 사람 이름 (선택)</span>
-            <input placeholder="AutoLog" value={form.fromName} onChange={set('fromName')} />
+            <input placeholder="H-TaxLog" value={form.fromName} onChange={set('fromName')} />
           </label>
           <p className="muted small">
             Gmail·네이버 같은 메일은 로그인 비밀번호 대신 메일 설정에서 만든 <b>앱 비밀번호</b>를 넣어요. 회사 메일은

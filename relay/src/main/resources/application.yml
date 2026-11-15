@@ -3,17 +3,17 @@ server:
   # 한도 초과 업로드도 끝까지 읽고 413을 돌려준다(기본 2MB면 연결을 끊음). 전체 크기는 nginx 16m가 막는다
   tomcat.max-swallow-size: 20MB
 spring:
-  application.name: autolog-relay
+  application.name: htaxlog-relay
   datasource:
-    url: ${DB_URL:jdbc:postgresql://localhost:5432/autolog}
-    username: ${DB_USER:autolog}
-    password: ${DB_PASSWORD:autolog}
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/htaxlog}
+    username: ${DB_USER:htaxlog}
+    password: ${DB_PASSWORD:htaxlog}
   flyway.enabled: true
   servlet.multipart:
     max-file-size: 15MB      # 사진 1장
     max-request-size: 16MB   # 사진 + multipart 헤더. nginx client_max_body_size 와 맞춘다
 
-autolog:
+htaxlog:
   public-base-url: ${PUBLIC_BASE_URL:http://localhost}   # QR에 들어갈 주소 (폰이 접속)
   admin:
     session-hours: 12                  # 회사 관리자 로그인 유지 시간(/admin/auth/login)

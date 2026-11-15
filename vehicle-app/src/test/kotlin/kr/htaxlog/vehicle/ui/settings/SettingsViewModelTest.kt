@@ -1,0 +1,329 @@
+package kr.htaxlog.vehicle.ui.settings
+
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.runCurrent
+import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.test.setMain
+import kr.htaxlog.vehicle.TestAppGraph
+import kr.htaxlog.vehicle.common.AppClock
+import kr.htaxlog.vehicle.data.repository.OverlayPermissionRepository
+import kr.htaxlog.vehicle.data.usage.AppReturnGateway
+import kr.htaxlog.vehicle.data.usage.ReturnTargetStatus
+import kr.htaxlog.vehicle.nav.Route
+import kr.htaxlog.vehicle.overlay.RecordingOverlay
+import kr.htaxlog.vehicle.session.StartupMode
+import kr.htaxlog.vehicle.session.StartupModeStore
+import org.junit.After
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
+import org.junit.Before
+import org.junit.Test
+
+@OptIn(ExperimentalCoroutinesApi::class)
+class SettingsViewModelTest {
+    @Before fun setUp() = Dispatchers.setMain(UnconfinedTestDispatcher())
+
+    @After fun tearDown() = Dispatchers.resetMain()
+
+    private fun TestScope.open(
+        overlay: OverlayPermissionRepository = RecordingOverlay.None,
+        relayUrl: String = "https://relay.example",
+        startupModes: StartupModeStore = MemoryStartupModes(),
+        appReturn: AppReturnGateway = AppReturnGateway.Demo,
+    ): Pair<TestAppGraph, SettingsViewModel> {
+        val g =
+            TestAppGraph(
+                backgroundScope,
+                AppClock {
+                    testScheduler.currentTime
+                },
+                start = Route.Home,
+                relayUrl = relayUrl,
+            )
+        g.navigator.push(Route.Settings)
+        val vm =
+            SettingsViewModel(
+                g.settings,
+                g.navigator,
+                g.clock,
+                AppInfo("0.1.0", demo = true),
+                overlay,
+                startupModes,
+                appReturn,
+            )
+        backgroundScope.launch { vm.uiState.collect {} }
+        return g to vm
+    }
+
+    private class MemoryStartupModes(var mode: StartupMode = StartupMode.BACKGROUND) : StartupModeStore {
+        override fun get(): StartupMode = mode
+
+        override fun set(mode: StartupMode) {
+            this.mode = mode
+        }
+    }
+
+    private class FakeAppReturn(var allowed: Boolean = false, var canOpen: Boolean = true) : AppReturnGateway {
+        override val supported = true
+
+        override fun targetStatus() = ReturnTargetStatus.UNKNOWN
+
+        override fun hasUsageAccess() = allowed
+
+        override fun openSettings() = canOpen
+    }
+
+    @Test
+    fun `사용 정보 접근 권한은 ViewModel에서 갱신하고 설정 화면 실패를 표시한다`() = runTest {
+        val gateway = FakeAppReturn(canOpen = false)
+        val (_, vm) = open(appReturn = gateway)
+
+        vm.onAction(SettingsAction.OpenUsageAccessSettings)
+        runCurrent()
+        assertEquals(true, vm.uiState.value.usageAccess?.settingsUnavailable)
+
+        gateway.allowed = true
+        vm.onAction(SettingsAction.RefreshUsageAccess)
+        runCurrent()
+        assertEquals(true, vm.uiState.value.usageAccess?.allowed)
+    }
+
+    @Test
+    fun `시동 실행 방법을 바꾸면 화면과 저장값에 반영된다`() = runTest {
+        val store = MemoryStartupModes()
+        val (_, vm) = open(startupModes = store)
+        assertEquals(StartupMode.BACKGROUND, vm.uiState.value.startupMode)
+        vm.onAction(SettingsAction.SetStartupMode(StartupMode.SCREEN))
+        runCurrent()
+        assertEquals(StartupMode.SCREEN, vm.uiState.value.startupMode)
+        assertEquals(StartupMode.SCREEN, store.get())
+    }
+
+    @Test
+    fun `연결 코드 — 6자리만 넣고 연결하면 빌드에 고정된 서버로 연결된다`() = runTest {
+        val (_, vm) = open()
+        vm.onAction(SettingsAction.StartRegister)
+        vm.onAction(SettingsAction.EditDialog(DialogField.CONNECT_CODE, "7kq3mzW")) // 소문자는 대문자로, 7번째는 무시
+
+        val dialog = vm.uiState.first { (it.dialog as? SettingsDialog.Register)?.code?.length == 6 }.dialog
+        assertEquals("7KQ3MZ", (dialog as SettingsDialog.Register).code)
+        vm.onAction(SettingsAction.SubmitDialog)
+        advanceUntilIdle()
+
+        assertNull(vm.uiState.value.dialog)
+        assertEquals(TaskResult.Done, vm.uiState.value.results[SettingsTask.REGISTER])
+        assertEquals(
+            "https://relay.example",
+            (
+                vm.uiState.first {
+                    it.link is LinkUi.Linked
+                }.link as LinkUi.Linked
+                ).serverUrl,
+        )
+    }
+
+    @Test
+    fun `연결 코드 — 서버가 쓰지 않는 0·1·I·O와 기호는 들어가지 않는다`() = runTest {
+        val (_, vm) = open()
+        vm.onAction(SettingsAction.StartRegister)
+        vm.onAction(SettingsAction.EditDialog(DialogField.CONNECT_CODE, "01IO-#A2"))
+
+        val dialog = vm.uiState.first { (it.dialog as? SettingsDialog.Register)?.code?.length == 2 }.dialog
+        assertEquals("A2", (dialog as SettingsDialog.Register).code)
+    }
+
+    @Test
+    fun `연결 실패면 팝업에 이유를 남긴다`() = runTest {
+        val (_, vm) = open(relayUrl = "ftp://x") // 빌드 설정이 잘못된 경우
+        vm.onAction(SettingsAction.StartRegister)
+        vm.onAction(SettingsAction.EditDialog(DialogField.CONNECT_CODE, "7KQ3MZ"))
+        vm.onAction(SettingsAction.SubmitDialog)
+        advanceUntilIdle()
+
+        assertTrue(vm.uiState.value.dialog is SettingsDialog.Register)
+        assertTrue(vm.uiState.value.results[SettingsTask.REGISTER] is TaskResult.Failed)
+    }
+
+    @Test
+    fun `받는 사람 추가와 지우기 — 회사 지정도 이 차에서 뺄 수 있다`() = runTest {
+        val (_, vm) = open()
+        vm.onAction(SettingsAction.StartAddRecipient)
+        vm.onAction(SettingsAction.EditDialog(DialogField.EMAIL, "boss@example.com"))
+        vm.onAction(SettingsAction.SubmitDialog)
+        advanceUntilIdle()
+        assertTrue(vm.uiState.value.recipients.any { it.email == "boss@example.com" })
+
+        vm.onAction(SettingsAction.AskRemoveRecipient("boss@example.com"))
+        vm.onAction(SettingsAction.SubmitDialog)
+        advanceUntilIdle()
+        assertTrue(vm.uiState.value.recipients.none { it.email == "boss@example.com" })
+
+        vm.onAction(SettingsAction.AskRemoveRecipient("accounting@example.com"))
+        vm.onAction(SettingsAction.SubmitDialog)
+        advanceUntilIdle()
+        assertEquals(TaskResult.Done, vm.uiState.value.results[SettingsTask.REMOVE_RECIPIENT])
+        assertTrue(vm.uiState.value.recipients.none { it.email == "accounting@example.com" })
+    }
+
+    @Test
+    fun `직원 추가`() = runTest {
+        val (_, vm) = open()
+        vm.onAction(SettingsAction.StartAddStaff)
+        vm.onAction(SettingsAction.EditDialog(DialogField.NAME, "최신입"))
+        vm.onAction(SettingsAction.EditDialog(DialogField.DEPT, "영업2팀"))
+        vm.onAction(SettingsAction.SubmitDialog)
+        advanceUntilIdle()
+
+        assertTrue(vm.uiState.value.staff.any { it.name == "최신입" && it.dept == "영업2팀" && !it.fromServer })
+    }
+
+    @Test
+    fun `메일 계정 — 관리자 웹에서 온 주소를 보여 주고 바뀌면 따라 바뀐다`() = runTest {
+        val (g, vm) = open()
+        backgroundScope.launch { vm.uiState.collect {} }
+        advanceUntilIdle()
+        assertEquals("me@example.com", vm.uiState.value.mailAccount)
+
+        g.sources.mail.account.value = "htaxlog@company.example"
+        advanceUntilIdle()
+
+        assertEquals("htaxlog@company.example", vm.uiState.value.mailAccount)
+        assertTrue(vm.uiState.value.mailConnected)
+    }
+
+    @Test
+    fun `월말 자동 발송 스위치는 저장소에 남는다`() = runTest {
+        val (g, vm) = open()
+
+        vm.onAction(SettingsAction.SetAutoMonthlySend(true))
+
+        assertTrue(g.settings.autoMonthlySend.value)
+        assertTrue(vm.uiState.first { it.autoMonthlySend }.autoMonthlySend)
+    }
+
+    @Test
+    fun `섹션을 열고 닫고, 뒤로는 화면을 나간다`() = runTest {
+        val (g, vm) = open()
+        vm.onAction(SettingsAction.Open(SettingsSection.MAIL))
+        assertEquals(SettingsSection.MAIL, vm.uiState.first { it.section != null }.section)
+        vm.onAction(SettingsAction.CloseSection)
+        assertNull(vm.uiState.first { it.section == null }.section)
+
+        vm.onAction(SettingsAction.Back)
+
+        assertEquals(Route.Home, g.navigator.current)
+    }
+
+    /** 시스템 권한 화면을 흉내 낸다: [screen]이 없으면 열지 못한다, 열면 사용자가 허용한 것으로. */
+    private class FakeOverlayPermission(var allowed: Boolean, private val screen: Boolean) :
+        OverlayPermissionRepository {
+        override val supported = true
+
+        override fun isAllowed() = allowed
+
+        override fun openSettings(): Boolean = screen
+    }
+
+    @Test
+    fun `데모 빌드에는 알약 권한 카드가 없다`() = runTest {
+        val (_, vm) = open()
+
+        assertNull(vm.uiState.value.overlay)
+    }
+
+    @Test
+    fun `권한 화면에서 허용하고 돌아오면 다시 확인해 켜짐으로 바뀐다`() = runTest {
+        val permission = FakeOverlayPermission(allowed = false, screen = true)
+        val (_, vm) = open(permission)
+        assertEquals(OverlayUi(allowed = false), vm.uiState.value.overlay)
+
+        vm.onAction(SettingsAction.OpenOverlaySettings)
+        permission.allowed = true
+        vm.onAction(SettingsAction.RefreshOverlay)
+
+        assertEquals(OverlayUi(allowed = true), vm.uiState.first { it.overlay?.allowed == true }.overlay)
+    }
+
+    @Test
+    fun `이 차량에 권한 화면이 없으면 그 사실을 알린다`() = runTest {
+        val (_, vm) = open(FakeOverlayPermission(allowed = false, screen = false))
+
+        vm.onAction(SettingsAction.OpenOverlaySettings)
+
+        assertEquals(
+            OverlayUi(allowed = false, settingsUnavailable = true),
+            vm.uiState.first { it.overlay?.settingsUnavailable == true }.overlay,
+        )
+    }
+
+    @Test
+    fun `목적 추가와 출발→도착 규칙 추가`() = runTest {
+        val (_, vm) = open()
+        backgroundScope.launch { vm.uiState.collect {} }
+
+        vm.onAction(SettingsAction.StartAddPurpose)
+        vm.onAction(SettingsAction.EditDialog(DialogField.NAME, "현장 점검"))
+        vm.onAction(SettingsAction.SubmitDialog)
+        advanceUntilIdle()
+        val added = vm.uiState.value.purposes.single { it.label == "현장 점검" }
+        assertTrue(!added.builtIn && !added.fromServer)
+
+        vm.onAction(SettingsAction.StartAddPurposeRule)
+        advanceUntilIdle()
+        vm.onAction(SettingsAction.PickRuleDest("p-client"))
+        vm.onAction(SettingsAction.PickRulePurpose(added.name))
+        vm.onAction(SettingsAction.SubmitDialog)
+        advanceUntilIdle()
+
+        assertTrue(
+            vm.uiState.value.purposeRules.any {
+                it.destLabel == "한빛상사" &&
+                    it.originLabel == null &&
+                    it.purposeLabel == "현장 점검"
+            },
+        )
+    }
+
+    @Test
+    fun `규칙 팝업의 새 장소 — 찾아서 고르고 추가하면 규칙 팝업으로 돌아와 도착에 골라져 있다`() = runTest {
+        val (_, vm) = open()
+        backgroundScope.launch { vm.uiState.collect {} }
+        vm.onAction(SettingsAction.StartAddPurposeRule)
+        advanceUntilIdle()
+
+        vm.onAction(SettingsAction.StartAddPlace(RuleTarget.DEST))
+        vm.onAction(SettingsAction.EditDialog(DialogField.QUERY, "물류센터"))
+        vm.onAction(SettingsAction.SearchPlace)
+        advanceUntilIdle()
+        vm.onAction(SettingsAction.PickCandidate(1))
+        assertEquals("물류센터 2호점", (vm.uiState.value.dialog as SettingsDialog.AddPlace).label)
+        vm.onAction(SettingsAction.SubmitDialog)
+        advanceUntilIdle()
+
+        val back = vm.uiState.value.dialog as SettingsDialog.AddPurposeRule
+        assertEquals("물류센터 2호점", back.places.single { it.placeId == back.destPlaceId }.label)
+    }
+
+    @Test
+    fun `새 장소 팝업의 X는 규칙 팝업으로 돌아간다`() = runTest {
+        val (_, vm) = open()
+        vm.onAction(SettingsAction.StartAddPurposeRule)
+        advanceUntilIdle()
+        vm.onAction(SettingsAction.StartAddPlace(RuleTarget.ORIGIN))
+        vm.onAction(SettingsAction.UseCurrentPlace)
+        advanceUntilIdle()
+        assertEquals(0, (vm.uiState.value.dialog as SettingsDialog.AddPlace).picked)
+
+        vm.onAction(SettingsAction.DismissDialog)
+
+        assertTrue(vm.uiState.value.dialog is SettingsDialog.AddPurposeRule)
+    }
+}

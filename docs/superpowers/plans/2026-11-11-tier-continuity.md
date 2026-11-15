@@ -20,7 +20,7 @@
 기각: 타일 숨김·안내 한 줄(배치가 바뀜), 주행 중 화면 유지(Pleos 운전자 주의 정책 위험), 정차 전용 패널 유지(괴리감).
 
 ## 구현
-- `AutoLogRoot`: 단계와 무관하게 `FullApp` 하나. 단계는 잠금만 바꾼다 — `LocalInputLocked`(정차·주행 또는 FULL 진입 직후 300 ms) + 새 `LocalDrivingLocked`(정차·주행). 주행이면 같은 화면을 그린 채 `onRequestBackground`.
+- `HTaxLogRoot`: 단계와 무관하게 `FullApp` 하나. 단계는 잠금만 바꾼다 — `LocalInputLocked`(정차·주행 또는 FULL 진입 직후 300 ms) + 새 `LocalDrivingLocked`(정차·주행). 주행이면 같은 화면을 그린 채 `onRequestBackground`.
 - `tappable(whileDriving = true)`: 정차·주행 잠금을 건너뛰고 진입 직후 잠금만 따른다. 지금은 [기록 종료] 타일 하나(`HomeDock` `DockItem.whileDriving`).
 - `DockTile`: 잠긴 동안 아이콘·이름 `textTertiary`(흐림), `whileDriving` 타일은 그대로.
 - `Navigator.showWhenParked(route?)`: 주차면 바로 쌓고(맨 위면 그대로), 아니면 다음 주차 때 Home 위에 연다(딥링크가 우선). null이면 기다리던 것을 지운다. `HomeViewModel`이 운행 결과를 이것으로 연다 — 정차 중 [기록 종료]로 끝난 운행의 결과가 주차 때 열린다. 그 전에 기록이 다시 이어지면(차속 > 3 km/h → 앱 A `resume`) 지운다.
@@ -29,7 +29,7 @@
 - 삭제(죽은 코드): `ui/peek/` 전체 · `FitOrDrop` · `Size.peekMaxWidth` · `MotionTokens.tierFadeIn/Out` · 문자열 `peek_*`·`section_odometer`(`peek_no_destination`은 `route_no_destination`으로 이름만).
 
 ## 테스트
-- `AutoLogRootTest`: 정차 대기 = 같은 Home·눌리는 것 0·배지 없음 / 정차 기록 중 = [기록 종료]만 눌림 → 종료 대기, 결과 카드는 안 열림 / 주행 = 같은 Home을 그린 채 물러남.
+- `HTaxLogRootTest`: 정차 대기 = 같은 Home·눌리는 것 0·배지 없음 / 정차 기록 중 = [기록 종료]만 눌림 → 종료 대기, 결과 카드는 안 열림 / 주행 = 같은 Home을 그린 채 물러남.
 - `NavigatorTest`: 정차 중 결과 → 다음 주차 때 / 그 전에 지우면 안 열림 / 주차 중 두 번 안 쌓임.
 - `HomeReducerTest`: 종료 대기 남은 초.
 - 스크린샷: `home_recording_stopped`·`home_ready_stopped`. 모션 프레임 `tier_full_to_stopped`.

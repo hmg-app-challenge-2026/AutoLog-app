@@ -9,18 +9,18 @@ plugins {
 }
 
 android {
-    namespace = "kr.autolog.vehicle"
+    namespace = "kr.htaxlog.vehicle"
     compileSdk = 35
     useLibrary("android.car") // CarUxRestrictions (스펙 D-07)
 
     defaultConfig {
-        applicationId = "kr.autolog.vehicle"
+        applicationId = "kr.htaxlog.vehicle"
         minSdk = 28 // Pleos: 28 이상 필수
         targetSdk = 35
         versionCode = 1
         versionName = "0.1.0"
         // 중계 서버 주소(서버는 하나라 차 화면에서 묻지 않는다, 2026-11-13 사용자 결정).
-        // local.properties 의 autolog.relayUrl 로 바꾼다 — 실차 테스트는 맥 IP, 배포는 운영 도메인.
+        // local.properties 의 htaxlog.relayUrl 로 바꾼다 — 실차 테스트는 맥 IP, 배포는 운영 도메인.
         // 없으면 에뮬레이터에서 본 호스트 PC(10.0.2.2).
         buildConfigField("String", "RELAY_BASE_URL", "\"${relayUrl()}\"")
     }
@@ -88,5 +88,5 @@ dependencies {
 fun relayUrl(): String {
     val f = rootProject.file("local.properties")
     val props = Properties().apply { if (f.exists()) f.inputStream().use(::load) }
-    return (props.getProperty("autolog.relayUrl") ?: "http://10.0.2.2:8080").trim().trimEnd('/')
+    return (props.getProperty("htaxlog.relayUrl") ?: "http://10.0.2.2:8080").trim().trimEnd('/')
 }
