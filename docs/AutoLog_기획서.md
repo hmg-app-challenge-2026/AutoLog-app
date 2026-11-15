@@ -306,7 +306,7 @@ Pleos Connect SDK는 Kotlin으로 작성된 Android 라이브러리로 Java·Kot
 | 로컬 DB | Room | **운행·비용의 원본.** 오프라인 기록·복구 |
 | 엑셀·메일 | Apache POI, Jakarta Mail(SMTP) — 차 안에서 | 서버 없이 회계 담당자에게 직접 전달 |
 | 중계 서버 | Kotlin(JVM 17), Spring Boot 3, PostgreSQL, MinIO | 영수증 OCR 중계·기준 정보 배포만. 운행 데이터 미보관 |
-| OCR | **Gemini API**(gemini-2.5-flash), 서버에서 호출 | 이미지→구조화 JSON 한 번에. 키는 서버에만 |
+| OCR | **Gemini API**(기본 gemini-3.5-flash-lite, 서버 설정으로 변경), 서버에서 호출 | 이미지→구조화 JSON 한 번에. 키는 서버에만 |
 | 장부 | Apache POI(안드로이드) | 국세청 양식 XLSX를 차 안에서 |
 | 운영 웹·카메라 페이지 | React + TypeScript / 정적 HTML 1장 | 기준 정보 5화면. 대시보드·운행 화면 없음 |
 | 공용 모듈 | `shared`(Kotlin JVM) | inbox payload DTO를 앱·서버가 공유. 모노레포 |

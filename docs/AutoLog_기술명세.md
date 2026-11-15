@@ -921,7 +921,7 @@ suspend fun send(report: ReportEntity, to: List<String>) = withContext(Dispatche
 | 런타임 | Kotlin 2.0 / JVM 17, Spring Boot 3.4 (Web, Data JPA, Security, Validation, Actuator) |
 | DB | PostgreSQL 16 + Flyway |
 | 스토리지 | MinIO(S3 호환) — 영수증 원본·썸네일, 30일 수명주기 |
-| OCR | **Gemini API**(`gemini-2.5-flash`) — Google AI Kotlin SDK 또는 REST. 키는 환경변수 |
+| OCR | **Gemini API**(기본 `gemini-3.5-flash-lite`, `GEMINI_MODEL`로 변경) — REST. 키는 환경변수. 호출당 25초·전체 45초 예산 |
 | 인증 | 기기 토큰(차) · 회사 관리자 세션 토큰(운영 웹, 12시간) · 운영자 토큰(/ops) · QR 1회 토큰(폰, 10분) |
 | 배포 | Docker Compose, nginx TLS |
 
@@ -1003,15 +1003,15 @@ CREATE TABLE org_purpose_rules (rule_id UUID PRIMARY KEY, org_id UUID REFERENCES
 
 ```
 POST /r/{code}/receipt
-  1. QR 토큰 검증(1회·10분) → vehicle_id
-  2. sha256 → 같은 차 중복이면 409
+  1. QR 토큰 → vehicle_id. 이 토큰으로 이미 들어간 영수증이 있으면 409(응답을 놓친 재전송). 아직 쓸 수 있는지 확인(10분)
+  2. (같은 사진 sha256 중복은 막지 않는다 — 2026-11-15)
   3. 원본 MinIO 저장, 1600px 썸네일 생성
   4. Gemini 호출: 이미지 + 프롬프트 → JSON(fields, confidence)
      프롬프트: "주유 영수증. 상호, 거래일시(ISO 8601 +09:00), 유종, 수량(L), 단가, 할인, 결제금액, 카드 끝 4자리를 JSON으로. 없으면 null. 각 필드 확신도 0~1. 카드번호는 끝 4자리 외 출력 금지"
   5. 검산 |amount − liters×unit + discount| ≤ max(100, amount×0.5%) → arith_ok
   6. 카드번호 13~19자리 패턴이 남아 있으면 제거(이중 방어). 썸네일은 EXIF 회전만 반영하고 가리지 않는다(국내 카드 영수증은 번호 일부가 가려져 인쇄됨)
-  7. inbox(vehicle_id, RECEIPT, ReceiptPayload) 적재
-  실패: Gemini 3회 재시도 → ocrStatus=FAILED, 썸네일만 inbox → 차에서 수동 입력
+  7. 한 트랜잭션: QR 토큰 소모 + receipts(qr_token 포함) + inbox(vehicle_id, RECEIPT, ReceiptPayload) — 중간에 실패하면 토큰이 남아 다시 보낼 수 있다
+  실패: Gemini 호출당 25초·재시도 포함 45초(최대 3회) → ocrStatus=FAILED, 썸네일만 inbox → 차에서 수동 입력
 ```
 
 ### 4.6 보안
