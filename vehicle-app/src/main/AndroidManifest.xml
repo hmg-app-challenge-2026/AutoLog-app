@@ -4,7 +4,9 @@
     <application
         android:name=".HTaxLogApp"
         android:allowBackup="false"
+        android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher"
         android:supportsRtl="true"
         android:theme="@style/Theme.HTaxLog"
         android:usesCleartextTraffic="true">
