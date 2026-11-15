@@ -2,11 +2,11 @@
 
 > 차 안 로컬 DB(Room)와 중계 서버 DB(PostgreSQL)의 테이블·컬럼 정리.
 > **원본은 코드다.** 이 문서와 코드가 다르면 코드를 따르고 이 문서를 고친다.
-> - 차: `vehicle-core/src/main/kotlin/kr/htaxlog/vehicle/data/TripEntities.kt`, `ReferenceEntities.kt`, 자동 생성 스키마 `vehicle-core/schemas/kr.htaxlog.vehicle.data.HTaxLogDb/2.json`
+> - 차: `vehicle-core/src/main/kotlin/kr/htaxlog/vehicle/data/TripEntities.kt`, `ReferenceEntities.kt`, 자동 생성 스키마 `vehicle-core/schemas/kr.htaxlog.vehicle.data.HTaxLogDb/3.json`
 > - 서버: `relay/src/main/resources/db/migration/V1__init.sql` ~ `V6__receipts_allow_same_image.sql`
 > - 차의 메일 계정·목적·목적 규칙은 Room이 아니라 SharedPreferences에 있다(아래 1.14)
 >
-> 기준: Room v3, Flyway V6 (2026-11-15)
+> 기준: Room v3, Flyway V6 — 실제 PostgreSQL과 Room 스키마(3.json)를 표마다 대조함 (2026-11-16)
 
 ---
 
@@ -81,12 +81,12 @@
 | `lastSeenAt` | INTEGER | ✓ | 마지막 체크포인트 시각 |
 | `distanceKm` | REAL | ✓ | `end − start`. 조회 실패면 null (**추정 금지**) |
 | `distanceSource` | TEXT | | `DistanceSource`: VEHICLE_ODOMETER · UNAVAILABLE |
-| `editedDistanceKm` | REAL | ✓ | 사용자가 고친 거리(운행 결과 카드 수정 모드, 0 초과 1,500 이하). 원본(`distanceKm`)은 덮지 않는다. 목록·엑셀은 이 값을 쓰고 엑셀 비고에 계기판 값을 남긴다 |
+| `editedDistanceKm` | REAL | ✓ | 사용자가 고친 거리(운행 결과 카드 수정 모드, 0 초과 1,500 이하). 원본(`distanceKm`)은 덮지 않는다. 목록·엑셀은 이 값을 쓰고, 고친 거리도 일반 기록과 똑같이 적는다(수정 표시 없음, 2026-11-15) |
 | `originLabel` | TEXT | ✓ | 출발지 이름 — 등록 장소 > 건물 이름(카카오). 주소는 `originAddress` |
-| `originLat`, `originLng` | REAL | ✓ | 출발 좌표 |
+| `originLat`, `originLng` | REAL | ✓ | 출발 좌표. 위치 SDK(Fused Location)를 먼저 쓰고, 없으면 내비 현재 위치 |
 | `originSource` | TEXT | ✓ | `PlaceSource`: NAVI_HELPER · FUSED_LOCATION · NAVI_CURRENT · PREVIOUS_TRIP_END · USER_SELECTED |
 | `destinationLabel` | TEXT | ✓ | 도착지 이름 — 사람이 고른 이름 > 등록 장소 > 실제로 도착한(300 m 안) 내비 목적지 > 건물 이름 |
-| `destinationLat`, `destinationLng` | REAL | ✓ | 도착 좌표. 운행이 끝난 직후 차의 실제 위치(내비 현재 위치 → 위치 SDK)로 다시 정한다 |
+| `destinationLat`, `destinationLng` | REAL | ✓ | 도착 좌표. 운행이 끝난 직후 차의 실제 위치(위치 SDK(Fused Location) → 내비 현재 위치)로 다시 정한다 |
 | `destinationSource` | TEXT | ✓ | `PlaceSource` |
 | `originAddress`, `destinationAddress` | TEXT | ✓ | v3. `광역 기초 읍면동 도로명 번호`(예: `경기 성남시 분당구 정자동 정자일로 1`). 시작·종료 직후 비동기로 채운다 |
 | `originAddressSource`, `destinationAddressSource` | TEXT | ✓ | v3. `AddressSource`: KAKAO_RELAY(서버 `/v1/geo/reverse`) · NAVI_HELPER(서버 실패 때 내비 주소). NAVI_HELPER·NULL은 동기화 뒤 서버로 다시 채운다(최근 30일, 20건씩) |

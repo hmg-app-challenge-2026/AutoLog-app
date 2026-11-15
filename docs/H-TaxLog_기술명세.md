@@ -1101,7 +1101,7 @@ services:
 H-TaxLog/                      # 2026-11-11 AutoLog-Backend + AutoLog-Frontend 통합
 ├── settings.gradle.kts           include(":shared", ":vehicle-core", ":relay", ":vehicle-app")
 ├── build.gradle.kts · gradle/libs.versions.toml · gradle.properties
-├── README.md · CONVENTIONS.md(분업·브랜치·커밋 규칙) · CLAUDE.md · .editorconfig
+├── README.md · .editorconfig
 ├── .github/workflows/            # CI: ktlintCheck · 모듈별 test · 화면 스크린샷 기록 · 빌드
 │
 ├── shared/                       # inbox payload DTO (Kotlin JVM, kotlinx.serialization만)   [B, A 리뷰]

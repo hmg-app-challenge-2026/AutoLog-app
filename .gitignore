@@ -26,3 +26,7 @@ vehicle-app/build/outputs/roborazzi/
 # 스크린샷은 로컬 검토용으로만 둔다(2026-11-09 사용자 결정). 창 크기별 폴더 wide/·narrow/.
 # 기록: ./gradlew :vehicle-app:recordRoborazziDemoDebug
 vehicle-app/src/test/screenshots/
+
+# 팀 내부 작업 규칙·AI 도구 안내(로컬에만 둔다, 2026-11-16)
+CLAUDE.md
+CONVENTIONS.md

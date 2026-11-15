@@ -54,4 +54,4 @@ curl http://localhost:8080/actuator/health
 
 ## 프로젝트 문서
 
-[기획서](docs/H-TaxLog_기획서.md) · [기능명세](docs/H-TaxLog_기능명세.md) · [기술명세](docs/H-TaxLog_기술명세.md) · [개발 규칙](CONVENTIONS.md)
+[기획서](docs/H-TaxLog_기획서.md) · [기능명세](docs/H-TaxLog_기능명세.md) · [기술명세](docs/H-TaxLog_기술명세.md)
