@@ -130,4 +130,34 @@ class ProfilePickerViewModelTest {
             assertEquals(Route.ProfilePicker, graph.navigator.current)
         }
     }
+
+    @Test
+    fun `앱이 켜질 때 배차 운전자가 한 명이면 묻지 않고 그 사람으로 시작한다`() = runTest {
+        val graph = TestAppGraph(backgroundScope)
+
+        ProfilePickerViewModel(graph.session, graph.profile, graph.navigator, autoPickScheduled = true)
+
+        assertEquals("u-1", graph.trip.currentDriver.value)
+        assertEquals(listOf(Route.Home), graph.navigator.backStack.value)
+    }
+
+    @Test
+    fun `운전자 배지로 연 선택 화면은 배차가 있어도 자동으로 고르지 않는다`() = runTest {
+        val graph = TestAppGraph(backgroundScope)
+
+        ProfilePickerViewModel(graph.session, graph.profile, graph.navigator, autoPickScheduled = false)
+
+        assertNull(graph.trip.currentDriver.value)
+        assertEquals(Route.ProfilePicker, graph.navigator.current)
+    }
+
+    @Test
+    fun `이미 운전자가 있으면 배차로 바꾸지 않는다`() = runTest {
+        val graph = TestAppGraph(backgroundScope)
+        graph.session.selectDriver("u-2")
+
+        ProfilePickerViewModel(graph.session, graph.profile, graph.navigator, autoPickScheduled = true)
+
+        assertEquals("u-2", graph.trip.currentDriver.value)
+    }
 }
