@@ -3,10 +3,10 @@
 > 차 안 로컬 DB(Room)와 중계 서버 DB(PostgreSQL)의 테이블·컬럼 정리.
 > **원본은 코드다.** 이 문서와 코드가 다르면 코드를 따르고 이 문서를 고친다.
 > - 차: `vehicle-core/src/main/kotlin/kr/autolog/vehicle/data/TripEntities.kt`, `ReferenceEntities.kt`, 자동 생성 스키마 `vehicle-core/schemas/kr.autolog.vehicle.data.AutoLogDb/2.json`
-> - 서버: `relay/src/main/resources/db/migration/V1__init.sql` ~ `V5__purposes.sql`
+> - 서버: `relay/src/main/resources/db/migration/V1__init.sql` ~ `V6__receipts_allow_same_image.sql`
 > - 차의 메일 계정·목적·목적 규칙은 Room이 아니라 SharedPreferences에 있다(아래 1.14)
 >
-> 기준: Room v3, Flyway V5 (2026-11-14)
+> 기준: Room v3, Flyway V6 (2026-11-15)
 
 ---
 
@@ -136,7 +136,7 @@
 | `userId` | TEXT **PK** | | 서버 UUID 또는 `local-…` |
 | `name` | TEXT | | 이름 |
 | `dept` | TEXT | ✓ | 부서 |
-| `email` | TEXT | ✓ | 이메일 |
+| `email` | TEXT | ✓ | 이메일. 2026-11-15부터 새로 받지 않는다(운영 웹·차 설정 모두) — 예전 값만 남는다 |
 | `origin` | TEXT | | `Origin`: SERVER(inbox로 받음, 통째로 교체) · LOCAL(차 안 입력, 보존) |
 
 ### 1.5 recent_users — 최근 운전자
@@ -168,8 +168,8 @@
 | `vehicleId` | TEXT | | 차량 |
 | `userId` | TEXT | ✓ | 배차 운전자. null = 미정 |
 | `startsAt`, `endsAt` | INTEGER | | 배차 시간 (UTC millis) |
-| `destPlaceId` | TEXT | ✓ | → places |
-| `purposeDetail` | TEXT | ✓ | 배차 목적 |
+| `destPlaceId` | TEXT | ✓ | 2026-11-15부터 늘 NULL(배차는 누가 쓰는지만) |
+| `purposeDetail` | TEXT | ✓ | 2026-11-15부터 늘 NULL |
 
 ### 1.8 recipients — 운행기록부 수신자
 
@@ -258,7 +258,7 @@ ack가 실패해 같은 편지가 다시 와도 두 번 반영하지 않기 위�
 
 ## 2. 중계 서버 DB — PostgreSQL (앱 B)
 
-- 마이그레이션: Flyway. 서버가 시작할 때 `V1__init.sql` → `V2__reference_indexes.sql` → `V3__admin_accounts.sql` → `V4__org_mail_account.sql` → `V5__purposes.sql` 순서로 적용
+- 마이그레이션: Flyway. 서버가 시작할 때 `V1__init.sql` → `V2__reference_indexes.sql` → `V3__admin_accounts.sql` → `V4__org_mail_account.sql` → `V5__purposes.sql` → `V6__receipts_allow_same_image.sql` 순서로 적용
 - **한 번 main에 들어간 마이그레이션 파일은 고치지 않는다.** 바꿀 것은 `V3__…sql`로 추가 (CONVENTIONS 8장)
 - 운행·비용 테이블은 없다. 모든 조회는 `org_id`(조직) 범위 안에서만 한다.
 
@@ -323,7 +323,7 @@ ack가 실패해 같은 편지가 다시 와도 두 번 반영하지 않기 위�
 | `org_id` | UUID | |
 | `name` | TEXT | 1~50자 |
 | `dept` | TEXT | |
-| `email` | TEXT | 소문자 |
+| `email` | TEXT | 소문자. 2026-11-15부터 새로 받지 않는다(배차 CSV 동명이인은 `이름(부서)`로 구분, 예전 이메일도 받음) |
 
 ### 2.7 places — 장소 (F-52)
 
@@ -350,9 +350,9 @@ ack가 실패해 같은 편지가 다시 와도 두 번 반영하지 않기 위�
 | `vehicle_id` | UUID | |
 | `user_id` | UUID | 운전자. 직원을 지우면 NULL |
 | `starts_at`, `ends_at` | TIMESTAMPTZ | 종료 > 시작, 최대 7일 |
-| `dest_place_id` | UUID | 목적지. 장소를 지우면 NULL |
-| `purpose_category` | TEXT | |
-| `purpose_detail` | TEXT | |
+| `dest_place_id` | UUID | 2026-11-15부터 저장하지 않는다(NULL). 배차는 차량·운전자·시간만 |
+| `purpose_category` | TEXT | 위와 같음(NULL) |
+| `purpose_detail` | TEXT | 위와 같음(NULL) |
 
 ### 2.9 recipients — 수신자 (F-54)
 
@@ -367,7 +367,7 @@ ack가 실패해 같은 편지가 다시 와도 두 번 반영하지 않기 위�
 
 ### 2.10 receipts — 영수증 (F-41, 30일 보관)
 
-인덱스: `UNIQUE (vehicle_id, sha256)` — 같은 차에 같은 사진 중복 업로드 거부(409).
+인덱스: `UNIQUE (qr_token)` — QR 하나로 한 장만(V6, 2026-11-15). `(vehicle_id, sha256)`는 일반 인덱스 — 같은 사진도 새 QR이면 다시 받는다(V1의 유니크는 V6에서 풀었다).
 
 | 컬럼 | 타입 | 설명 |
 |---|---|---|
@@ -383,6 +383,7 @@ ack가 실패해 같은 편지가 다시 와도 두 번 반영하지 않기 위�
 | `arith_ok` | BOOLEAN | 검산 결과. 값이 모자라면 NULL |
 | `created_at` | TIMESTAMPTZ | 기본 now() |
 | `expires_at` | TIMESTAMPTZ | +30일. 매일 04:30 KST에 파일·행 삭제 |
+| `qr_token` | CHAR(64) | V6. 이 영수증을 올린 QR 토큰의 해시(유니크) — 같은 QR 재전송을 409로 알린다 |
 
 ### 2.11 inbox — 서버 → 차 우체통 (F-42, F-43)
 

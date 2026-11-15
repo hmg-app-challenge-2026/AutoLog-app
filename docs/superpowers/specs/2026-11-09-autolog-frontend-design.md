@@ -864,11 +864,11 @@ D-12에 따라 11.15 이후. API가 오기 전에는 `data/fake/FakeUploadApi`(�
 
 | 화면 | 기능 ID | API | 시점 |
 |---|---|---|---|
-| 차량 | F-50 | `GET/POST /admin/vehicles`, `POST /{id}/connect-code`, `DELETE /{id}/device` | 11.13–14 |
-| 직원 | F-51 | `/admin/users` CRUD + CSV import | 11.16–23 |
+| 차량 | F-50 | `GET/POST /admin/vehicles`, `POST /{id}/connect-code`, `DELETE /{id}/device`, `DELETE /{id}`(차량 삭제 — 확인 창 뒤 그 차의 서버 데이터 함께 삭제, 2026-11-15) | 11.13–14 |
+| 직원 | F-51 | `/admin/users` CRUD + CSV import. 이름·부서만(이메일 없음), 줄에서 바로 [수정]·[빼기](2026-11-15 구현) | 11.15 |
 | ~~장소~~ | F-52 | 2026-11-14 탭을 뺐다. 장소는 [목적] 규칙의 [+ 새 출발/도착 장소]에서 `GET /admin/places/search`(카카오) → `POST /admin/places` | — |
 | 목적 | F-55 | `/admin/purposes`, `/admin/purpose-rules` — 목적 목록(이름 + 구분) · 출발(어디서든)→도착 규칙 · [+ 새 장소] | 11.14 |
-| 배차 | F-53 | `/admin/schedules` CRUD + CSV. **주간 그리드**(행=차량, 열=요일, 직접 구현) | 11.16–23 |
+| 배차 | F-53 | `/admin/schedules` CRUD + CSV. **주간 그리드**(행=차량, 열=요일, 직접 구현). 입력은 차량·운전자·날짜·시작·끝만(목적지·목적 없음), 시각은 30분 단위 목록 + [오전]·[오후]·[하루 종일], 시작을 옮기면 끝이 따라간다(2026-11-15) | 11.14 |
 | 메일 설정 | F-54 | `/admin/mail-account`(GET/PUT/DELETE — 회사 발신 계정, Gmail·네이버 등은 서버·포트 자동 채움) + `/admin/recipients`(받는 사람) | 11.14 |
 | 운행 | 기능명세 ② | `GET /admin/trips`(R-4, mock 선행) | 11.16–30 |
 | 비용 | 기능명세 ② | `GET /admin/expenses`(R-4, mock 선행) | 11.16–30 |
@@ -885,7 +885,7 @@ D-12에 따라 11.15 이후. API가 오기 전에는 `data/fake/FakeUploadApi`(�
 | 촬영 후 | 미리보기 + [보내기] · [다시 찍기] |
 | 전송 | canvas로 긴 변 2000 px, JPEG 품질 0.85로 축소 → `POST /r/{code}/receipt?t=` multipart 필드 `image` → 진행 막대 |
 | 완료 | "차량으로 보냈어요. 차 화면에서 확인하세요" |
-| 오류 | 토큰 만료·사용됨(4xx) "QR이 만료됐어요. 차에서 새 QR을 띄워 주세요" / 중복(409) "이미 보낸 영수증이에요" / 네트워크 "전송하지 못했어요" + [다시 보내기] |
+| 오류 | 토큰 만료·사용됨(4xx) "QR이 만료됐어요. 차에서 새 QR을 띄워 주세요" / 같은 QR로 이미 들어감(409) "이미 보낸 영수증이에요" — 응답을 놓치고 다시 보낸 경우 / 서버 오류·시간 초과 "보내지 못했어요" + [다시 보내기](QR이 남아 있어 같은 QR로 다시 보낼 수 있다) / 네트워크 "전송하지 못했어요" + [다시 보내기] |
 
 - 외부 요청 0(웹폰트·분석 스크립트 없음). 서체는 시스템(`-apple-system, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif`). 색은 `design-language.md` 라이트 토큰.
 - 파일 하나에 HTML·CSS·JS 인라인. 빌드 단계 없음.
