@@ -4,7 +4,7 @@
 
 @CONVENTIONS.md
 
-- 2026-11-11 AutoLog-Frontend·AutoLog-Backend를 이 리포(AutoLog-app) 하나로 합쳤다. 화면 앱은 `vehicle-app/`, 로직은 `vehicle-core/`, 서버는 `relay/`, 웹은 `web/`.
+- 2026-11-11 AutoLog-Frontend·AutoLog-Backend를 이 리포(H-TaxLog, 당시 이름 AutoLog-app) 하나로 합쳤다. 화면 앱은 `vehicle-app/`, 로직은 `vehicle-core/`, 서버는 `relay/`, 웹은 `web/`.
 - 명세는 `docs/`에 있다. 기능 ID(F-xx)는 `docs/H-TaxLog_기능명세.md` 3장 기준.
 - 작업 전에 지금 사용자가 앱 A / 앱 B / 프론트 중 누구인지 확인하고, 그 사람의 소유 폴더(CONVENTIONS.md 1.2) 밖은 고치지 않는다(고쳐야 하면 소유자를 리뷰어로).
 - 커밋 전 `./gradlew ktlintFormat` 후 CONVENTIONS.md 10장 명령(화면이면 11.5도)을 통과시킨다.

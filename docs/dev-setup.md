@@ -23,6 +23,6 @@
 
 1. Android Studio 최신, JDK 17
 2. Pleos 에뮬레이터: 스펙 5.5 "맥 에뮬레이터 준비" 1~5 (SDK Update Site `crp-arm64-sys-img.xml`, API 34, **Cold boot**, RAM 4 GB)
-3. `git clone https://github.com/hmg-app-challenge-2026/AutoLog-app` 후 Android Studio로 루트 열기 → Build Variant `demoDebug`
+3. `git clone https://github.com/hmg-app-challenge-2026/H-TaxLog` 후 Android Studio로 루트 열기 → Build Variant `demoDebug`
 4. 설치: `./gradlew :vehicle-app:installDemoDebug`
 5. 스크린샷은 맥에서 기록해도 커밋하지 않는다(기준 플랫폼은 Linux)

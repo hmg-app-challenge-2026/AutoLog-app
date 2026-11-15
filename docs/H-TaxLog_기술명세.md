@@ -1098,7 +1098,7 @@ services:
 차량 쪽은 **로직(`vehicle-core/`)과 화면(`vehicle-app/`)을 별도 Gradle 모듈**로 나눈다(2026-11-11 AutoLog-Frontend와 한 리포로 합치며 예전 `app/`을 `vehicle-app/`이 대체). 로직 담당(앱 A·B)과 프론트가 서로의 폴더를 건드리지 않게 하고, 로직을 화면·에뮬레이터 없이 단위 테스트하기 위해서다. 패키지 이름은 두 모듈 모두 `kr.htaxlog.vehicle.*`이다.
 
 ```
-AutoLog-app/                      # 2026-11-11 AutoLog-Backend + AutoLog-Frontend 통합
+H-TaxLog/                      # 2026-11-11 AutoLog-Backend + AutoLog-Frontend 통합
 ├── settings.gradle.kts           include(":shared", ":vehicle-core", ":relay", ":vehicle-app")
 ├── build.gradle.kts · gradle/libs.versions.toml · gradle.properties
 ├── README.md · CONVENTIONS.md(분업·브랜치·커밋 규칙) · CLAUDE.md · .editorconfig
