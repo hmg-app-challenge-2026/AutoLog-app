@@ -4,7 +4,7 @@ package kr.htaxlog.vehicle.data.repository
  * 차량 연결 코드 규칙(F-01, F-40) — 운영 웹에서 발급한 6자리. 서버가 만드는 글자와 같아야 입력할 수 있다:
  * relay `Tokens.CODE_ALPHABET`("23456789ABCDEFGHJKLMNPQRSTUVWXYZ") · 앱 A `DeviceRepository.CODE`(`[2-9A-HJ-NP-Z]{6}`).
  * 헷갈리는 0·1·I·O는 쓰지 않는다. 백엔드 내부 패키지는 화면에서 import하지 않으므로 같은 값을 여기 둔다 —
- * 서버 규칙이 바뀌면 이 파일 하나만 고친다(`docs/integration/backend-link.md` G-01).
+ * 서버 규칙이 바뀌면 이 파일 하나만 고친다.
  */
 object ConnectCode {
     const val LENGTH = 6

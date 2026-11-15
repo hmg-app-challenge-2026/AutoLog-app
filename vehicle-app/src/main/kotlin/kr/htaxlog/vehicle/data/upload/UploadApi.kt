@@ -6,7 +6,7 @@ import kotlinx.coroutines.flow.asStateFlow
 
 // 사내 서버 자동 취합(기능명세 ②, 스펙 8장)의 차 → 서버 운행 사본 전송. **백엔드에 아직 계약이 없다**(R-4, core `UploadState` 주석:
 // "업로드는 2차 합의 전이라 지금은 항상 null"). 그래서 프론트가 쓰는 모양만 여기 두고, 실제 앱은 [UnavailableUploadApi]를 쓴다.
-// 계약이 core에 생기면 이 파일을 지우고 그 계약으로 바꾼다(docs/integration/backend-link.md G-04).
+// 계약이 core에 생기면 이 파일을 지우고 그 계약으로 바꾼다.
 
 data class UploadStatus(val enabled: Boolean, val pendingCount: Int, val lastUploadAt: Long?, val lastError: String?)
 

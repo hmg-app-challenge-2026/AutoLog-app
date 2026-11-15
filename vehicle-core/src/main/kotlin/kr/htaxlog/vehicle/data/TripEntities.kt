@@ -50,7 +50,7 @@ data class TripEntity(
     val destinationLng: Double? = null,
     val destinationSource: PlaceSource? = null,
     /**
-     * 출발·도착 주소(`광역 기초 읍면동 도로명 번호`, open-issues I-05). 이름([originLabel]: 등록 장소·내비 목적지·건물 이름)과 따로 둔다.
+     * 출발·도착 주소(`광역 기초 읍면동 도로명 번호`). 이름([originLabel]: 등록 장소·내비 목적지·건물 이름)과 따로 둔다.
      * 운행 시작·종료 직후 비동기로 채운다 — 서버(카카오) → 실패하면 내비 현재 위치 주소. 못 채운 것은 동기화 때 서버로 다시 채운다.
      */
     val originAddress: String? = null,

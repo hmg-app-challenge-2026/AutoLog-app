@@ -15,5 +15,4 @@
 - 화면을 만들기 전에 `docs/design-language.md`를 읽는다. 색·글자·간격·모션은 토큰만 쓴다.
 - 모든 화면의 전제: **주행 = 백그라운드(화면 없음) · 정차 = 같은 Home 읽기 전용(D-31) · 주차 = 전체 앱**(스펙 1.1), **같은 결정은 최소 조작 — 기본값은 자동 진행, 예외만 터치**(스펙 1.2, 조작 예산).
 - 화면은 `vehicle-core`의 공개 계약만 쓴다: `vehicle-core/src/main/kotlin/kr/htaxlog/vehicle/core/Contracts.kt`(CONVENTIONS 1.3).
-- 백엔드와 연결 상태·남은 문제: `docs/integration/backend-link.md`, `docs/integration/open-issues.md`.
 - WSL에서는 Pleos 에뮬레이터가 돌지 않는다. 화면 확인은 Roborazzi 스크린샷(`recordRoborazziDemoDebug`)으로 하고, 실행 검증은 맥에서 한다.

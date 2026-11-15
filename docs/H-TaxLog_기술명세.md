@@ -1135,7 +1135,7 @@ H-TaxLog/                      # 2026-11-11 AutoLog-Backend + AutoLog-Frontend �
 │   ├── admin/                    # 운영 웹 (React + TS + Vite)
 │   └── camera/index.html         # 폰 영수증 카메라 페이지
 ├── ops/                          # docker-compose.yml, nginx/, .env.example
-└── docs/                         # 기획서·기능명세·기술명세·DB 스키마 + 화면 설계(design-language, superpowers/, integration/)
+└── docs/                         # 기획서·기능명세·기술명세·DB 스키마 + 화면 설계(design-language, superpowers/)
 ```
 
 **의존 방향**

@@ -212,8 +212,7 @@ H-TaxLog/
 │   ├── H-TaxLog_기획서·기능명세·기술명세·DB스키마.md
 │   ├── design-language.md
 │   ├── superpowers/specs/        # 화면 설계 스펙(이 문서)
-│   ├── superpowers/plans/        # 구현 계획(당시 기록)
-│   └── integration/              # 화면 ↔ 로직 연결 기록·남은 문제
+│   └── superpowers/plans/        # 구현 계획(당시 기록)
 ├── .github/workflows/ci.yml
 ├── CONVENTIONS.md · CLAUDE.md · README.md
 ```
@@ -378,7 +377,7 @@ Pleos 에뮬레이터는 외장 GPU가 필요하고, 맥용 시스템 이미지�
 4. Advanced: **Default boot = Cold**(Quick boot면 VHAL 불가), RAM 4 GB
 5. 앱 설치: `./gradlew :vehicle-app:installDemoDebug` 또는 WSL에서 만든 APK를 `adb install -r`
 6. relay 접속: 에뮬레이터에서 호스트(맥)는 `10.0.2.2`. relay는 맥에서 `docker compose up`.
-7. 화면 프리셋 검증: Pleos 폼팩터 테스트 가이드의 FormFactorConsole(Host Display Bridge, 포트 8095·8096)로 12.9″ Portrait / 14.6″ Landscape 등 프리셋을 띄우고, 각 프리셋의 **dp·DPI·px 값**을 `docs/verification.md`에 적는다. 이 값으로 6.8의 임계값과 10.3의 스크린샷 크기를 갱신한다.
+7. 화면 프리셋 검증: Pleos 폼팩터 테스트 가이드의 FormFactorConsole(Host Display Bridge, 포트 8095·8096)로 12.9″ Portrait / 14.6″ Landscape 등 프리셋을 띄우고, 각 프리셋의 **dp·DPI·px 값**을 기록한다. 이 값으로 6.8의 임계값과 10.3의 스크린샷 크기를 갱신한다.
 
 - 네이티브 라이브러리 ABI를 제한하지 않는다(`abiFilters` 쓰지 않음). 맥 arm64 이미지와 x86_64 이미지 모두에서 설치돼야 한다.
 
@@ -528,7 +527,7 @@ Repository는 **interface + `Default*` 구현** 한 쌍이다. 테스트에서�
 앱 A 계약(`TripSessionApi`·`LocalStore`·`ReportApi`·`DeviceApi`)이 Backend `core`에 들어왔다(`c3883db`). 이 리포의 초안(`data/interim/`)은 지웠고 화면 Repository는 `core` 타입을 쓴다. 초안과 실제의 차이는 `confirmPurpose(…, destinationLabel)` 인자 하나뿐이었다.
 
 - 데모·테스트 가짜는 `data/fake/`(프론트 소유 — 데모 조작이 있는 `FakeTripSession` 등). 사내 서버 업로드는 백엔드 계약이 없어(R-4) `data/upload/`에 자리표시 계약과 실제 앱용 `UnavailableUploadApi`(꺼짐)를 둔다.
-- 연결 지도 · 확인한 정책 · **연결하지 못했거나 어긋난 것(G-01~G-08)** · DB 목업 넣기 계획: `docs/integration/backend-link.md`.
+- 연결 지도 · 확인한 정책 · **연결하지 못했거나 어긋난 것(G-01~G-08)**.
 - 화면 규칙은 그대로: ViewModel·화면은 Repository 인터페이스만 본다. `core` 서비스 인터페이스를 `ui/`에서 import하지 않는다(CONVENTIONS 1장).
 
 ### 6.7 AppGraph와 flavor
@@ -631,7 +630,7 @@ sealed interface Route {
 | 모양 | 흰 알약(라이트 토큰 `surface1` · `outline` 머리카락 테두리 · `success` 점 12 dp · `textPrimary` Asta Sans `caption` 크기 wght 700), 투명도 0.8, 터치를 받지 않는다. 위치는 H-TaxLog 창이 놓였던 앱 영역(내비가 뜨는 자리)의 가로 가운데, 위에서 96 dp(`Space.s9`) |
 | 보임 판단 | `MainActivity.onStart` = 보임 → 바로 숨김, `onStop` = 안 보임 → 다음 틱(1초 안)에 표시. 창 크기 변경으로 Activity가 다시 만들어질 때 깜빡이지 않게 표시는 한 틱 늦춘다 |
 | 권한 | `SYSTEM_ALERT_WINDOW`(vehicle 매니페스트만). 첫 실행에 한 번 시스템 권한 화면을 연다. 설정 › 차량 정보의 권한 카드에서 다시 연다(7.9). 권한이 없거나 창을 못 띄우면 알약만 없다 — 운행 기록과 앱 A 운행 알림은 그대로 |
-| 경계 | 앱 쪽 훅 `overlay/RecordingOverlay`(보임·창 위치·첫 안내) + 설정 화면용 `data/repository/OverlayPermissionRepository`. 실구현 `RecordingPill`은 vehicle 소스셋, 데모·테스트는 `RecordingOverlay.None`. 실차 권한 확인은 `docs/integration/recording-overlay-permission.md` |
+| 경계 | 앱 쪽 훅 `overlay/RecordingOverlay`(보임·창 위치·첫 안내) + 설정 화면용 `data/repository/OverlayPermissionRepository`. 실구현 `RecordingPill`은 vehicle 소스셋, 데모·테스트는 `RecordingOverlay.None` |
 
 ---
 
@@ -931,7 +930,7 @@ cd web/admin && npm run lint && npm test -- --run && npm run build
 
 ### 10.3 맥 에뮬레이터 수동 점검 (마일스톤마다)
 
-`docs/verification.md`에 날짜·환경과 함께 기록한다.
+날짜·환경과 함께 기록한다.
 
 1. 콜드 부팅 → 앱 실행 → ProfilePicker → Home까지 끊김 없음
 2. 윈도 바로 portrait ↔ landscape 전환, 다른 앱과 1:1 분할 → 잘림·겹침 없음, 상태 유지
@@ -975,15 +974,15 @@ cd web/admin && npm run lint && npm test -- --run && npm run build
 | R-7 | ✅ 2026-11-10 `TripSessionManager`. 사용 3단계·자동 종료 지원: ① `TripSessionApi.motion`(PARKED·STOPPED·MOVING, 판정 불가 null) ② `StopCandidate(reason, deadlineAt)` ③ 기어 P 즉시 StopCandidate(`deadlineAt` = P 시각 + **5초**) + Odometer 저장. 기어·시동 판정은 1.1.1 우선순위(Pleos Gear → AAOS `GEAR_SELECTION`/`CURRENT_GEAR` → `PARKING_BRAKE_ON` → `IGNITION_STATE` → 최후 규칙: 다음 시동 때 자동 확정, 거리 불변 60초 = 주차). `CAR_POWERTRAIN` 권한은 vehicle-core 매니페스트에 선언 ④ `TripRecordingService` 헤즈업 알림: 제목 "기록을 마칠까요?", 본문 거리, 카운트다운(`setUsesChronometer(true)`·`setChronometerCountDown(true)`·`setWhen(deadlineAt)`), 액션 [계속 기록]=`resume()` · [기록 종료]=`finalize()` ⑤ 주행 중 지속 알림 "기록 중 · 12.3 km · 목적지"(F-03 대체) | A | 1.1·7.2.1. 주행 중 앱 화면이 없으므로 P 순간에 사람이 보는 것은 알림이다 | 계약 11.12, 알림 11.14 |
 | R-8 | 직접 입력 주유 기록에 상호·유종 저장: `ReceiptApi.saveFuel`이 `VoiceFuel`(금액·리터·단가)만 받는다. 직접 입력 창(7.5)이 영수증 창과 같은 필드를 받으려면 상호(`station`)·유종(`fuelType`)·일시를 선택 인자로 추가 | B | 7.5, D-20. 없어도 동작한다(공통 필드만) | 11.13 |
 | R-9 | ✅ 2026-11-10 `LiveTrip.originLabel`. 운행 출발지 이름: `LiveTrip.originLabel`(등록 장소와 가까우면 그 이름, 아니면 건물 이름, 모르면 null) + 주소 `originAddress`(2026-11-13 D-40 — 화면은 `이름 ?: 주소`). 지금은 interim에 프론트가 추가해 둠 | A | Home 운행 경로(출발지 → 목적지) | 11.13 |
-| R-10 | 📨 2026-11-10 요청함(사용자 결정, 요청서 `docs/integration/requests/R-10-vehicle-id.md`). 차량 id를 계약으로: `DeviceApi.vehicleId: StateFlow<String?>`(추천, 또는 `ConnectionState.Registered`·`Unreachable`에 필드) — `orderedUsers`·`suggest`·`unassignedTrips`가 받는 값 | A | 배차 기반 운전자 순서·배차 목적 추천(G-02). 받으면 `RealAppGraph.vehicleId()` 한 줄만 바꾼다 | 11.13 |
-| R-11 | (선택) 디버그 전용 시드 계약 `DebugSeedApi` — 데모 운행·비용 이력을 앱 A 규칙으로 넣기 | A | 시연 DB 준비(`docs/integration/backend-link.md` 5.5) | 제안 2026-11-10 |
+| R-10 | 📨 2026-11-10 요청함(사용자 결정). 차량 id를 계약으로: `DeviceApi.vehicleId: StateFlow<String?>`(추천, 또는 `ConnectionState.Registered`·`Unreachable`에 필드) — `orderedUsers`·`suggest`·`unassignedTrips`가 받는 값 | A | 배차 기반 운전자 순서·배차 목적 추천(G-02). 받으면 `RealAppGraph.vehicleId()` 한 줄만 바꾼다 | 11.13 |
+| R-11 | (선택) 디버그 전용 시드 계약 `DebugSeedApi` — 데모 운행·비용 이력을 앱 A 규칙으로 넣기 | A | 시연 DB 준비 | 제안 2026-11-10 |
 | R-12 | ~~0 km 운행은 모두 버린다~~ **철회**(2026-11-11 사용자 결정 — 앱 A 정책을 따른다): 자동 종료는 1분 미만 그리고 0.3 km 미만이면 버림, [기록 종료](`requestStop`)로 끝낸 운행은 0 km여도 남김 | A | — | 철회 |
 
 ---
 
 ## 13. 검증 필요 목록
 
-결과는 `docs/verification.md`에 날짜·환경(에뮬레이터/실차)과 함께 적고, 이 표의 상태를 갱신한다.
+결과는 날짜·환경(에뮬레이터/실차)과 함께 이 표의 상태로 갱신한다.
 
 | ID | 항목 | 영향 | 확인 방법 | 상태 |
 |---|---|---|---|---|

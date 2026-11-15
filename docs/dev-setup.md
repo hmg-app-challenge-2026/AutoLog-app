@@ -1,28 +1,29 @@
 # 개발 환경
 
-## WSL (빌드·테스트·스크린샷)
+## 맥 (Apple Silicon) — 빌드·에뮬레이터·시연
 
-1. JDK 17·Android SDK 설치: `docs/superpowers/plans/2026-11-09-vehicle-app-foundation.md` Task 1 Step 1~2
-   - 셸 설정 파일(`~/.bashrc`)을 고치지 않고 쓰려면 매번 아래 환경변수를 지정한다:
-     ```bash
-     export JAVA_HOME=$HOME/opt/jdk17 ANDROID_HOME=$HOME/Android/Sdk
-     export PATH=$JAVA_HOME/bin:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$PATH
-     ```
-2. (2026-11-11 리포 통합 뒤 submodule 없음 — 받기만 하면 된다. 예전 AutoLog-Frontend 시절엔 `git submodule update --init --recursive`)
-3. `echo "sdk.dir=$ANDROID_HOME" > local.properties`
-4. Gradle은 메모리 상한을 걸고 실행한다(WSL 메모리 부족 시 세션 전체가 죽는다):
+1. Android Studio 최신, **JDK 21** (`brew install openjdk@21`)
    ```bash
-   G() { systemd-run --user --scope -q -p MemoryMax=10G ./gradlew "$@"; }
-   G :vehicle-app:testDemoDebugUnitTest
-   G :vehicle-app:recordRoborazziDemoDebug   # 스크린샷 기록 → vehicle-app/src/test/screenshots
-   G :shared:test :vehicle-core:test :relay:test   # 로직·서버 테스트(같은 빌드)
+   export JAVA_HOME=/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home
    ```
-5. WSL에서는 Pleos 에뮬레이터를 돌리지 않는다(외장 GPU 필요).
+2. `git clone https://github.com/hmg-app-challenge-2026/H-TaxLog` 후 루트에서 `echo "sdk.dir=$HOME/Library/Android/sdk" > local.properties`
+3. Pleos 에뮬레이터: 스펙 5.5 "맥 에뮬레이터 준비" 1~5 (SDK Update Site `crp-arm64-sys-img.xml`, API 34, **Cold boot**, RAM 4 GB)
+4. 서버(relay·DB·MinIO·웹): `cp ops/.env.example ops/.env`로 값을 채운 뒤
+   ```bash
+   ./gradlew :relay:bootJar
+   cd ops && docker compose -p htaxlog up -d --build relay
+   ```
+   관리자 웹을 고쳤다면 `cd web/admin && npm run build` 후 다시 띄운다.
+5. 차 앱 설치: `./gradlew :vehicle-app:installVehicleDebug` (화면만 볼 때는 `installDemoDebug`)
+6. 권한·시연 도우미: `scripts/emu.sh setup`(권한 허용) · `scripts/emu.sh demo-commute`(출근 시연)
+7. 테스트:
+   ```bash
+   ./gradlew ktlintCheck
+   ./gradlew :shared:test :relay:test :vehicle-core:testDebugUnitTest :vehicle-app:testDemoDebugUnitTest
+   ```
 
-## 맥 (Apple Silicon, 에뮬레이터·시연)
+## 리눅스·WSL (빌드·테스트·스크린샷만)
 
-1. Android Studio 최신, JDK 17
-2. Pleos 에뮬레이터: 스펙 5.5 "맥 에뮬레이터 준비" 1~5 (SDK Update Site `crp-arm64-sys-img.xml`, API 34, **Cold boot**, RAM 4 GB)
-3. `git clone https://github.com/hmg-app-challenge-2026/H-TaxLog` 후 Android Studio로 루트 열기 → Build Variant `demoDebug`
-4. 설치: `./gradlew :vehicle-app:installDemoDebug`
-5. 스크린샷은 맥에서 기록해도 커밋하지 않는다(기준 플랫폼은 Linux)
+- 같은 JDK 21·Android SDK로 빌드·테스트할 수 있다. Pleos 에뮬레이터는 돌지 않는다(외장 GPU 필요).
+- 화면 확인은 Roborazzi 스크린샷: `./gradlew :vehicle-app:recordRoborazziDemoDebug` → `vehicle-app/src/test/screenshots`(커밋하지 않음).
+- WSL은 메모리가 모자라면 세션이 죽으므로 Gradle에 상한을 건다: `systemd-run --user --scope -q -p MemoryMax=10G ./gradlew …`

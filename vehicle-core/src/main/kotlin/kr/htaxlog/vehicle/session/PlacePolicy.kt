@@ -11,7 +11,7 @@ import kr.htaxlog.vehicle.data.TripEntity
 internal data class EndPosition(val lat: Double, val lng: Double, val source: PlaceSource)
 
 /**
- * 출발지·도착지 이름과 주소를 정하는 규칙 (F-06, F-07, open-issues I-05). 순수 함수 — 네트워크·DB는 세션이 한다.
+ * 출발지·도착지 이름과 주소를 정하는 규칙 (F-06, F-07). 순수 함수 — 네트워크·DB는 세션이 한다.
  *
  * - 이름: 등록 장소 > (도착지만) 실제로 도착한 내비 목적지 > 건물 이름(카카오) > 없음. 사람이 고른 도착지 이름은 그대로.
  * - 주소: 서버(카카오) 주소가 오면 그것, 아니면 지금 있는 주소(내비)를 둔다. 카카오 주소를 내비 주소로 되돌리지 않는다.

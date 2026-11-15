@@ -39,7 +39,7 @@
 | `relay/` | B | 중계 서버 전체 |
 | `vehicle-app/` | 프론트 | Compose 화면 + ViewModel + Repository(차량 앱). 화면 규칙은 11장 |
 | `web/` | 프론트 (API 계약은 B) | 운영 웹, 카메라 페이지 |
-| `docs/design-language.md` · `docs/superpowers/` · `docs/integration/` | 프론트 | 화면 설계 스펙·디자인 언어·백엔드 연결 기록 |
+| `docs/design-language.md` · `docs/superpowers/` | 프론트 | 화면 설계 스펙·디자인 언어 |
 | `ops/` · 루트 Gradle 설정 · 이 문서 | 공동 | 바꿀 때 상대방 리뷰 |
 
 > 명세 7장 트리에는 로직이 `app/` 아래로 그려져 있지만, 실제 저장소는 로직을 `vehicle-core/`로 분리했다. 패키지 이름(`kr.htaxlog.vehicle.*`)은 명세와 같다.
@@ -308,7 +308,7 @@ F-05, F-10 … (명세 3장)
 
 | 경로 | 소유 | 규칙 |
 |---|---|---|
-| `vehicle-app/` · `web/` · 화면 문서(`docs/design-language.md`·`docs/superpowers/`·`docs/integration/`) | 프론트 | 자유롭게 고친다 |
+| `vehicle-app/` · `web/` · 화면 문서(`docs/design-language.md`·`docs/superpowers/`) | 프론트 | 자유롭게 고친다 |
 | `shared/` · `vehicle-core/` · `relay/` | 앱 A·B | **1.2 소유 규칙을 따른다** — 프론트가 고쳐야 하면 소유자를 리뷰어로 넣는다(예전엔 submodule이라 이 리포에서 아예 고치지 않았다) |
 | `vehicle-app/.../data/fake/` | 프론트 | 데모·테스트용 앱 A 가짜(데모 조작 — 거리 늘리기·놓친 운행·복구 — 포함). 실제 앱(vehicle flavor)은 쓰지 않는다 |
 | `vehicle-app/.../data/upload/` | 프론트(임시) | 사내 서버 업로드 자리표시 계약. 백엔드 계약(R-4)이 오면 삭제한다 |

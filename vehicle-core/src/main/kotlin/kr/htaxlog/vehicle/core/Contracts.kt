@@ -193,7 +193,7 @@ interface RelayClient {
 }
 
 /**
- * 좌표 → 주소 (F-06, F-07, open-issues I-05). 중계 서버(카카오 coord2address)에 묻고, 실패하면 내비 현재 위치 주소로 대신한다.
+ * 좌표 → 주소 (F-06, F-07). 중계 서버(카카오 coord2address)에 묻고, 실패하면 내비 현재 위치 주소로 대신한다.
  * 내비(NaviHelper)는 좌표를 주소로 바꾸지 못하고 "지금 차 위치"의 주소만 주므로, 폴백은 [isCurrentPosition]일 때만 쓴다.
  * 앱 A: 운행 시작·종료 직후(session), 주소 없는 지난 운행 채우기(InboxSync). 화면은 쓰지 않는다. 구현: data/RelayGeocode.
  */

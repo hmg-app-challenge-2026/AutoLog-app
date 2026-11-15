@@ -6,14 +6,14 @@
 |---|---|---|---|---|---|
 | 1 | Vehicle Service 연결 | `initialize()` 직후 첫 조회가 10–22 ms 안에 성공. capability `READ` | 에뮬레이터 Pleos_Connect_v2.1.0 (API 34, arm64) | 2026-11-09 | 재시도는 실패 대비로 유지(F-01 5초×12). `VehicleProbeTest.connectsAndReadsOdometer` |
 | 2 | Odometer 단위·소수점·갱신 주기 | 콘솔 입력값 그대로(18443.9 → `Float` 18443.9). 리스너 지연 4–5 ms. 23.4 km 차이 정확. **감소 불가**(콘솔이 거부) | 에뮬레이터 Pleos_Connect_v2.1.0 (API 34, arm64) | 2026-11-09 | 에뮬레이터는 값을 바꿀 때만 콜백 → 실차 갱신 주기 [검증 필요]. `odometerListenerReceivesChangeAndDistanceIsExact` |
-| 3 | NaviHelper 목적지 콜백 | | | | |
+| 3 | NaviHelper 목적지 콜백 | 미측정. 출발·도착 좌표는 Fused Location을 먼저 쓰고(4번), 내비 목적지는 P 규칙(목적지 300 m 밖이면 기록 유지)에만 쓴다 | — | — | 실차에서 경로 안내 중 콜백 시점 확인 예정 |
 | 4 | Fused Location 콜백·accuracy | **SDK 1.1.3으로 해결:** 1.0.4는 시스템 서비스 `ai.pleos.playground.internal.placesense.IPlacesenseService/default`를 찾는데 Pleos Connect v2.1.0에는 없다(`ai.pleos.hardware.placesense.IPlacesense/default` HAL만) → `registerFusedLocationCallback binder is null`, 콜백 0건. 1.1.3은 `FusedLocationService`에 바인딩(권한 `FUSED_LOCATION_BINDING`은 SDK 매니페스트가 합침) → `adb emu geo fix` 좌표가 1초마다 온다. 1.1.3의 `onChanged(LocationData?)`는 null 가능, `onError(Exception)` 추가. 내비를 끈 채 운행 → 출발·도착 FUSED_LOCATION 좌표 → 카카오 주소·건물명 | 에뮬레이터 Pleos_Connect_v2.1.0 | 2026-11-13 | confidence 5.0(범위·의미 [검증 필요]). `pleos.car.permission.FUSED_LOCATION` 런타임 권한은 1.1.3에서 쓰지 않는 것으로 보이나 남겨 둠 |
-| 4c | NaviHelper 현재 위치·address | `getCurrentLocationInfo` → 내비 앱이 한 번 열려 준비되기 전엔 `navi not ready`(응답 없음, 3초 시간 초과). 준비 뒤엔 좌표 + `address` = **`수정구 시흥동`(구·동만, 광역·기초시·도로명·번호 없음)**. 내비 위치는 `geo fix`와 무관하게 내비 자체 위치 | 에뮬레이터 Pleos_Connect_v2.1.0 | 2026-11-13 | 그래서 주소는 relay(카카오) 우선, 내비 주소는 폴백일 뿐(F-07, I-05) |
+| 4c | NaviHelper 현재 위치·address | `getCurrentLocationInfo` → 내비 앱이 한 번 열려 준비되기 전엔 `navi not ready`(응답 없음, 3초 시간 초과). 준비 뒤엔 좌표 + `address` = **`수정구 시흥동`(구·동만, 광역·기초시·도로명·번호 없음)**. 내비 위치는 `geo fix`와 무관하게 내비 자체 위치 | 에뮬레이터 Pleos_Connect_v2.1.0 | 2026-11-13 | 그래서 주소는 relay(카카오) 우선, 내비 주소는 폴백일 뿐(F-07) |
 | 4a | 내비 전환 후 백그라운드 콜백 | **부분 확인:** 앱 화면 없이 포그라운드 서비스만 있는 프로세스에서 Odometer·Gear 콜백 수신, 자동 시작 → 23.4 km → 기어 P 5초 확정까지 동작 | 에뮬레이터 Pleos_Connect_v2.1.0 | 2026-11-09 | 내비 앱을 전면에 띄운 상태·10분 생존은 [검증 필요]. `TripScenarioTest` |
-| 4b | 절전 후 프로세스 생존 | | | | |
+| 4b | 절전 후 프로세스 생존 | 미측정. 에뮬레이터 재부팅 뒤 BOOT_COMPLETED로 포그라운드 서비스가 다시 떠서 기록은 이어진다 | 에뮬레이터 Pleos_Connect_v2.1.0 | 2026-11-15 | 실차 절전·장시간 주차 뒤 생존은 실차 확인 예정 |
 | 5 | CarInfo·Gear 제공 범위 | Gear P/D 조회·리스너 동작(지연 13–16 ms). VIN 제공(9자 — 에뮬레이터 더미로 보임). DrivingMode는 기어가 아님(주행 모드) | 에뮬레이터 Pleos_Connect_v2.1.0 (API 34, arm64) | 2026-11-09 | Gear API는 **deprecated**("use the Google GEAR_SELECTION property") → AAOS `GEAR_SELECTION` 폴백 준비. `gearParkAndDriveArriveByReadAndListener`, `recordsVinAvailability` |
-| 7 | XLSX 생성 속도·SMTP 587 | | | | |
-| 8 | STT | | | | |
+| 7 | XLSX 생성 속도·SMTP 587 | XLSX 200건 5초 안(단위 테스트 `200건도 5초 안에 만든다`). Gmail SMTP 587(STARTTLS)로 운행기록부 첨부 메일 발송·수신 확인 | JVM 단위 테스트 · 에뮬레이터 Pleos_Connect_v2.1.0(맥 네트워크) | 2026-11-15 | 차량 LTE에서 587이 열려 있는지는 실차 확인 예정 |
+| 8 | STT | 미측정(아래 STT 절의 확인 항목) | — | — | MVP는 음성 입력을 쓰지 않는다 |
 
 ## AAR 정적 분석 (앱 B, 2026-11-08)
 

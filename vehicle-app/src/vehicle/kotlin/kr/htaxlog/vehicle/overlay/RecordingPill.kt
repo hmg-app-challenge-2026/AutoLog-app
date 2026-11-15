@@ -37,7 +37,6 @@ import kr.htaxlog.vehicle.ui.design.hTaxLogType
  * [RecordingOverlay] 실구현 — `TYPE_APPLICATION_OVERLAY` 창 하나(스펙 6.11). 기록 상태·거리는 앱 A 세션을 그대로 따르고,
  * 1초마다 경과 시간을 다시 그린다. 권한이 없거나 창을 못 띄워도 운행 기록과 앱 A의 운행 알림은 그대로 동작한다.
  * 모양은 라이트 토큰으로 고정(흰 면 · 초록 점 · 진한 글자) — 내비 지도 위에서 늘 같은 대비로 읽히게.
- * 실차 권한 확인 사항: `docs/integration/recording-overlay-permission.md`.
  */
 class RecordingPill(private val app: Application, private val session: TripSessionApi, private val clock: AppClock) :
     RecordingOverlay {

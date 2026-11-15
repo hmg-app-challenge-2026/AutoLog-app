@@ -10,7 +10,6 @@
 
 1. [CONVENTIONS.md](CONVENTIONS.md) — 분업·브랜치·커밋·코드 스타일(1~10장 공통, 11장 화면)
 2. 화면을 만든다면: [프론트 설계 스펙](docs/superpowers/specs/2026-11-09-htaxlog-frontend-design.md) — 무엇을 왜, 어떻게 만드는지(결정·구조·화면·일정) · [디자인 언어](docs/design-language.md) — 철학·원칙·토큰·모션·컴포넌트
-3. 화면 ↔ 로직 연결 상태: [백엔드 연결 기록](docs/integration/backend-link.md) · [남은 문제·정책 논의](docs/integration/open-issues.md)
 
 ## 같이 개발하기
 
@@ -62,7 +61,7 @@ cd ops && cp .env.example .env && docker compose up -d   # 서버 일체 (relay 
 APK에 무엇이 들어갔는지 확인: Android Studio **Build → Analyze APK** 또는
 `./gradlew :vehicle-app:dependencies --configuration vehicleReleaseRuntimeClasspath`.
 
-개발 환경은 [docs/dev-setup.md](docs/dev-setup.md), 디자인 게이트는 [docs/design-gate-2026-11-11.md](docs/design-gate-2026-11-11.md).
+개발 환경은 [docs/dev-setup.md](docs/dev-setup.md).
 
 ## Pleos SDK
 

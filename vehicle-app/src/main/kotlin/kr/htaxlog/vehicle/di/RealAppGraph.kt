@@ -25,7 +25,6 @@ import kr.htaxlog.vehicle.overlay.RecordingOverlay
 /**
  * 실제 앱 그래프(스펙 6.7, R-1) — 백엔드 조립 지점 `HTaxLog.create`가 돌려준 [components](앱 A·B 실구현) 위에 화면 Repository를 얹는다.
  * 목업 데이터는 하나도 없다. 백엔드에 계약이 없는 것만 비워 둔다: 사내 서버 업로드([UnavailableUploadApi], G-04).
- * 연결 지도와 연결하지 못한 것은 `docs/integration/backend-link.md`.
  */
 class RealAppGraph(
     private val components: HTaxLogComponents,

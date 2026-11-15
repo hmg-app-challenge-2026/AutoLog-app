@@ -74,7 +74,7 @@ class KakaoReverseGeocoder(private val props: RelayProperties, builder: RestClie
 }
 
 /**
- * coord2address 문서 하나 → `광역 기초 읍면동 도로명 번호` (open-issues I-05). 순수 함수.
+ * coord2address 문서 하나 → `광역 기초 읍면동 도로명 번호`. 순수 함수.
  * 예: `서울 서대문구 연희동 연희로 11-1`, `경기 성남시 분당구 정자동 정자일로 1`, `부산 기장군 장안읍 해맞이로 10-1`.
  * 도로명주소가 없으면 지번 주소(`경기 안성시 죽산면 죽산리 343-1`)를 쓴다. 둘 다 없으면 null.
  * 실제 응답(2026-11-13 확인): 동 지역은 `road_address.region_3depth_name`이 비어 있어 지번 주소의 법정동을 쓴다,
