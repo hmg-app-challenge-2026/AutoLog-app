@@ -11,7 +11,7 @@
 #   scripts/emu.sh drive 40 5 30    위와 같은데 30초 동안 달린다(기본 15초)
 #   scripts/emu.sh follow           콘솔에서 직접 운전하는 동안 차속만큼 계기판을 계속 올린다 (Ctrl+C로 끝)
 #   scripts/emu.sh at seocho        차 위치(GPS)를 옮긴다: seocho(서초역) | hyundai(현대자동차 본사) | <위도> <경도>
-#   scripts/emu.sh demo-commute     시연용 출근: 서초역에서 출발 → 약 10초 동안 속도를 올렸다 내리며 이동 → 현대자동차 본사 도착 → P
+#   scripts/emu.sh demo-commute     시연용 출근: 서초역에서 출발 → 약 30초 동안 속도를 올렸다 내리며 이동 → 현대자동차 본사 도착 → P
 #                                   (실제로는 15분 넘게 걸리지만 영상 길이 때문에 압축한다. follow를 끄고 돌린다)
 #   scripts/emu.sh state            콘솔의 현재 기어·차속·계기판
 #   scripts/emu.sh log              HTaxLog 로그 보기 (Ctrl+C로 끝)
@@ -115,7 +115,7 @@ case "${1:-}" in
     read -r lat0 lng0 <<<"$SEOCHO"
     read -r lat1 lng1 <<<"$HYUNDAI"
     km=5.2                                      # 서초역 → 현대자동차 본사 도로 거리(대략)
-    speeds=(20 40 60 80 100 100 80 60 40 20)   # 10초 동안의 차속(km/h): 올렸다가 내린다
+    speeds=(10 20 30 40 50 60 70 80 90 100 100 100 100 100 100 100 100 100 100 100 90 80 70 60 50 40 30 20 10 5)   # 30초 동안의 차속(km/h): 10초 가속 → 10초 정속 → 10초 감속
     total=0; for v in "${speeds[@]}"; do total=$((total + v)); done
     geo "$lat0" "$lng0"
     put "/vehicle/gear?gear=Park"
