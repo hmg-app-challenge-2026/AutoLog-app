@@ -1,6 +1,6 @@
 # 차량 앱 기반 + 디자인 게이트 Implementation Plan
 
-> **당시 기록(리포가 둘이던 때).** 2026-11-11 AutoLog-app 한 리포로 합친 뒤엔 `backend/` submodule·composite build가 없다 — 지금 구조·빌드는 스펙 5장(D-33).
+> **당시 기록(리포가 둘이던 때).** 2026-11-11 H-TaxLog 한 리포로 합친 뒤엔 `backend/` submodule·composite build가 없다 — 지금 구조·빌드는 스펙 5장(D-33).
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 

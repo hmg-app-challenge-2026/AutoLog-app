@@ -4,7 +4,7 @@
 > 근거 문서는 기술명세 8장(분업)과 기능명세 3장(담당 열)이다. 이 문서와 명세가 다르면 **명세를 따르고 이 문서를 고친다.**
 > 화면(`vehicle-app/`·`web/`)의 설계 기준은 [프론트 설계 스펙](docs/superpowers/specs/2026-11-09-htaxlog-frontend-design.md)과 [디자인 언어](docs/design-language.md)이고, 화면에만 해당하는 규칙은 [11장](#11-화면vehicle-app--web-규칙)에 있다.
 >
-> **2026-11-11 AutoLog-Frontend와 AutoLog-Backend를 이 리포(AutoLog-app) 하나로 합쳤다.** 두 리포의 커밋 기록과 브랜치는 그대로 들어 있다. 예전 프론트 리포의 CONVENTIONS는 11장으로 옮겼다(내용은 그대로, submodule 관련 문장만 고침).
+> **2026-11-11 AutoLog-Frontend와 AutoLog-Backend를 이 리포(H-TaxLog, 당시 이름 AutoLog-app) 하나로 합쳤다.** 두 리포의 커밋 기록과 브랜치는 그대로 들어 있다. 예전 프론트 리포의 CONVENTIONS는 11장으로 옮겼다(내용은 그대로, submodule 관련 문장만 고침).
 >
 > 체크리스트만 보려면 [10장](#10-pr-올리기-전-체크리스트)으로 가면 된다.
 
