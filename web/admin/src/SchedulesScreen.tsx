@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { api, ApiError, type Schedule, type User, type Vehicle } from './api'
 import { ErrorBox } from './ErrorBox'
 import { addDays, dayLabel, kstDate, kstIso, kstTime, mondayOf, todayKst } from './time'
@@ -34,6 +34,7 @@ export function SchedulesScreen() {
   const [error, setError] = useState<ApiError | null>(null)
   const [notice, setNotice] = useState('')
   const [busy, setBusy] = useState(false)
+  const fileRef = useRef<HTMLInputElement>(null)
   const [form, setForm] = useState({
     vehicleId: '',
     userId: '',
@@ -102,6 +103,24 @@ export function SchedulesScreen() {
     }
   }
 
+  // CSV: 차량번호,운전자,시작,종료 — 운전자는 직원 이름(동명이인이면 이름(부서)), 시각은 2026-11-16 09:00
+  const importCsv = async (file: File | undefined) => {
+    if (fileRef.current) fileRef.current.value = ''
+    if (!file) return
+    setError(null)
+    setNotice('')
+    setBusy(true)
+    try {
+      const r = await api.importSchedules(file)
+      setNotice(`CSV에서 배차 ${r.imported}건을 등록했어요. 각 차로 보냈어요.`)
+      await loadWeek()
+    } catch (err) {
+      setError(err as ApiError)
+    } finally {
+      setBusy(false)
+    }
+  }
+
   const remove = async (s: Schedule) => {
     if (!confirm(`${describe(s)}\n이 배차를 지울까요?`)) return
     setError(null)
@@ -131,6 +150,12 @@ export function SchedulesScreen() {
           <p className="muted">
             누가 언제 어느 차를 쓰는지 등록하면 그 차로 보내져요. 차는 운전자 선택 화면에서 이 사람을 맨 앞에 보여 줘요.
           </p>
+        </div>
+        <div>
+          <input ref={fileRef} type="file" accept=".csv,text/csv" hidden onChange={e => importCsv(e.target.files?.[0])} />
+          <button className="button secondary" disabled={busy} onClick={() => fileRef.current?.click()}>
+            CSV로 여러 건 올리기
+          </button>
         </div>
       </header>
 
@@ -205,6 +230,10 @@ export function SchedulesScreen() {
             </button>
           </div>
         </div>
+        <p className="muted small">
+          CSV는 첫 줄에 차량번호,운전자,시작,종료를 쓰고 한 줄에 배차 하나씩 적어요. 운전자는 직원 이름(같은 이름이 여럿이면
+          이름(부서)), 시각은 2026-11-16 09:00처럼 적어요. 한 줄이라도 틀리면 아무것도 등록하지 않고 틀린 줄을 알려 줘요.
+        </p>
       </form>
 
       <ErrorBox error={error} />

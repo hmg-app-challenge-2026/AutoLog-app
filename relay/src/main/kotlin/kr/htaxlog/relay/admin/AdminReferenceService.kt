@@ -400,8 +400,18 @@ class AdminReferenceService(
         private val EMAIL = Regex("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$")
         private val CODE = Regex("^[A-Z_]{1,30}$")
         private val KST: ZoneId = ZoneId.of("Asia/Seoul")
+
+        /** 엑셀이 저장하는 모양도 받는다: 2026-11-16 9:00, 2026/11/16 09:00, 2026.11.16 9:00 (2026-11-15) */
         private val LOCAL_FORMATS =
-            listOf(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"), DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm"))
+            listOf(
+                "yyyy-M-d H:mm",
+                "yyyy-M-d'T'H:mm",
+                "yyyy/M/d H:mm",
+                "yyyy.M.d H:mm",
+                "yyyy-M-d H:mm:ss",
+                "yyyy/M/d H:mm:ss",
+            )
+                .map { DateTimeFormatter.ofPattern(it) }
 
         private val KIND_NAMES =
             mapOf(
