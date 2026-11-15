@@ -38,6 +38,7 @@ object Size {
     val profileTileNarrow = 160.dp
     val sheetMaxWidth = 960.dp
     val successBadge = 200.dp // 완료 표시(SuccessCheck) 원 지름 — 2560×1268 차량 화면 가운데에서 한눈에
+    val splashLogoMax = 420.dp // 시작 화면 로고의 최대 크기
     val actionButtonMaxWidth = 480.dp // 한 줄에 같은 폭으로 놓는 행동 버튼 하나의 최대 폭(운행 결과) — 2560 dp에서 버튼이 넓대대하지 않게
     val listActionMaxWidth = 400.dp // 목록 아래 가운데 버튼 하나의 최대 폭(운행 기록 조회 [운행기록부 내보내기], 2026-11-10 에뮬레이터 확인)
     val dialogMaxWidth = 640.dp // ModalCard 기본 최대 폭

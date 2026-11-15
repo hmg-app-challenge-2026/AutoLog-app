@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 첫 프레임 배경을 토큰 bg와 맞춰 깜빡임을 없앤다 -->
+<!-- 앱 조립 전에도 시작 로고를 표시하고, Compose가 준비되면 일반 배경으로 바꾼다. -->
 <resources>
     <style name="Theme.HTaxLog" parent="@android:style/Theme.Material.NoActionBar">
-        <item name="android:windowBackground">@color/window_bg</item>
+        <item name="android:windowBackground">@drawable/startup_window_background</item>
         <!-- Compose 밖(View 기반 시스템 대화상자·토스트 등)도 Asta Sans -->
         <item name="android:fontFamily">@font/asta_sans</item>
         <item name="android:statusBarColor">@android:color/transparent</item>

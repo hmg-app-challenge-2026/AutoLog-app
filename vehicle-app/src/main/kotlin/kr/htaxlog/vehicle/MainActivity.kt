@@ -3,6 +3,7 @@ package kr.htaxlog.vehicle
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Bundle
+import android.os.SystemClock
 import android.view.View
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -16,12 +17,14 @@ import kr.htaxlog.vehicle.di.runtimePermissions
 import kr.htaxlog.vehicle.nav.deepLinkRoute
 import kr.htaxlog.vehicle.session.EXTRA_SCREEN_ON_BOOT
 import kr.htaxlog.vehicle.ui.root.HTaxLogRoot
+import kr.htaxlog.vehicle.ui.root.StartupSplash
 
 /**
  * 앱의 유일한 Activity. 실제 앱은 그래프(= 백엔드 `HTaxLog.create`)를 만들기 전에 런타임 권한을 묻는다 — 권한이 있어야 좌표·알림이
  * 붙은 채로 조립된다(백엔드 `HTaxLog` 주석). 거절해도 그 기능만 빠지고 앱은 뜬다. 데모는 물을 권한이 없어 바로 뜬다.
  */
 class MainActivity : ComponentActivity() {
+    private val launchStartedAtMillis = SystemClock.elapsedRealtime()
     private val graph: AppGraph get() = (application as HTaxLogApp).graph
 
     /** 그래프를 만들고 화면을 띄웠는가. 그 전에 온 알림 Intent는 [pendingIntent]에 두었다가 띄울 때 적용한다. */
@@ -49,11 +52,16 @@ class MainActivity : ComponentActivity() {
         val appGraph = graph
         val screenOnBoot = intent.getBooleanExtra(EXTRA_SCREEN_ON_BOOT, false)
         setContent {
-            HTaxLogRoot(
-                graph = appGraph,
-                onRequestBackground = appReturnController::onMotionConfirmed,
-                deferBackgroundUntilMotionKnown = screenOnBoot,
-            )
+            StartupSplash(
+                launchStartedAtMillis = launchStartedAtMillis,
+                onFinished = { window.setBackgroundDrawableResource(R.color.window_bg) },
+            ) {
+                HTaxLogRoot(
+                    graph = appGraph,
+                    onRequestBackground = appReturnController::onMotionConfirmed,
+                    deferBackgroundUntilMotionKnown = screenOnBoot,
+                )
+            }
         }
         // 이 화면이 보이는 동안은 알약을 숨기고 앱 A 알림을 조용히(스펙 6.11·D-37), 창이 놓인 앱 영역 가운데를 알려 준다
         appGraph.setAppVisible(true)
