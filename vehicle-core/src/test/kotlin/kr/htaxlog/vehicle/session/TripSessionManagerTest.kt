@@ -430,6 +430,30 @@ class TripSessionManagerTest {
     }
 
     @Test
+    fun `등록된 주유소에서 P를 넣으면 내비 목적지가 없어도 기록을 이어 간다`() = runTest {
+        val rig = Rig(this)
+        rig.ctx.setDestination(null)
+        val id = startedTrip(rig)
+        rig.car.drive(2.0)
+        runCurrent()
+        rig.engine.place = PlaceInfo("gas", "SK 서초주유소", PlaceKind.GAS_STATION, 37.48, 127.02)
+
+        rig.car.shift(Gear.PARK)
+        advanceTimeBy(TripTiming.T_GEAR_P_SEC * 1_000 + 30_000) // 주유하는 동안
+        assertTrue(rig.stateValue is SessionState.Recording)
+
+        rig.engine.place = null
+        rig.car.shift(Gear.DRIVE)
+        rig.car.drive(3.0)
+        rig.car.shift(Gear.PARK)
+        advanceTimeBy(TripTiming.T_GEAR_P_SEC * 1_000 + 1_000)
+
+        val review = rig.stateValue as SessionState.PendingReview
+        assertEquals(id, review.trip.tripId) // 주유소 앞뒤가 한 운행
+        assertEquals(5.0, review.distanceKm!!, 0.001)
+    }
+
+    @Test
     fun `내비 목적지가 없으면 어디서 P를 넣든 지금처럼 끝난다`() = runTest {
         val rig = Rig(this)
         rig.ctx.setDestination(null)
@@ -442,6 +466,20 @@ class TripSessionManagerTest {
         advanceTimeBy(TripTiming.T_GEAR_P_SEC * 1_000 + 1_000)
 
         assertTrue(rig.stateValue is SessionState.PendingReview)
+    }
+
+    @Test
+    fun `종료 대기에 들어가자마자 목적 추천이 붙는다 — 결과 카드가 처음부터 맞는 분류로`() = runTest {
+        val rig = Rig(this)
+        startedTrip(rig)
+        rig.car.drive(5.0)
+        runCurrent()
+
+        rig.car.shift(Gear.PARK)
+        runCurrent()
+
+        val waiting = rig.stateValue as SessionState.StopCandidate
+        assertEquals(rig.engine.suggestion, waiting.suggestion)
     }
 
     @Test

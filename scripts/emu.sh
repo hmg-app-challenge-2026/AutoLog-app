@@ -13,6 +13,12 @@
 #   scripts/emu.sh at seocho        차 위치(GPS)를 옮긴다: seocho(서초역) | hyundai(현대자동차 본사) | <위도> <경도>
 #   scripts/emu.sh demo-commute     시연용 출근: 서초역에서 출발 → 약 30초 동안 속도를 올렸다 내리며 이동 → 현대자동차 본사 도착 → P
 #                                   (실제로는 15분 넘게 걸리지만 영상 길이 때문에 압축한다. follow를 끄고 돌린다)
+#   scripts/emu.sh demo-commute-fuel [초|enter]
+#                                   위 출근 시연 + 가는 길에 주유하기: 서초역 → 중간에 P(앱을 띄우고 [주유 기록 추가]를 누른다)
+#                                   → 차 화면에서 주유 기록을 저장하면 저절로 다시 출발 → 현대자동차 본사.
+#                                   숫자를 주면 그 초만큼만 서 있고, enter면 Enter를 누를 때까지 선다.
+#                                   먼저 내비 목적지를 "현대자동차 본사"로 찍어 둔다 — 목적지에서 먼 P는 기록을 끊지 않는다(300m 규칙).
+#                                   앱에 "주유소" 종류 장소가 있으면 그곳에 서고, 없으면 두 곳의 중간에 선다
 #   scripts/emu.sh state            콘솔의 현재 기어·차속·계기판
 #   scripts/emu.sh log              HTaxLog 로그 보기 (Ctrl+C로 끝)
 set -euo pipefail
@@ -34,6 +40,72 @@ odo_now() {
 # 시연 장소 좌표(위도 경도). 차 설정 [목적 → 장소 추가 → 지금 위치]로 등록하면 이 좌표와 정확히 맞는다
 SEOCHO="37.49186 127.00766"   # 서초역
 HYUNDAI="37.464363 127.042663"  # 현대자동차 본사 양재사옥(카카오 장소 좌표)
+
+# 한 구간을 달린다: 시작·끝 좌표, 거리(km), 차속 순서(1초에 하나). 계기판·위치를 차속 비율로 나눠 올린다
+segment() {
+  local lat0=$1 lng0=$2 lat1=$3 lng1=$4 km=$5; shift 5
+  local speeds=("$@") total=0 sum=0 v odo lat lng start
+  for v in "${speeds[@]}"; do total=$((total + v)); done
+  start="$(odo_now)"
+  put "/vehicle/gear?gear=Drive"
+  sleep 1
+  for v in "${speeds[@]}"; do
+    sum=$((sum + v))
+    read -r odo lat lng <<<"$(python3 -c "f=$sum/$total; print(round($start+$km*f,2), round($lat0+($lat1-$lat0)*f,6), round($lng0+($lng1-$lng0)*f,6))")"
+    heartbeat || true
+    curl -s -m 2 -X PUT "$CONSOLE/vehicle/controls?speed_kph=$v" >/dev/null || true
+    curl -s -m 2 -X PUT "$CONSOLE/vehicle/odometer?traveled_distance_km=$odo" >/dev/null || true
+    geo "$lat" "$lng"
+    printf '\r  %3s km/h · 계기판 %s km   ' "$v" "$odo"
+    sleep 1
+  done
+  echo
+  geo "$lat1" "$lng1"
+  put "/vehicle/controls?speed_kph=0"
+  sleep 2
+  put "/vehicle/gear?gear=Park"
+}
+
+# 앱에 등록된 첫 주유소(종류 GAS_STATION)의 "위도 경도 이름"
+gas_station() {
+  local tmp; tmp="$(mktemp -d)"
+  for f in htaxlog.db htaxlog.db-wal htaxlog.db-shm; do
+    "$ADB" exec-out run-as "$PKG" --user 10 cat "databases/$f" >"$tmp/$f" 2>/dev/null || true
+  done
+  python3 -I - "$tmp/htaxlog.db" <<'PY'
+import sqlite3, sys
+r = sqlite3.connect(sys.argv[1]).execute("select lat, lng, label from places where kind = 'GAS_STATION' limit 1").fetchone()
+print(f"{r[0]} {r[1]} {r[2]}" if r else "")
+PY
+  rm -rf "$tmp"
+}
+
+# 차에 저장된 주유·비용 기록 수(expenses)
+expense_count() {
+  local tmp; tmp="$(mktemp -d)"
+  for f in htaxlog.db htaxlog.db-wal htaxlog.db-shm; do
+    "$ADB" exec-out run-as "$PKG" --user 10 cat "databases/$f" >"$tmp/$f" 2>/dev/null || true
+  done
+  # 읽지 못하면 아무것도 출력하지 않는다(0으로 착각해 "저장됐다"고 판단하지 않게)
+  python3 -I -c 'import sqlite3,sys; print(sqlite3.connect(sys.argv[1]).execute("select count(*) from expenses").fetchone()[0])' "$tmp/htaxlog.db" 2>/dev/null || true
+  rm -rf "$tmp"
+}
+
+# 앱 화면에서 그 글자(정확히 일치)를 찾아 누른다
+tap_text() {
+  "$ADB" shell uiautomator dump /sdcard/ui.xml >/dev/null 2>&1
+  local xy
+  xy="$("$ADB" shell cat /sdcard/ui.xml | python3 -I -c '
+import re, sys
+x = sys.stdin.read(); t = sys.argv[1]
+for n in re.findall(r"<node [^>]*>", x):
+    if re.search(r"text=\"%s\"" % re.escape(t), n):
+        b = list(map(int, re.search(r"bounds=\"\[(\d+),(\d+)\]\[(\d+),(\d+)\]\"", n).groups()))
+        print((b[0] + b[2]) // 2, (b[1] + b[3]) // 2); break
+' "$1")"
+  [ -z "$xy" ] && { echo "화면에서 [$1]을 찾지 못했어요" >&2; return 1; }
+  "$ADB" shell input tap $xy
+}
 
 # 에뮬레이터 GPS를 옮긴다. Pleos Fused Location과 내비가 이 값을 따라온다 (adb emu geo fix는 경도 위도 순)
 geo() {
@@ -145,6 +217,66 @@ case "${1:-}" in
     echo "도착: 현대자동차 본사 · 계기판 $(odo_now) km — 차 화면에 운행 결과가 떠야 한다"
     sleep 2
     "$ADB" logcat -d -s HTaxLog/session | grep -E "gear P|목적지까지|STOP|stop" | tail -2 || true
+    ;;
+  demo-commute-fuel)
+    if pgrep -f "emu.sh follow" >/dev/null; then
+      echo "follow가 돌고 있어요. 계기판을 둘이 같이 올리지 않게 follow를 먼저 꺼 주세요." >&2
+      exit 1
+    fi
+    wait="${2:-save}"
+    read -r lat0 lng0 <<<"$SEOCHO"
+    read -r lat1 lng1 <<<"$HYUNDAI"
+    read -r glat glng gname <<<"$(gas_station)"
+    if [ -z "${glat:-}" ]; then
+      # 등록된 주유소가 없으면 두 곳의 중간에 선다
+      read -r glat glng <<<"$(python3 -c "print(round(($lat0+$lat1)/2,6), round(($lng0+$lng1)/2,6))")"
+      gname="주유소"
+    fi
+    echo "※ 내비 목적지를 '현대자동차 본사'로 찍어 두었는지 확인하세요 — 없으면 중간 P에서 운행이 끝나요"
+    # 전체 5.2 km를 직선거리 비율로 두 구간에 나눈다
+    read -r km1 km2 <<<"$(python3 -c "
+from math import hypot
+a=hypot($glat-$lat0,($glng-$lng0)*0.8); b=hypot($lat1-$glat,($lng1-$glng)*0.8); print(round(5.2*a/(a+b),2), round(5.2*b/(a+b),2))")"
+    geo "$lat0" "$lng0"
+    put "/vehicle/gear?gear=Park"
+    put "/vehicle/controls?speed_kph=0"
+    echo "서초역에서 대기… (3초)"
+    sleep 3
+    echo "① 서초역 → ${gname} (${km1} km)"
+    segment "$lat0" "$lng0" "$glat" "$glng" "$km1" 20 40 60 80 80 80 60 40 20 10
+    sleep 2
+    "$ADB" logcat -d -s HTaxLog/session | grep "gear P" | tail -1 | sed 's/^.*HTaxLog\/session: /  /' || true
+    before=""
+    for _ in 1 2 3 4 5; do before="$(expense_count)"; [ -n "$before" ] && break; sleep 1; done
+    before="${before:-0}"
+    # 앱을 앞으로 띄우고 [주유 기록 추가]를 누른다(영수증 QR이 뜬다)
+    "$ADB" shell am start --user 10 -n "$PKG/.MainActivity" >/dev/null
+    sleep 3
+    # 다른 화면에 있으면 뒤로 가기로 Home까지 돌아간 뒤 누른다
+    for _ in 1 2 3 4; do
+      if tap_text "주유 기록 추가" 2>/dev/null; then
+        echo "  [주유 기록 추가]를 눌렀어요 — 폰으로 QR을 찍어 영수증을 보내세요"
+        break
+      fi
+      "$ADB" shell input keyevent 4
+      sleep 1
+    done
+    if [ "$wait" = "save" ]; then
+      echo "⛽ ${gname}에 주차 — 차 화면에서 주유 기록을 저장하면 다시 출발해요 (최대 10분)"
+      for _ in $(seq 1 300); do
+        sleep 2
+        now="$(expense_count)"
+        [ -n "$now" ] && [ "$now" -gt "$before" ] && { echo "  주유 기록이 저장됐어요(${before} → ${now}건) — 3초 뒤 출발"; sleep 3; break; }
+      done
+    elif [ "$wait" = "enter" ]; then
+      read -r -p "⛽ ${gname}에 주차했어요. 영수증을 다 등록하면 Enter를 눌러 다시 출발해요… " _
+    else
+      echo "⛽ ${gname}에 주차 — ${wait}초 동안 주유·영수증 등록"
+      sleep "$wait"
+    fi
+    echo "② ${gname} → 현대자동차 본사 (${km2} km)"
+    segment "$glat" "$glng" "$lat1" "$lng1" "$km2" 20 40 60 80 100 100 80 60 40 20
+    echo "도착: 현대자동차 본사 · 계기판 $(odo_now) km — 차 화면에 운행 결과가 떠야 한다"
     ;;
   state)
     heartbeat

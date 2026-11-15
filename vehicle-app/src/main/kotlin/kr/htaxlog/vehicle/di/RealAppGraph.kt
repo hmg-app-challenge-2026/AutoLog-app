@@ -2,7 +2,9 @@ package kr.htaxlog.vehicle.di
 
 import androidx.compose.runtime.Composable
 import kotlinx.coroutines.CoroutineScope
+import kr.htaxlog.shared.PlaceKind
 import kr.htaxlog.vehicle.common.AppClock
+import kr.htaxlog.vehicle.core.GeoDistance
 import kr.htaxlog.vehicle.core.HTaxLogComponents
 import kr.htaxlog.vehicle.data.repository.DefaultContextRepository
 import kr.htaxlog.vehicle.data.repository.DefaultProfileRepository
@@ -51,10 +53,28 @@ class RealAppGraph(
         )
     }
 
+    private val gasStopForegrounder =
+        GasStopForegrounder(
+            session.state,
+            usage.tier,
+            navigator,
+            scope,
+            atGasStation = {
+                val fix = components.context.freshFix()
+                fix != null &&
+                    runCatching { components.settings.places() }.getOrDefault(emptyList()).any { p ->
+                        p.kind == PlaceKind.GAS_STATION &&
+                            GeoDistance.meters(fix.lat, fix.lng, p.lat, p.lng) <= p.radiusM
+                    }
+            },
+            bringToFront = bringTripResultToFront,
+        )
+
     override fun setAppVisible(visible: Boolean) {
         overlay.setAppVisible(visible)
         components.presence.setAppVisible(visible)
         tripResultForegrounder?.setAppVisible(visible)
+        gasStopForegrounder.setAppVisible(visible)
     }
 
     override val profile =
