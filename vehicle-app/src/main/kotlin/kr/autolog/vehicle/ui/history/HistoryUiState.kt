@@ -18,9 +18,18 @@ data class HistoryUiState(
     /** 운행과 주유를 발생 시각 기준 최신 순으로 섞은 목록. */
     val records: List<HistoryRecordUi> = emptyList(),
     val fuelCount: Int = 0,
+    val filter: HistoryFilter = HistoryFilter.ALL,
     /** 운전자 미확정 줄에서 1탭으로 고를 후보(추천 순 최대 [DRIVER_CHOICES]명). */
     val driverChoices: List<DriverChoice> = emptyList(),
-)
+) {
+    val visibleRecords: List<HistoryRecordUi> get() = when (filter) {
+        HistoryFilter.ALL -> records
+        HistoryFilter.TRIPS -> records.filterIsInstance<HistoryRecordUi.Trip>()
+        HistoryFilter.FUELS -> records.filterIsInstance<HistoryRecordUi.Fuel>()
+    }
+}
+
+enum class HistoryFilter { ALL, TRIPS, FUELS }
 
 sealed interface HistoryRecordUi {
     val id: String
@@ -46,6 +55,8 @@ sealed interface HistoryRecordUi {
 data class DriverChoice(val userId: String, val name: String)
 
 sealed interface HistoryAction {
+    data class SetFilter(val filter: HistoryFilter) : HistoryAction
+
     data object PrevMonth : HistoryAction
 
     data object NextMonth : HistoryAction

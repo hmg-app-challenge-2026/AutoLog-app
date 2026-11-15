@@ -63,4 +63,16 @@ class HistoryReducerTest {
         assertEquals(listOf("fuel:f-1", "trip:t-1"), state.records.map { it.id })
         assertEquals(state.records.first().dayOfMonth, state.records.last().dayOfMonth)
     }
+
+    @Test
+    fun `전체가 기본이고 종류 필터는 해당 기록만 보여준다`() {
+        val fuel = FuelRecord("f-1", now - 1_800_000, 65000, 42.5, "판교주유소")
+        val state = reduceHistory(nov, nov, listOf(item("t-1", "김영업")), null, emptyList(), now, listOf(fuel))
+
+        assertEquals(HistoryFilter.ALL, state.filter)
+        assertEquals(2, state.visibleRecords.size)
+        assertEquals(listOf("trip:t-1"), state.copy(filter = HistoryFilter.TRIPS).visibleRecords.map { it.id })
+        assertEquals(listOf("fuel:f-1"), state.copy(filter = HistoryFilter.FUELS).visibleRecords.map { it.id })
+        assertEquals(1, state.fuelCount)
+    }
 }

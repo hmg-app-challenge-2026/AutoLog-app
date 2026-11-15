@@ -17,9 +17,18 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.MoreVert
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -37,6 +46,7 @@ import kr.autolog.vehicle.ui.design.Size
 import kr.autolog.vehicle.ui.design.Space
 import kr.autolog.vehicle.ui.design.components.Avatar
 import kr.autolog.vehicle.ui.design.components.PeriodSwitcher
+import kr.autolog.vehicle.ui.design.components.RoundIconButton
 import kr.autolog.vehicle.ui.design.components.ScreenHeader
 import kr.autolog.vehicle.ui.design.components.SecondaryButton
 import kr.autolog.vehicle.ui.design.components.TripListRow
@@ -67,7 +77,10 @@ fun HistoryScreen(state: HistoryUiState, onAction: (HistoryAction) -> Unit, modi
         modifier.fillMaxSize().padding(screenMargin()),
         verticalArrangement = Arrangement.spacedBy(Space.s4),
     ) {
-        ScreenHeader(stringResource(R.string.history_title)) { onAction(HistoryAction.Back) }
+        ScreenHeader(
+            stringResource(R.string.history_title),
+            trailing = { FilterMenu(state.filter, onAction) },
+        ) { onAction(HistoryAction.Back) }
         Column(
             Modifier.weight(1f).widthIn(max = Size.sheetMaxWidth).fillMaxWidth().align(Alignment.CenterHorizontally),
             verticalArrangement = Arrangement.spacedBy(Space.s4),
@@ -79,9 +92,15 @@ fun HistoryScreen(state: HistoryUiState, onAction: (HistoryAction) -> Unit, modi
             }, label = "historyMonth") { shown ->
                 when {
                     shown.loading -> Unit
-                    shown.records.isEmpty() ->
+                    shown.visibleRecords.isEmpty() ->
                         Text(
-                            stringResource(R.string.history_empty),
+                            stringResource(
+                                if (shown.records.isEmpty()) {
+                                    R.string.history_empty
+                                } else {
+                                    R.string.history_filtered_empty
+                                },
+                            ),
                             modifier = Modifier.fillMaxWidth(),
                             style = AutoLogTheme.type.body,
                             color = AutoLogTheme.colors.textTertiary,
@@ -97,6 +116,41 @@ fun HistoryScreen(state: HistoryUiState, onAction: (HistoryAction) -> Unit, modi
                     max = Size.listActionMaxWidth,
                 ).fillMaxWidth().align(Alignment.CenterHorizontally),
             )
+        }
+    }
+}
+
+@Composable
+private fun FilterMenu(selected: HistoryFilter, onAction: (HistoryAction) -> Unit) {
+    var expanded by remember { mutableStateOf(false) }
+    val colors = AutoLogTheme.colors
+    Box {
+        RoundIconButton(
+            Icons.Rounded.MoreVert,
+            stringResource(R.string.history_filter_button),
+            onClick = { expanded = true },
+        )
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            HistoryFilter.entries.forEach { filter ->
+                val label = when (filter) {
+                    HistoryFilter.ALL -> R.string.history_filter_all
+                    HistoryFilter.TRIPS -> R.string.history_filter_trips
+                    HistoryFilter.FUELS -> R.string.history_filter_fuels
+                }
+                DropdownMenuItem(
+                    text = { Text(stringResource(label), style = AutoLogTheme.type.body) },
+                    onClick = {
+                        expanded = false
+                        onAction(HistoryAction.SetFilter(filter))
+                    },
+                    trailingIcon = {
+                        if (selected == filter) {
+                            Icon(Icons.Rounded.Check, contentDescription = null, tint = colors.accent)
+                        }
+                    },
+                    modifier = Modifier.heightIn(min = Size.touchMin),
+                )
+            }
         }
     }
 }
@@ -143,11 +197,12 @@ private fun Summary(state: HistoryUiState) {
 
 @Composable
 private fun RecordList(state: HistoryUiState, onAction: (HistoryAction) -> Unit, modifier: Modifier) {
+    val records = state.visibleRecords
     LazyColumn(modifier.fillMaxWidth(), reverseLayout = true, verticalArrangement = Arrangement.spacedBy(Space.s3)) {
-        itemsIndexed(state.records, key = { _, record -> record.id }) { index, record ->
+        itemsIndexed(records, key = { _, record -> record.id }) { index, record ->
             // reverseLayout에서 각 날짜의 가장 이른 기록이 화면상 첫 줄이다.
-            val firstInDay = index == state.records.lastIndex ||
-                state.records[index + 1].dayOfMonth != record.dayOfMonth
+            val firstInDay = index == records.lastIndex ||
+                records[index + 1].dayOfMonth != record.dayOfMonth
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Space.s3)) {
                 if (firstInDay) {
                     Text(
