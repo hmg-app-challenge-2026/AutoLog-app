@@ -76,6 +76,11 @@ class ReportBuilderTest {
         // 합계 행: 총 49.8, 출퇴근 12.8, 일반 업무 23.4 (미확정 5.0·비업무 8.6·거리 미확정은 빠짐)
         listOf("49.8", "12.8", "23.4").forEach { assertTrue(it, "<v>$it</v>" in log && "<v>$it</v>" in summary) }
         assertTrue("목적 미확정 — 업무거리 0" in log)
+        // 국세청 별지 서식 배치: 머리·①②·③~⑩·⑪⑫⑬, 업무용 사용거리 ⑫ = 12.8 + 23.4
+        listOf("과 세 기 간", "2026. 11. 1. ~ 2026. 11. 30.", "①차 종", "②자동차등록번호", "⑤주행 전", "⑩비 고", "⑪과세기간 총주행 거리(km)")
+            .forEach { assertTrue(it, it in log) }
+        assertTrue("<v>36.2</v>" in log)
+        assertTrue("A11:A13" in log && "G12:H12" in log)
         assertTrue("운전자 미확정" in log)
         assertTrue("카드 ****1234" in parts.getValue("xl/worksheets/sheet2.xml"))
         assertEquals(3, r.file.reviewCount) // d 운전자 미확정 + 7일 넘은 목적 미확정, e 거리 미확정

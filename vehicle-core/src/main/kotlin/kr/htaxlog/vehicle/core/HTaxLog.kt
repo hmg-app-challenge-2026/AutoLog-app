@@ -146,6 +146,7 @@ object HTaxLog {
             RoomReportSource(db.tripDao(), db.referenceDao(), db.expenseDao()) { device.vehicleId },
             outputDir = { File(app.filesDir, "reports") },
             plateNo = { device.plateNo },
+            vehicleModel = { device.model },
             log = log,
         )
 

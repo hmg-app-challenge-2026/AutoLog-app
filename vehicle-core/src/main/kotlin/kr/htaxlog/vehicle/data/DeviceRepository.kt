@@ -32,6 +32,9 @@ class DeviceRepository(
     /** 운행기록부 파일명·메일 제목에 쓰는 번호판. 모르면 null. */
     val plateNo: String? get() = store.load()?.plateNo
 
+    /** 운행기록부 별지 서식 ①차종. 모르면 null. */
+    val model: String? get() = store.load()?.model
+
     override suspend fun register(serverUrl: String, code: String): RegisterResult {
         val url = normalizeUrl(serverUrl) ?: return RegisterResult.Invalid("서버 주소는 https:// 로 시작해야 해요")
         val c = code.trim().uppercase()
