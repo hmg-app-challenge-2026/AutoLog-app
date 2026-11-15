@@ -6,6 +6,7 @@ import kr.htaxlog.vehicle.core.ReportApi
 import kr.htaxlog.vehicle.core.ReportBuildResult
 import kr.htaxlog.vehicle.core.ReportFile
 import kr.htaxlog.vehicle.report.XlsxWriter.Cell
+import kr.htaxlog.vehicle.report.XlsxWriter.Look
 import java.io.File
 import java.io.IOException
 import java.time.Clock
@@ -32,7 +33,7 @@ interface ReportSource {
 
 /**
  * 운행기록부 XLSX (F-21) — [ReportApi] 구현. 국세청 업무용승용차 운행기록부 양식 + 검토 열.
- * 시트: ① 운행기록부 ② 비용 ③ 요약 ④ 검토. 사람이 확정한 목적만 업무거리에 넣고, 미확정은 0 + 비고. 셀 수식 없음.
+ * 시트: ① 운행기록부(별지 서식 배치) ② 비용 ③ 요약 ④ 검토. 사람이 확정한 목적만 업무거리에 넣고, 미확정은 0 + 비고. 셀 수식 없음.
  */
 class ReportBuilder(
     private val source: ReportSource,
@@ -42,6 +43,8 @@ class ReportBuilder(
     private val zone: ZoneId = ZoneId.of("Asia/Seoul"),
     private val writer: XlsxWriter = XlsxWriter(),
     private val log: (String) -> Unit = {},
+    /** 별지 서식 ①차종. 모르면 빈칸. */
+    private val vehicleModel: () -> String? = { null },
 ) : ReportApi {
     override suspend fun build(month: YearMonth): ReportBuildResult = try {
         val from = month.atDay(1).atStartOfDay(zone).toInstant().toEpochMilli()
@@ -116,44 +119,145 @@ class ReportBuilder(
         }
     }
 
-    private fun logSheet(month: YearMonth, plate: String, trips: List<ReportTrip>, review: ReviewResult, s: Summary) =
-        XlsxWriter.Sheet(
+    /**
+     * 국세청 「업무용승용차 운행기록부에 관한 별지 서식」(2022.4.1. 개정) 배치 그대로 그린다: 머리(과세기간·상호명·사업자등록번호),
+     * 1. 기본정보(①차종 ②자동차등록번호), 2. 업무용 사용비율 계산(③~⑩ 운행 줄, ⑪⑫⑬ 합계). 목적·경로는 ⑩비고에 적는다.
+     * 양식 오른쪽(한 칸 띄움)에 양식 외 참고 열(출발지·도착지 주소, 검토)을 둔다. 상호명·사업자등록번호는 앱이 모르므로 빈칸.
+     */
+    private fun logSheet(
+        month: YearMonth,
+        plate: String,
+        trips: List<ReportTrip>,
+        review: ReviewResult,
+        s: Summary,
+    ): XlsxWriter.Sheet {
+        val g = Grid()
+        val head = Look(border = true, center = true, wrap = true)
+        val box = Look(border = true)
+        val mid = Look(border = true, center = true)
+        g.put(0, 0, Cell.Text("【업무용승용차 운행기록부에 관한 별지 서식】<2022.4.1. 개정>", look = Look(size = 9)))
+        // 머리: 과세기간 | 기간 | 제목 | 상호명·사업자등록번호
+        g.box("A3:A4", Cell.Text("과 세 기 간", look = head))
+        g.box(
+            "B3:C4",
+            Cell.Text("${month.atDay(1).format(DOT_DATE)} ~ ${month.atEndOfMonth().format(DOT_DATE)}", look = head),
+        )
+        g.box("D3:G4", Cell.Text("업무용승용차 운행기록부", bold = true, look = head.copy(size = 18)))
+        g.box("H3:H3", Cell.Text("상 호 명", look = head))
+        g.box("I3:I3", Cell.Text("", look = box))
+        g.box("H4:H4", Cell.Text("사업자등록번호", look = head))
+        g.box("I4:I4", Cell.Text("", look = box))
+        // 1. 기본정보
+        g.put(5, 0, Cell.Text("1. 기본정보", bold = true))
+        g.box("A7:C7", Cell.Text("①차 종", look = head))
+        g.box("D7:F7", Cell.Text("②자동차등록번호", look = head))
+        g.box("A8:C8", Cell.Text(vehicleModel().orEmpty(), look = mid))
+        g.box("D8:F8", Cell.Text(plate, look = mid))
+        // 2. 업무용 사용비율 계산 — 머리 3줄
+        g.put(9, 0, Cell.Text("2. 업무용 사용비율 계산", bold = true))
+        g.box("A11:A13", Cell.Text("③사용\n일자\n(요일)", look = head))
+        g.box("B11:C11", Cell.Text("④사용자", look = head))
+        g.box("D11:I11", Cell.Text("운 행 내 역", look = head))
+        g.box("B12:B13", Cell.Text("부서", look = head))
+        g.box("C12:C13", Cell.Text("성명", look = head))
+        g.box("D12:D13", Cell.Text("⑤주행 전\n계기판의 거리(km)", look = head))
+        g.box("E12:E13", Cell.Text("⑥주행 후\n계기판의 거리(km)", look = head))
+        g.box("F12:F13", Cell.Text("⑦주행거리(km)", look = head))
+        g.box("G12:H12", Cell.Text("업무용 사용거리(km)", look = head))
+        g.box("G13:G13", Cell.Text("⑧출·퇴근용(km)", look = head))
+        g.box("H13:H13", Cell.Text("⑨일반 업무용(km)", look = head))
+        g.box("I12:I13", Cell.Text("⑩비 고", look = head))
+        g.box("K11:M11", Cell.Text("참고 (양식 외)", look = head))
+        g.box("K12:K13", Cell.Text("출발지 주소", look = head))
+        g.box("L12:L13", Cell.Text("도착지 주소", look = head))
+        g.box("M12:M13", Cell.Text("검토", look = head))
+        // 운행 줄
+        var r = FIRST_TRIP_ROW
+        (if (trips.isEmpty()) listOf(null) else trips).forEach { t ->
+            val cat = t?.purpose?.category
+            listOf(
+                t?.let { Cell.Text("${date(it.startTime)}(${dayOfWeek(it.startTime)})", look = mid) },
+                t?.dept?.let { Cell.Text(it, look = mid) },
+                t?.let { Cell.Text(it.userName ?: "미확정", look = mid) },
+                t?.startKm?.let { Cell.Num(it, look = box) },
+                t?.endKm?.let { Cell.Num(it, look = box) },
+                t?.distanceKm?.let { Cell.Num(it, look = box) },
+                t?.distanceKm?.takeIf { cat == PurposeCategory.COMMUTE }?.let { Cell.Num(it, look = box) },
+                t?.distanceKm?.takeIf { cat == PurposeCategory.BUSINESS }?.let { Cell.Num(it, look = box) },
+                t?.let { Cell.Text(remarkColumn(it), look = box) },
+            ).forEachIndexed { c, cell -> g.put(r, c, cell ?: Cell.Text("", look = box)) }
+            listOf(
+                t?.originAddress,
+                t?.destinationAddress,
+                t?.let {
+                    review.tripFlags[it.tripId]?.joinToString(", ") { f -> f.labelKo }
+                },
+            )
+                .forEachIndexed { i, v -> g.put(r, REF_COL + i, Cell.Text(v.orEmpty(), look = box)) }
+            r++
+        }
+        // ⑪⑫⑬ 합계
+        val a = r + 1
+        g.box("A$a:C${a + 1}", Cell.Text("", look = box.copy(gray = true)))
+        g.box("D$a:F$a", Cell.Text("⑪과세기간 총주행 거리(km)", look = head))
+        g.box("G$a:H$a", Cell.Text("⑫과세기간 업무용 사용거리(km)", look = head))
+        g.box("I$a:I$a", Cell.Text("⑬업무사용비율(%)(⑫/⑪)", look = head))
+        g.box("D${a + 1}:F${a + 1}", Cell.Num(s.totalKm, bold = true, look = mid))
+        g.box("G${a + 1}:H${a + 1}", Cell.Num(sumKm(listOf(s.commuteKm, s.businessKm)), bold = true, look = mid))
+        g.box("I${a + 1}:I${a + 1}", Cell.Num(s.businessRatio, bold = true, look = mid))
+        return XlsxWriter.Sheet(
             name = "운행기록부",
-            rows = buildList {
-                add(listOf(Cell.Text("업무용승용차 운행기록부", bold = true)))
-                add(listOf(Cell.Text("사용 기간: ${month.format(YYYY_MM)} · 차량번호: $plate")))
-                add(LOG_HEADER.map { Cell.Text(it, bold = true) })
-                trips.forEach { t ->
-                    val cat = t.purpose?.category
-                    add(
-                        listOf(
-                            Cell.Text(date(t.startTime)),
-                            Cell.Text(dayOfWeek(t.startTime)),
-                            text(t.dept),
-                            Cell.Text(t.userName ?: "미확정"),
-                            text(route(t)),
-                            text(t.originAddress),
-                            text(t.destinationAddress),
-                            num(t.startKm),
-                            num(t.endKm),
-                            num(t.distanceKm),
-                            num(if (cat == PurposeCategory.COMMUTE) t.distanceKm else null),
-                            num(if (cat == PurposeCategory.BUSINESS) t.distanceKm else null),
-                            Cell.Text(t.purpose?.labelKo ?: "미확정"),
-                            text(remark(t)),
-                            text(review.tripFlags[t.tripId]?.joinToString(", ") { it.labelKo }),
-                        ),
+            rows = g.rows,
+            widths = listOf(15, 11, 10, 15, 15, 13, 14, 14, 46, 2, 34, 34, 26),
+            merges = g.merges,
+            heights = mapOf(2 to 24.0, 3 to 24.0, 6 to 22.0, 7 to 22.0, 10 to 22.0, 11 to 22.0, 12 to 30.0),
+            landscape = true,
+        )
+    }
+
+    /** 병합 영역마다 모든 칸에 테두리를 깔아야 엑셀이 선을 그린다. */
+    private class Grid {
+        val rows = mutableListOf<MutableList<Cell?>>()
+        val merges = mutableListOf<String>()
+
+        fun put(row: Int, col: Int, cell: Cell) {
+            while (rows.size <= row) rows += mutableListOf<Cell?>()
+            val line = rows[row]
+            while (line.size <= col) line += null
+            line[col] = cell
+        }
+
+        /** "A3:C4" 영역에 [cell]을 왼쪽 위에, 나머지는 같은 모양의 빈칸으로 채우고 병합한다. 한 칸이면 병합하지 않는다. */
+        fun box(range: String, cell: Cell) {
+            val (from, to) = range.split(":").map { parse(it) }
+            for (r in from.first..to.first) {
+                for (c in from.second..to.second) {
+                    put(
+                        r,
+                        c,
+                        if (r == from.first &&
+                            c == from.second
+                        ) {
+                            cell
+                        } else {
+                            Cell.Text("", look = cell.look)
+                        },
                     )
                 }
-                add(
-                    listOf(Cell.Text("합계", bold = true), null, null, null, null, null, null, null, null) +
-                        listOf(s.totalKm, s.commuteKm, s.businessKm).map { Cell.Num(it, bold = true) },
-                )
-                add(listOf(Cell.Text("업무사용비율(%)", bold = true), Cell.Num(s.businessRatio, bold = true)))
-            },
-            widths = listOf(16, 6, 11, 10, 30, 34, 34, 19, 19, 13, 14, 16, 12, 36, 26),
-            merges = listOf("A1:O1", "A2:O2"),
-        )
+            }
+            if (from != to) merges += range
+        }
+
+        private fun parse(ref: String): Pair<Int, Int> {
+            val letters = ref.takeWhile { it.isLetter() }
+            val col = letters.fold(0) { acc, ch -> acc * 26 + (ch - 'A' + 1) } - 1
+            return ref.drop(letters.length).toInt() - 1 to col
+        }
+    }
+
+    /** ⑩비고: 목적 · 출발 → 도착 · 그 밖의 메모. */
+    private fun remarkColumn(t: ReportTrip): String =
+        listOf(t.purpose?.labelKo ?: "미확정", route(t), remark(t)).filter { it.isNotBlank() }.joinToString(" · ")
 
     private fun expenseSheet(
         expenses: List<ReportExpense>,
@@ -265,10 +369,13 @@ class ReportBuilder(
         private val DATE_TIME = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
         private val YYYYMM = DateTimeFormatter.ofPattern("yyyyMM")
         private val YYYY_MM = DateTimeFormatter.ofPattern("yyyy-MM")
-        val LOG_HEADER = listOf(
-            "사용일자", "요일", "부서", "성명", "출발 → 도착", "출발지 주소", "도착지 주소", "주행 전 계기판(km)", "주행 후 계기판(km)", "주행거리(km)",
-            "출·퇴근용(km)", "일반 업무용(km)", "목적", "비고", "검토",
-        )
+        private val DOT_DATE = DateTimeFormatter.ofPattern("yyyy. M. d.")
+
+        /** 별지 서식에서 운행 줄이 시작하는 행(0-기반, 엑셀 14행). 머리 3줄 바로 아래. */
+        private const val FIRST_TRIP_ROW = 13
+
+        /** 양식 외 참고 열 시작(K). I(⑩비고)와 한 칸 띄운다. */
+        private const val REF_COL = 10
         val EXPENSE_HEADER = listOf(
             "일자", "구분", "상호", "유종", "수량(L)", "단가(원)", "할인(원)", "금액(원)", "결제수단", "연결 운행", "증빙", "검토",
         )
