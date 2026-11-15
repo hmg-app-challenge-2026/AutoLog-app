@@ -67,6 +67,12 @@ class TripSessionManagerTest {
         }
 
         val stateValue get() = session.state.value
+
+        /** 차를 그 자리에 둔다 — 실제 차처럼 위치 SDK(Fused)와 내비 현재 위치가 같은 곳을 가리킨다. */
+        fun carAt(lat: Double, lng: Double, address: String?) {
+            ctx.setFix(FakeContext.SAMPLE_FIX.copy(lat = lat, lng = lng))
+            ctx.setNaviLocation(NaviCurrentLocation(lat, lng, address))
+        }
     }
 
     private suspend fun TestScope.startedTrip(rig: Rig): String {
@@ -91,7 +97,7 @@ class TripSessionManagerTest {
     @Test
     fun `운행 시작 시 내비 현재 위치 주소를 출발지 주소로 저장한다 — 서버가 없으면 그대로 남는다`() = runTest {
         val rig = Rig(this)
-        rig.ctx.setNaviLocation(NaviCurrentLocation(37.4, 127.1, " 서울특별시 강남구 테헤란로 1 "))
+        rig.carAt(37.4, 127.1, " 서울특별시 강남구 테헤란로 1 ")
 
         val row = rig.dao.trip(startedTrip(rig))!!
 
@@ -100,14 +106,14 @@ class TripSessionManagerTest {
         assertEquals(AddressSource.NAVI_HELPER, row.originAddressSource)
         assertEquals(37.4, row.originLat!!, 0.0)
         assertEquals(127.1, row.originLng!!, 0.0)
-        assertEquals(PlaceSource.NAVI_CURRENT, row.originSource)
+        assertEquals(PlaceSource.FUSED_LOCATION, row.originSource) // 좌표는 Fused 우선(2026-11-15)
         assertEquals("서울 강남구 테헤란로 1", (rig.stateValue as SessionState.Recording).trip.originAddress)
     }
 
     @Test
     fun `운행을 시작하면 서버 주소와 건물 이름이 곧 출발지에 붙는다`() = runTest {
         val rig = Rig(this, geo = FakeGeocode())
-        rig.ctx.setNaviLocation(NaviCurrentLocation(37.566, 126.93, "서울특별시 서대문구 연희로 11-1"))
+        rig.carAt(37.566, 126.93, "서울특별시 서대문구 연희로 11-1")
 
         val id = startedTrip(rig)
         runCurrent()
@@ -161,7 +167,7 @@ class TripSessionManagerTest {
         val id = startedTrip(rig)
         rig.car.drive(5.0)
         runCurrent()
-        rig.ctx.setNaviLocation(NaviCurrentLocation(dest.lat + 0.001, dest.lng, null))
+        rig.carAt(dest.lat + 0.001, dest.lng, null)
 
         rig.session.finalize()
         runCurrent()
@@ -169,7 +175,7 @@ class TripSessionManagerTest {
         val row = rig.dao.trip(id)!!
         assertEquals("판교 테크노밸리 거래처", row.destinationLabel)
         assertEquals("경기 성남시 분당구 삼평동 판교역로 1", row.destinationAddress)
-        assertEquals(PlaceSource.NAVI_CURRENT, row.destinationSource)
+        assertEquals(PlaceSource.FUSED_LOCATION, row.destinationSource)
     }
 
     @Test
@@ -182,7 +188,7 @@ class TripSessionManagerTest {
         val id = startedTrip(rig)
         rig.car.drive(30.0)
         runCurrent()
-        rig.ctx.setNaviLocation(NaviCurrentLocation(37.5663, 126.9779, null))
+        rig.carAt(37.5663, 126.9779, null)
 
         rig.session.finalize()
         runCurrent()
@@ -203,9 +209,10 @@ class TripSessionManagerTest {
         val id = startedTrip(rig)
         rig.car.drive(30.0)
         runCurrent()
-        rig.ctx.setNaviLocation(NaviCurrentLocation(37.5663, 126.9779, null))
+        rig.carAt(37.5663, 126.9779, null)
 
-        rig.car.shift(Gear.PARK)
+        // 내비 목적지(판교)에서 멀어 P로는 끝나지 않는다(300m 규칙) — 사람이 [기록 종료]로 끝낸다
+        rig.session.requestStop()
         runCurrent()
         val waiting = rig.stateValue as SessionState.StopCandidate
         advanceTimeBy(TripTiming.T_GEAR_P_SEC * 1_000 + 1_000)
@@ -230,12 +237,12 @@ class TripSessionManagerTest {
         val id = startedTrip(rig)
         rig.car.drive(5.0)
         runCurrent()
-        rig.ctx.setNaviLocation(NaviCurrentLocation(37.5663, 126.9779, null))
-        rig.car.shift(Gear.PARK)
-        runCurrent()
+        rig.carAt(37.5663, 126.9779, null)
+        // D로 선 채 움직이지 않아 종료 대기(P는 목적지에서 멀어 끝내지 않는다)
+        advanceTimeBy(DrivingJudge.MOVING_WINDOW_MS + 1_500)
         assertEquals("서울시청", (rig.stateValue as SessionState.StopCandidate).trip.destinationLabel)
 
-        rig.car.shift(Gear.DRIVE)
+        rig.car.drive(0.5)
         runCurrent()
 
         val recording = rig.stateValue as SessionState.Recording

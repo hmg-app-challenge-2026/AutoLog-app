@@ -496,8 +496,12 @@ class TripSessionManager(
         val now = clock.millis()
         val odo = vehicle.readOdometer()
         odo?.let { observeKm(it, moved = false) }
+        // 좌표는 위치 SDK(Fused)가 먼저, 없을 때만 내비 현재 위치(2026-11-15). 내비 주소는 같은 곳을 가리킬 때만 임시로 쓴다
+        val fix = context.freshFix()
         val naviLocation = context.currentNaviLocation()
-        val fix = if (naviLocation == null) context.freshFix() else null
+        val naviAddress = naviLocation?.takeIf { n ->
+            fix == null || GeoDistance.meters(fix.lat, fix.lng, n.lat, n.lng) <= PlacePolicy.NAVI_ARRIVED_M
+        }?.address
         val driver = _currentDriver.value
         val trip = TripEntity(
             tripId = newId(),
@@ -510,13 +514,13 @@ class TripSessionManager(
             lastSeenAt = now,
             distanceSource = if (odo == null) DistanceSource.UNAVAILABLE else DistanceSource.VEHICLE_ODOMETER,
             // 이름(등록 장소·건물)과 서버 주소는 enrichOrigin이 곧 채운다. 그 전까지는 내비 주소
-            originAddress = KoreanAddress.shortenRegion(naviLocation?.address),
-            originAddressSource = naviLocation?.address?.takeIf { it.isNotBlank() }?.let { AddressSource.NAVI_HELPER },
-            originLat = naviLocation?.lat ?: fix?.lat,
-            originLng = naviLocation?.lng ?: fix?.lng,
+            originAddress = KoreanAddress.shortenRegion(naviAddress),
+            originAddressSource = naviAddress?.takeIf { it.isNotBlank() }?.let { AddressSource.NAVI_HELPER },
+            originLat = fix?.lat ?: naviLocation?.lat,
+            originLng = fix?.lng ?: naviLocation?.lng,
             originSource = when {
-                naviLocation != null -> PlaceSource.NAVI_CURRENT
                 fix != null -> PlaceSource.FUSED_LOCATION
+                naviLocation != null -> PlaceSource.NAVI_CURRENT
                 else -> null
             },
             rawSnapshotJson = "{\"start\":{\"km\":${odo?.km},\"at\":${odo?.at}}}",
@@ -735,10 +739,10 @@ class TripSessionManager(
         }
     }
 
-    /** 운행이 끝난 직후 차의 실제 위치. 내비 현재 위치 → 30초 이내 위치 SDK 좌표 → 모름. */
+    /** 운행이 끝난 직후 차의 실제 위치. 30초 이내 위치 SDK(Fused) 좌표 → 내비 현재 위치 → 모름(2026-11-15 Fused 우선). */
     private suspend fun endPosition(): EndPosition? {
-        context.currentNaviLocation()?.let { return EndPosition(it.lat, it.lng, PlaceSource.NAVI_CURRENT) }
-        return context.freshFix()?.let { EndPosition(it.lat, it.lng, PlaceSource.FUSED_LOCATION) }
+        context.freshFix()?.let { return EndPosition(it.lat, it.lng, PlaceSource.FUSED_LOCATION) }
+        return context.currentNaviLocation()?.let { EndPosition(it.lat, it.lng, PlaceSource.NAVI_CURRENT) }
     }
 
     /** 화면에 보이는 운행이면 장소 표시를 Room 최신 값으로 바꾼다. */
