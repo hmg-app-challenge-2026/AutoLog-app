@@ -29,5 +29,6 @@ ADB의 `appops set ... SYSTEM_ALERT_WINDOW allow` 또는 `pm grant ... SYSTEM_AL
 - 권한을 거부하거나 나중에 취소해도 운행 기록과 기존 운행 알림은 계속 동작한다.
 - H-TaxLog 화면으로 돌아오면 알약이 바로 사라지고, 다시 다른 앱으로 가면 1초 안에 나타난다.
 - 기록 종료 후 알약이 사라지고, 화면 크기 변경 시 내비 영역의 가로 중앙에 남는다.
+- 내비 등 다른 앱 위에 알약이 보이는 중 주차로 종료 대기에 들어가면 H-TaxLog가 전면으로 돌아와 운행 결과의 5초 카운트다운을 보여 준다. 앱이 이미 보일 때나 주행·정차 중에는 화면을 강제로 전환하지 않는다.
 
 참고: [Android `SYSTEM_ALERT_WINDOW`](https://developer.android.com/reference/android/Manifest.permission#SYSTEM_ALERT_WINDOW), [Android overlay 권한 설정](https://developer.android.com/reference/android/provider/Settings#ACTION_MANAGE_OVERLAY_PERMISSION), [Android 11 권한 변경](https://developer.android.com/about/versions/11/privacy/permissions), [Pleos 앱 등록 안내](https://document.pleos.ai/en/docs/pleos-only/distribute/app-submission-guide).

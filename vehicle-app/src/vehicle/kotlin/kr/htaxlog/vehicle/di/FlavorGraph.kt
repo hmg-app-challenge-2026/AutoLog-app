@@ -2,10 +2,14 @@ package kr.htaxlog.vehicle.di
 
 import android.Manifest
 import android.app.Application
+import android.content.ActivityNotFoundException
+import android.content.Intent
 import android.os.Build
+import android.util.Log
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kr.htaxlog.vehicle.MainActivity
 import kr.htaxlog.vehicle.common.AppClock
 import kr.htaxlog.vehicle.core.HTaxLog
 import kr.htaxlog.vehicle.data.usage.AndroidAppReturnGateway
@@ -22,7 +26,29 @@ fun createAppGraph(app: Application): AppGraph {
     val carUx = AndroidCarUxSource(app).also { it.start() }
     val components = HTaxLog.create(app)
     val pill = RecordingPill(app, components.session, AppClock.System)
-    return RealAppGraph(components, carUx, scope, overlay = pill, appReturn = AndroidAppReturnGateway(app))
+    return RealAppGraph(
+        components,
+        carUx,
+        scope,
+        overlay = pill,
+        appReturn = AndroidAppReturnGateway(app),
+        canBringTripResultToFront = { pill.isShowing },
+        bringTripResultToFront = {
+            val intent = Intent(app, MainActivity::class.java).addFlags(
+                Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP,
+            )
+            try {
+                app.startActivity(intent)
+                true
+            } catch (error: ActivityNotFoundException) {
+                Log.w("HTaxLog/trip-result", "result screen unavailable", error)
+                false
+            } catch (error: SecurityException) {
+                Log.w("HTaxLog/trip-result", "background activity launch denied", error)
+                false
+            }
+        },
+    )
 }
 
 /**

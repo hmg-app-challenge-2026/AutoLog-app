@@ -52,6 +52,9 @@ class RecordingPill(private val app: Application, private val session: TripSessi
 
     override val supported = true
 
+    /** 다른 앱 위에 실제 알약이 떠 있을 때만 운행 결과 화면을 앞으로 가져온다. */
+    val isShowing: Boolean get() = pill?.isAttachedToWindow == true && pill?.windowVisibility == View.VISIBLE
+
     init {
         scope.launch {
             while (isActive) {

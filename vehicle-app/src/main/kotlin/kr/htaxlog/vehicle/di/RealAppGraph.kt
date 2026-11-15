@@ -33,15 +33,30 @@ class RealAppGraph(
     /** 운행 기록 알약(스펙 6.11). vehicle flavor가 `RecordingPill`을 넣는다. */
     override val overlay: RecordingOverlay = RecordingOverlay.None,
     override val appReturn: AppReturnGateway,
+    /** 실차에서만 사용한다. 화면 위 알약이 있을 때 결과 화면으로 돌아간다. */
+    canBringTripResultToFront: (() -> Boolean)? = null,
+    bringTripResultToFront: (() -> Boolean)? = null,
 ) : AppGraph {
     override val navigator = Navigator(Route.ProfilePicker)
+    override val session = DefaultSessionRepository(components.session)
+    override val usage = DefaultVehicleUsageRepository(components.session.motion, carUx.state, scope)
+    private val tripResultForegrounder = bringTripResultToFront?.let { bringToFront ->
+        TripResultForegrounder(
+            session.state,
+            usage.tier,
+            navigator,
+            scope,
+            canBringTripResultToFront ?: { false },
+            bringToFront,
+        )
+    }
 
     override fun setAppVisible(visible: Boolean) {
         overlay.setAppVisible(visible)
         components.presence.setAppVisible(visible)
+        tripResultForegrounder?.setAppVisible(visible)
     }
-    override val session = DefaultSessionRepository(components.session)
-    override val usage = DefaultVehicleUsageRepository(components.session.motion, carUx.state, scope)
+
     override val profile =
         DefaultProfileRepository(
             components.purpose,
