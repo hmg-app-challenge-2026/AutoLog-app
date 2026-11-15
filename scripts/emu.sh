@@ -2,7 +2,9 @@
 # Pleos Connect 에뮬레이터에서 HTaxLog를 손으로 시험하는 도우미.
 # 가상 콘솔(에뮬레이터 안 8088)은 "브라우저 세션"이 살아 있을 때만 값을 받으므로, 명령마다 세션 신호를 함께 보낸다.
 #
-#   scripts/emu.sh setup            포트 연결 + 권한(위치·알림·차속) 부여 + 앱 실행
+#   scripts/emu.sh setup            포트 연결 + 권한(위치·알림·차속·다른 앱 위에 표시·사용 정보 접근) 부여
+#                                   + follow를 뒤에서 켬(콘솔 차속만큼 계기판이 오른다) + 앱 실행
+#                                   (다른 앱 위에 표시·사용 정보 접근은 에뮬레이터 재부팅·앱 재설치 때 꺼지므로 그때마다 다시 setup)
 #   scripts/emu.sh gear Drive       기어: Park | Reverse | Neutral | Drive
 #   scripts/emu.sh speed 40         차속(km/h). 움직임 판단에만 쓰인다
 #   scripts/emu.sh odo 23.4         계기판 누적거리(km). 거리는 이 값의 차이로만 계산된다(줄일 수 없음)
@@ -10,9 +12,10 @@
 #                                   (콘솔은 차속을 올려도 계기판이 저절로 늘지 않아서 대신 올려 준다)
 #   scripts/emu.sh drive 40 5 30    위와 같은데 30초 동안 달린다(기본 15초)
 #   scripts/emu.sh follow           콘솔에서 직접 운전하는 동안 차속만큼 계기판을 계속 올린다 (Ctrl+C로 끝)
+#   scripts/emu.sh follow-stop      setup이 뒤에서 켠 follow를 끈다
 #   scripts/emu.sh at seocho        차 위치(GPS)를 옮긴다: seocho(서초역) | hyundai(현대자동차 본사) | <위도> <경도>
 #   scripts/emu.sh demo-commute     시연용 출근: 서초역에서 출발 → 약 30초 동안 속도를 올렸다 내리며 이동 → 현대자동차 본사 도착 → P
-#                                   (실제로는 15분 넘게 걸리지만 영상 길이 때문에 압축한다. follow를 끄고 돌린다)
+#                                   (실제로는 15분 넘게 걸리지만 영상 길이 때문에 압축한다. 뒤에서 도는 follow는 잠시 끄고, 끝나면 다시 켠다)
 #   scripts/emu.sh demo-commute-fuel [초|enter]
 #                                   위 출근 시연 + 가는 길에 주유하기: 서초역 → 중간에 P(앱을 띄우고 [주유 기록 추가]를 누른다)
 #                                   → 차 화면에서 주유 기록을 저장하면 저절로 다시 출발 → 현대자동차 본사.
@@ -120,6 +123,18 @@ place() {
   esac
 }
 
+# follow를 뒤에서 켠다(이미 돌면 그대로). 로그는 임시 폴더에
+follow_start() {
+  if pgrep -f "emu.sh follow$" >/dev/null; then echo "follow 이미 켜짐"; return 0; fi
+  nohup "$0" follow >"${TMPDIR:-/tmp}/htaxlog-follow.log" 2>&1 &
+  echo "follow 켜짐 — 콘솔 차속만큼 계기판이 오른다 (끄기: scripts/emu.sh follow-stop)"
+}
+
+# 돌던 follow를 끈다. 끈 게 있으면 성공
+follow_stop() {
+  pkill -f "emu.sh follow$"
+}
+
 put() {
   heartbeat
   curl -s -m 3 -X PUT "$CONSOLE$1" >/dev/null && echo "ok: $1"
@@ -132,7 +147,15 @@ case "${1:-}" in
     for p in pleos.car.permission.FUSED_LOCATION android.permission.POST_NOTIFICATIONS android.car.permission.CAR_SPEED; do
       "$ADB" shell pm grant --user 10 "$PKG" "$p" && echo "granted $p"
     done
+    # 특수 권한: 기록 알약(다른 앱 위에 표시)·주행 시작 시 앱을 뒤로 보내기(사용 정보 접근)
+    for op in SYSTEM_ALERT_WINDOW GET_USAGE_STATS; do
+      "$ADB" shell appops set --user 10 "$PKG" "$op" allow && echo "allowed $op"
+    done
+    follow_start
     "$ADB" shell am start --user 10 -n "$PKG/.MainActivity" >/dev/null && echo "app started"
+    ;;
+  follow-stop)
+    follow_stop && echo "follow 꺼짐" || echo "follow가 돌고 있지 않아요"
     ;;
   gear) put "/vehicle/gear?gear=${2:?Park|Reverse|Neutral|Drive}" ;;
   speed) put "/vehicle/controls?speed_kph=${2:?km/h}" ;;
@@ -180,10 +203,8 @@ case "${1:-}" in
     geo "$lat" "$lng" && echo "위치: $lat, $lng"
     ;;
   demo-commute)
-    if pgrep -f "emu.sh follow" >/dev/null; then
-      echo "follow가 돌고 있어요. 계기판을 둘이 같이 올리지 않게 follow를 먼저 꺼 주세요." >&2
-      exit 1
-    fi
+    # 계기판을 둘이 같이 올리지 않게 뒤에서 도는 follow를 잠시 끄고, 시연이 끝나면 다시 켠다
+    if follow_stop; then trap follow_start EXIT; fi
     read -r lat0 lng0 <<<"$SEOCHO"
     read -r lat1 lng1 <<<"$HYUNDAI"
     km=5.2                                      # 서초역 → 현대자동차 본사 도로 거리(대략)
@@ -219,10 +240,8 @@ case "${1:-}" in
     "$ADB" logcat -d -s HTaxLog/session | grep -E "gear P|목적지까지|STOP|stop" | tail -2 || true
     ;;
   demo-commute-fuel)
-    if pgrep -f "emu.sh follow" >/dev/null; then
-      echo "follow가 돌고 있어요. 계기판을 둘이 같이 올리지 않게 follow를 먼저 꺼 주세요." >&2
-      exit 1
-    fi
+    # 계기판을 둘이 같이 올리지 않게 뒤에서 도는 follow를 잠시 끄고, 시연이 끝나면 다시 켠다
+    if follow_stop; then trap follow_start EXIT; fi
     wait="${2:-save}"
     read -r lat0 lng0 <<<"$SEOCHO"
     read -r lat1 lng1 <<<"$HYUNDAI"
@@ -288,5 +307,5 @@ print("speed :", d["controls"].get("speed_kph"), "km/h")
 print("odo   :", d["odometer"].get("traveled_distance_km"), "km")'
     ;;
   log) "$ADB" logcat -s HTaxLog/core HTaxLog/session HTaxLog/vehicle ;;
-  *) sed -n '2,15p' "$0"; exit 1 ;;
+  *) awk 'NR > 1 && /^set -euo/ { exit } NR > 1' "$0"; exit 1 ;;
 esac
