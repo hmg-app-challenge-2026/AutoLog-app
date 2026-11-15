@@ -8,7 +8,7 @@ plugins {
 }
 
 android {
-    namespace = "kr.autolog.vehicle.core"
+    namespace = "kr.htaxlog.vehicle.core"
     compileSdk = 35
 
     defaultConfig {

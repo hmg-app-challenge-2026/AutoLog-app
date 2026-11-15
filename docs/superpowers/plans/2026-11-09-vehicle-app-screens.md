@@ -8,7 +8,7 @@
 
 **Architecture:** 첫 계획과 같다. Compose → ViewModel(`StateFlow<UiState>` + `onAction`) → Repository → `vehicle-core` Contracts(앱 B: 실제 Fake) / `data/interim`(앱 A: 이 리포 Fake). 모든 화면은 `Route`로 열리고 단계가 FULL에서 내려가면 Navigator가 닫는다.
 
-**Spec:** `docs/superpowers/specs/2026-11-09-autolog-frontend-design.md` 7.3~7.9, 8장 · `docs/design-language.md`
+**Spec:** `docs/superpowers/specs/2026-11-09-htaxlog-frontend-design.md` 7.3~7.9, 8장 · `docs/design-language.md`
 
 **선행 상태:** 브랜치 `feat/foundation`(옛 이름 `fe/vehicle-app-foundation`)(디자인 게이트 리뷰는 사용자가 나중에). 이 계획은 그 위에 `fe/vehicle-app-screens`로 쌓는다.
 

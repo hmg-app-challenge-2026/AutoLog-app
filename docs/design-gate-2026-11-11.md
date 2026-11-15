@@ -56,7 +56,7 @@
 6. 차량 설정에서 주간·야간 전환 → 깜빡임 없음(V-08)
 7. 한국어 어절 줄바꿈이 실기기에서 적용되는지("앱이 꺼진 동안 15.0 km를 달렸어요" 팝업, 운행 결과 분류 문구)
 8. FormFactorConsole 프리셋별 dp·DPI·px와 **분할 화면 한 칸의 dp**를 기록(V-01) → `docs/verification.md`, `Screenshots.kt`의 NARROW·TALL 크기 갱신
-9. vehicle flavor 설치 후 VHAL로 기어 D·속도 주입 → `adb logcat -s AutoLog/ui`로 CarUxRestrictions 값(V-04, V-11), 키보드 규제 시 설정 입력 칸만 막히는지
+9. vehicle flavor 설치 후 VHAL로 기어 D·속도 주입 → `adb logcat -s HTaxLog/ui`로 CarUxRestrictions 값(V-04, V-11), 키보드 규제 시 설정 입력 칸만 막히는지
 
 ## 구현 중 계획과 달라진 점 (다른 사람이 이어받을 때 참고)
 

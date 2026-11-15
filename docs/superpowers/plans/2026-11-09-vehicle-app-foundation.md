@@ -10,18 +10,18 @@
 
 **Tech Stack:** Kotlin 2.0.21 · AGP 8.8.2 · Gradle 8.12 · JDK 17 · Compose BOM 2024.12.01 · Material 3 · lifecycle 2.8.7 · coroutines 1.9.0 · Coil 2.7.0(이 계획에선 미사용) · JUnit4 · Turbine 1.2.0 · Robolectric 4.14.1 · Roborazzi 1.32.2 · ktlint 1.5.0
 
-**Spec:** [`docs/superpowers/specs/2026-11-09-autolog-frontend-design.md`](../specs/2026-11-09-autolog-frontend-design.md) + [`docs/design-language.md`](../../design-language.md). 실행 전에 두 문서를 읽는다. 이 계획은 스펙 11장 일정의 **11.09–10 골격 + 11.10–11 디자인 게이트** 범위다.
+**Spec:** [`docs/superpowers/specs/2026-11-09-htaxlog-frontend-design.md`](../specs/2026-11-09-htaxlog-frontend-design.md) + [`docs/design-language.md`](../../design-language.md). 실행 전에 두 문서를 읽는다. 이 계획은 스펙 11장 일정의 **11.09–10 골격 + 11.10–11 디자인 게이트** 범위다.
 
 **이 계획에 없는 것(다음 계획):** ReviewTrip·영수증·운행기록부·이력·설정 화면, 딥링크, 앱 A의 LocalStore·ReportApi·DeviceApi·UploadApi interim, 운영 웹, 카메라 페이지, 사내 서버 취합. Home의 보조 버튼(영수증 저장·운행기록부·이력·설정)도 해당 화면과 함께 다음 계획에서 붙인다.
 
 ## Global Constraints
 
-- minSdk 28 · compileSdk 35 · targetSdk 35 · Java 17 · `namespace`/`applicationId` = `kr.autolog.vehicle` (demo flavor는 `.demo` 접미사)
+- minSdk 28 · compileSdk 35 · targetSdk 35 · Java 17 · `namespace`/`applicationId` = `kr.htaxlog.vehicle` (demo flavor는 `.demo` 접미사)
 - 버전은 `backend/gradle/libs.versions.toml`(카탈로그 이름 `libs`)을 그대로 쓰고, 프론트 전용은 `gradle/fe.versions.toml`(카탈로그 이름 `fe`)에만 넣는다
 - `backend/` 안의 파일은 고치지 않는다. submodule 포인터는 Backend `origin/main` 커밋으로만 올린다
-- `ai.pleos.*` import 금지. `kr.autolog.vehicle.core`의 서비스 인터페이스는 `data/` 패키지에서만 쓴다(`ui/`는 Repository 인터페이스만)
-- 화면 코드에 색·dp·sp 리터럴 금지 — `AutoLogTheme.colors/type`, `Space`, `Size`, `Radius`, `AutoLogTheme.motion`만. 화면 문구는 `strings.xml`
-- 디자인 토큰 이름 대응: 문서 `space.1~9` = 코드 `Space.s1~s9`, `size.*` = `Size.*`, `radius.*` = `Radius.*`, `type.*` = `AutoLogTheme.type.*`, `motion.*` = `AutoLogTheme.motion.*`
+- `ai.pleos.*` import 금지. `kr.htaxlog.vehicle.core`의 서비스 인터페이스는 `data/` 패키지에서만 쓴다(`ui/`는 Repository 인터페이스만)
+- 화면 코드에 색·dp·sp 리터럴 금지 — `HTaxLogTheme.colors/type`, `Space`, `Size`, `Radius`, `HTaxLogTheme.motion`만. 화면 문구는 `strings.xml`
+- 디자인 토큰 이름 대응: 문서 `space.1~9` = 코드 `Space.s1~s9`, `size.*` = `Size.*`, `radius.*` = `Radius.*`, `type.*` = `HTaxLogTheme.type.*`, `motion.*` = `HTaxLogTheme.motion.*`
 - 사용 단계: `tier = minOf(차량 상태, 플랫폼 CarUxRestrictions)`, 판정 불가 = BACKGROUND, CarUx 연결 실패 = PEEK. FULL이 아니면 입력 잠금, 단계가 FULL에서 내려가면 백스택 `[Home]`
 - 기어 P 자동 종료 대기 **5초**(`GEAR_P_WAIT_MS = 5_000`). 남은 시간은 `deadlineAt − now`로만 계산하고 화면이 타이머를 갖지 않는다
 - 터치 대상 최소 76 dp, 본문 최소 28 sp, 보조 최소 22 sp, 텍스트 대비 4.5:1 이상(비텍스트 3:1)
@@ -52,8 +52,8 @@ AutoLog-Frontend/
         ├── main/AndroidManifest.xml
         ├── main/res/values/{strings,colors,themes}.xml · values-night/colors.xml
         ├── main/res/font/asta_sans.ttf · main/assets/licenses/asta_sans_OFL.txt
-        ├── main/kotlin/kr/autolog/vehicle/
-        │   ├── AutoLogApp.kt · MainActivity.kt
+        ├── main/kotlin/kr/htaxlog/vehicle/
+        │   ├── HTaxLogApp.kt · MainActivity.kt
         │   ├── common/AppClock.kt · common/FlowExt.kt
         │   ├── data/interim/InterimContracts.kt · data/interim/FakeTripSession.kt
         │   ├── data/usage/UsageTier.kt · CarUxSource.kt · AndroidCarUxSource.kt · VehicleUsageRepository.kt
@@ -65,15 +65,15 @@ AutoLog-Frontend/
         │       │         WindowLayout.kt · Format.kt · Texts.kt · Haptics.kt · SharedAvatar.kt
         │       ├── design/components/Press.kt · Buttons.kt · StatusChip.kt · HeroMetric.kt
         │       │                    Avatar.kt · ProfileTile.kt · Banner.kt · Overlay.kt
-        │       ├── root/AutoLogRoot.kt · root/FullApp.kt
+        │       ├── root/HTaxLogRoot.kt · root/FullApp.kt
         │       ├── peek/PeekUiState.kt · PeekViewModel.kt · PeekScreen.kt
         │       ├── profile/ProfilePickerUiState.kt · ProfilePickerViewModel.kt · ProfilePickerScreen.kt
         │       └── home/HomeUiState.kt · HomeViewModel.kt · HomeScreen.kt · AutoEndPrompt.kt · RecoveryDialog.kt
-        ├── demo/kotlin/kr/autolog/vehicle/di/FlavorGraph.kt
-        ├── demo/kotlin/kr/autolog/vehicle/demo/DemoScenario.kt · DemoPanel.kt
+        ├── demo/kotlin/kr/htaxlog/vehicle/di/FlavorGraph.kt
+        ├── demo/kotlin/kr/htaxlog/vehicle/demo/DemoScenario.kt · DemoPanel.kt
         ├── demo/res/values/strings.xml
-        ├── vehicle/kotlin/kr/autolog/vehicle/di/FlavorGraph.kt
-        └── test/kotlin/kr/autolog/vehicle/ … (작업마다 명시) · test/screenshots/*.png
+        ├── vehicle/kotlin/kr/htaxlog/vehicle/di/FlavorGraph.kt
+        └── test/kotlin/kr/htaxlog/vehicle/ … (작업마다 명시) · test/screenshots/*.png
 ```
 
 ---
@@ -81,12 +81,12 @@ AutoLog-Frontend/
 ### Task 1: WSL 도구 설치 + 리포 골격 + composite build
 
 **Files:**
-- Create: `.gitmodules`(git이 생성), `backend/`(submodule), `settings.gradle.kts`, `build.gradle.kts`, `gradle.properties`, `gradle/fe.versions.toml`, `gradle/wrapper/*`, `gradlew`, `gradlew.bat`, `.editorconfig`, `.gitignore`, `vehicle-app/build.gradle.kts`, `vehicle-app/proguard-rules.pro`, `vehicle-app/src/main/AndroidManifest.xml`, `vehicle-app/src/main/kotlin/kr/autolog/vehicle/MainActivity.kt`, `vehicle-app/src/main/res/values/strings.xml`, `.github/workflows/ci.yml`, `docs/dev-setup.md`, `docs/verification.md`
-- Test: `vehicle-app/src/test/kotlin/kr/autolog/vehicle/ContractsVisibleTest.kt`
+- Create: `.gitmodules`(git이 생성), `backend/`(submodule), `settings.gradle.kts`, `build.gradle.kts`, `gradle.properties`, `gradle/fe.versions.toml`, `gradle/wrapper/*`, `gradlew`, `gradlew.bat`, `.editorconfig`, `.gitignore`, `vehicle-app/build.gradle.kts`, `vehicle-app/proguard-rules.pro`, `vehicle-app/src/main/AndroidManifest.xml`, `vehicle-app/src/main/kotlin/kr/htaxlog/vehicle/MainActivity.kt`, `vehicle-app/src/main/res/values/strings.xml`, `.github/workflows/ci.yml`, `docs/dev-setup.md`, `docs/verification.md`
+- Test: `vehicle-app/src/test/kotlin/kr/htaxlog/vehicle/ContractsVisibleTest.kt`
 
 **Interfaces:**
 - Consumes: 없음
-- Produces: 빌드되는 `:vehicle-app` 모듈(flavor `demo`/`vehicle`), 카탈로그 `libs`·`fe`, `kr.autolog.vehicle.core.*`·`kr.autolog.vehicle.fake.*` 사용 가능
+- Produces: 빌드되는 `:vehicle-app` 모듈(flavor `demo`/`vehicle`), 카탈로그 `libs`·`fe`, `kr.htaxlog.vehicle.core.*`·`kr.htaxlog.vehicle.fake.*` 사용 가능
 
 - [ ] **Step 1: JDK 17 설치 (sudo 불필요)**
 
@@ -161,7 +161,7 @@ rootProject.name = "AutoLog-Frontend"
 
 includeBuild("backend") {
     dependencySubstitution {
-        substitute(module("kr.autolog:vehicle-core")).using(project(":vehicle-core"))
+        substitute(module("kr.htaxlog:vehicle-core")).using(project(":vehicle-core"))
     }
 }
 include(":vehicle-app")
@@ -228,12 +228,12 @@ plugins {
 }
 
 android {
-    namespace = "kr.autolog.vehicle"
+    namespace = "kr.htaxlog.vehicle"
     compileSdk = 35
     useLibrary("android.car") // CarUxRestrictions (스펙 D-07)
 
     defaultConfig {
-        applicationId = "kr.autolog.vehicle"
+        applicationId = "kr.htaxlog.vehicle"
         minSdk = 28 // Pleos: 28 이상 필수
         targetSdk = 35
         versionCode = 1
@@ -270,7 +270,7 @@ android {
 }
 
 dependencies {
-    implementation("kr.autolog:vehicle-core") // composite build가 backend/:vehicle-core로 치환
+    implementation("kr.htaxlog:vehicle-core") // composite build가 backend/:vehicle-core로 치환
 
     implementation(platform(libs.compose.bom))
     implementation(libs.compose.ui)
@@ -334,8 +334,8 @@ dependencies {
 ```
 
 ```kotlin
-// vehicle-app/src/main/kotlin/kr/autolog/vehicle/MainActivity.kt — Task 12에서 교체
-package kr.autolog.vehicle
+// vehicle-app/src/main/kotlin/kr/htaxlog/vehicle/MainActivity.kt — Task 12에서 교체
+package kr.htaxlog.vehicle
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -345,7 +345,7 @@ import androidx.compose.material3.Text
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContent { Text("AutoLog") }
+        setContent { Text("H-TaxLog") }
     }
 }
 ```
@@ -354,17 +354,17 @@ class MainActivity : ComponentActivity() {
 <!-- vehicle-app/src/main/res/values/strings.xml -->
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">AutoLog</string>
+    <string name="app_name">H-TaxLog</string>
 </resources>
 ```
 
 - [ ] **Step 9: 실패하는 연결 테스트 작성**
 
 ```kotlin
-// vehicle-app/src/test/kotlin/kr/autolog/vehicle/ContractsVisibleTest.kt
-package kr.autolog.vehicle
+// vehicle-app/src/test/kotlin/kr/htaxlog/vehicle/ContractsVisibleTest.kt
+package kr.htaxlog.vehicle
 
-import kr.autolog.vehicle.fake.FakeContext
+import kr.htaxlog.vehicle.fake.FakeContext
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
@@ -486,17 +486,17 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 ### Task 2: 색 토큰과 대비 테스트
 
 **Files:**
-- Create: `vehicle-app/src/main/kotlin/kr/autolog/vehicle/ui/design/Colors.kt`, `.../ui/design/Contrast.kt`
-- Test: `vehicle-app/src/test/kotlin/kr/autolog/vehicle/ui/design/ContrastTest.kt`
+- Create: `vehicle-app/src/main/kotlin/kr/htaxlog/vehicle/ui/design/Colors.kt`, `.../ui/design/Contrast.kt`
+- Test: `vehicle-app/src/test/kotlin/kr/htaxlog/vehicle/ui/design/ContrastTest.kt`
 
 **Interfaces:**
-- Produces: `data class AutoLogColors(...)`, `val DarkColors`, `val LightColors`, `val AvatarGradients: List<Pair<Color, Color>>`, `fun contrastRatio(a: Color, b: Color): Double`
+- Produces: `data class HTaxLogColors(...)`, `val DarkColors`, `val LightColors`, `val AvatarGradients: List<Pair<Color, Color>>`, `fun contrastRatio(a: Color, b: Color): Double`
 
 - [ ] **Step 1: 실패하는 테스트**
 
 ```kotlin
-// vehicle-app/src/test/kotlin/kr/autolog/vehicle/ui/design/ContrastTest.kt
-package kr.autolog.vehicle.ui.design
+// vehicle-app/src/test/kotlin/kr/htaxlog/vehicle/ui/design/ContrastTest.kt
+package kr.htaxlog.vehicle.ui.design
 
 import androidx.compose.ui.graphics.Color
 import org.junit.Assert.assertEquals
@@ -511,7 +511,7 @@ class ContrastTest {
         }
     }
 
-    private fun AutoLogColors.textTokens() =
+    private fun HTaxLogColors.textTokens() =
         mapOf(
             "textPrimary" to textPrimary, "textSecondary" to textSecondary, "textTertiary" to textTertiary,
             "accent" to accent, "success" to success, "warning" to warning, "danger" to danger,
@@ -566,8 +566,8 @@ Expected: FAIL — `Unresolved reference: contrastRatio`
 - [ ] **Step 3: 구현**
 
 ```kotlin
-// vehicle-app/src/main/kotlin/kr/autolog/vehicle/ui/design/Contrast.kt
-package kr.autolog.vehicle.ui.design
+// vehicle-app/src/main/kotlin/kr/htaxlog/vehicle/ui/design/Contrast.kt
+package kr.htaxlog.vehicle.ui.design
 
 import androidx.compose.ui.graphics.Color
 import kotlin.math.pow
@@ -590,15 +590,15 @@ fun contrastRatio(a: Color, b: Color): Double {
 ```
 
 ```kotlin
-// vehicle-app/src/main/kotlin/kr/autolog/vehicle/ui/design/Colors.kt
-package kr.autolog.vehicle.ui.design
+// vehicle-app/src/main/kotlin/kr/htaxlog/vehicle/ui/design/Colors.kt
+package kr.htaxlog.vehicle.ui.design
 
 import androidx.compose.runtime.Immutable
 import androidx.compose.ui.graphics.Color
 
 /** 디자인 언어 5장. 값을 바꾸면 ContrastTest가 먼저 통과해야 한다. */
 @Immutable
-data class AutoLogColors(
+data class HTaxLogColors(
     val isDark: Boolean,
     val bg: Color,
     val surface1: Color,
@@ -622,7 +622,7 @@ data class AutoLogColors(
 }
 
 val DarkColors =
-    AutoLogColors(
+    HTaxLogColors(
         isDark = true,
         bg = Color(0xFF0A0B0D),
         surface1 = Color(0xFF131518),
@@ -644,7 +644,7 @@ val DarkColors =
     )
 
 val LightColors =
-    AutoLogColors(
+    HTaxLogColors(
         isDark = false,
         bg = Color(0xFFF4F5F7),
         surface1 = Color(0xFFFFFFFF),
@@ -687,9 +687,9 @@ Expected: PASS (6 tests)
 - [ ] **Step 5: 커밋**
 
 ```bash
-git add vehicle-app/src/main/kotlin/kr/autolog/vehicle/ui/design/Colors.kt \
-  vehicle-app/src/main/kotlin/kr/autolog/vehicle/ui/design/Contrast.kt \
-  vehicle-app/src/test/kotlin/kr/autolog/vehicle/ui/design/ContrastTest.kt
+git add vehicle-app/src/main/kotlin/kr/htaxlog/vehicle/ui/design/Colors.kt \
+  vehicle-app/src/main/kotlin/kr/htaxlog/vehicle/ui/design/Contrast.kt \
+  vehicle-app/src/test/kotlin/kr/htaxlog/vehicle/ui/design/ContrastTest.kt
 git commit -m "feat(design): 다크·라이트 색 토큰과 대비 4.5:1 검증 테스트
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
@@ -701,10 +701,10 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 
 **Files:**
 - Create: `vehicle-app/src/main/res/font/asta_sans.ttf`, `vehicle-app/src/main/assets/licenses/asta_sans_OFL.txt`, `.../ui/design/Type.kt`, `.../ui/design/Dimens.kt`
-- Test: `vehicle-app/src/test/kotlin/kr/autolog/vehicle/ui/design/TokenFloorTest.kt`
+- Test: `vehicle-app/src/test/kotlin/kr/htaxlog/vehicle/ui/design/TokenFloorTest.kt`
 
 **Interfaces:**
-- Produces: `val AstaSans: FontFamily`, `data class AutoLogType(hero, heroSmall, display, headline, title, body, label, caption: TextStyle)`, `fun autoLogType(): AutoLogType`, `object Space { s1..s9 }`, `object Size { touchMin, buttonMd, buttonLg, buttonXl, iconButton, icon, iconLg, avatarChip, profileTileWide, profileTileNarrow, peekMaxWidth, sheetMaxWidth }`, `object Radius { sm, md, lg, xl }`
+- Produces: `val AstaSans: FontFamily`, `data class HTaxLogType(hero, heroSmall, display, headline, title, body, label, caption: TextStyle)`, `fun hTaxLogType(): HTaxLogType`, `object Space { s1..s9 }`, `object Size { touchMin, buttonMd, buttonLg, buttonXl, iconButton, icon, iconLg, avatarChip, profileTileWide, profileTileNarrow, peekMaxWidth, sheetMaxWidth }`, `object Radius { sm, md, lg, xl }`
 
 - [ ] **Step 1: 서체 파일 받기**
 
@@ -719,15 +719,15 @@ Expected: `TrueType Font data` (HTML이면 URL 오류 — 다시 받는다)
 - [ ] **Step 2: 실패하는 테스트**
 
 ```kotlin
-// vehicle-app/src/test/kotlin/kr/autolog/vehicle/ui/design/TokenFloorTest.kt
-package kr.autolog.vehicle.ui.design
+// vehicle-app/src/test/kotlin/kr/htaxlog/vehicle/ui/design/TokenFloorTest.kt
+package kr.htaxlog.vehicle.ui.design
 
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /** 디자인 언어 4·6장의 하한을 숫자로 강제한다. */
 class TokenFloorTest {
-    private val type = autoLogType()
+    private val type = hTaxLogType()
 
     @Test
     fun `본문과 버튼 글자는 28sp 이상`() {
@@ -764,13 +764,13 @@ class TokenFloorTest {
 - [ ] **Step 3: 실패 확인**
 
 Run: `G :vehicle-app:testDemoDebugUnitTest --tests '*TokenFloorTest*'`
-Expected: FAIL — `Unresolved reference: autoLogType`
+Expected: FAIL — `Unresolved reference: hTaxLogType`
 
 - [ ] **Step 4: 구현**
 
 ```kotlin
-// vehicle-app/src/main/kotlin/kr/autolog/vehicle/ui/design/Type.kt
-package kr.autolog.vehicle.ui.design
+// vehicle-app/src/main/kotlin/kr/htaxlog/vehicle/ui/design/Type.kt
+package kr.htaxlog.vehicle.ui.design
 
 import androidx.compose.runtime.Immutable
 import androidx.compose.ui.text.ExperimentalTextApi
@@ -781,7 +781,7 @@ import androidx.compose.ui.text.font.FontVariation
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
-import kr.autolog.vehicle.R
+import kr.htaxlog.vehicle.R
 
 @OptIn(ExperimentalTextApi::class)
 private fun astaSans(weight: Int) =
@@ -796,7 +796,7 @@ val AstaSans = FontFamily(astaSans(300), astaSans(400), astaSans(500), astaSans(
 
 /** 디자인 언어 6.2. */
 @Immutable
-data class AutoLogType(
+data class HTaxLogType(
     val hero: TextStyle,
     val heroSmall: TextStyle,
     val display: TextStyle,
@@ -817,8 +817,8 @@ private fun style(sizeSp: Int, weight: Int, lineHeight: Float, trackingEm: Float
         fontFeatureSettings = if (tnum) "tnum" else null,
     )
 
-fun autoLogType(): AutoLogType =
-    AutoLogType(
+fun hTaxLogType(): HTaxLogType =
+    HTaxLogType(
         hero = style(140, 300, 1.0f, -0.02f, tnum = true),
         heroSmall = style(96, 300, 1.0f, -0.015f, tnum = true),
         display = style(56, 600, 1.15f, -0.01f),
@@ -831,8 +831,8 @@ fun autoLogType(): AutoLogType =
 ```
 
 ```kotlin
-// vehicle-app/src/main/kotlin/kr/autolog/vehicle/ui/design/Dimens.kt
-package kr.autolog.vehicle.ui.design
+// vehicle-app/src/main/kotlin/kr/htaxlog/vehicle/ui/design/Dimens.kt
+package kr.htaxlog.vehicle.ui.design
 
 import androidx.compose.ui.unit.dp
 
@@ -887,9 +887,9 @@ Expected: PASS (5 tests)
 
 ```bash
 git add vehicle-app/src/main/res/font vehicle-app/src/main/assets/licenses \
-  vehicle-app/src/main/kotlin/kr/autolog/vehicle/ui/design/Type.kt \
-  vehicle-app/src/main/kotlin/kr/autolog/vehicle/ui/design/Dimens.kt \
-  vehicle-app/src/test/kotlin/kr/autolog/vehicle/ui/design/TokenFloorTest.kt
+  vehicle-app/src/main/kotlin/kr/htaxlog/vehicle/ui/design/Type.kt \
+  vehicle-app/src/main/kotlin/kr/htaxlog/vehicle/ui/design/Dimens.kt \
+  vehicle-app/src/test/kotlin/kr/htaxlog/vehicle/ui/design/TokenFloorTest.kt
 git commit -m "feat(design): Asta Sans 타입 스케일과 간격·크기·모서리 토큰
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
@@ -901,23 +901,23 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 
 **Files:**
 - Create: `.../ui/design/Motion.kt`, `.../ui/design/WindowLayout.kt`, `.../ui/design/Theme.kt`, `.../ui/design/Haptics.kt`, `.../ui/design/components/Press.kt`, `vehicle-app/src/main/res/values/colors.xml`, `.../res/values-night/colors.xml`, `.../res/values/themes.xml`
-- Modify: `vehicle-app/src/main/AndroidManifest.xml` (테마 `@style/Theme.AutoLog`)
+- Modify: `vehicle-app/src/main/AndroidManifest.xml` (테마 `@style/Theme.H-TaxLog`)
 - Test: `.../test/.../ui/design/MotionTokensTest.kt`, `.../test/.../ui/design/WindowLayoutTest.kt`
 
 **Interfaces:**
-- Consumes: `AutoLogColors`, `DarkColors`, `LightColors`, `autoLogType()`, `AutoLogType`
+- Consumes: `HTaxLogColors`, `DarkColors`, `LightColors`, `hTaxLogType()`, `HTaxLogType`
 - Produces:
   - `class MotionTokens { val isStatic: Boolean; fun <T> standard(); gentle(); snappy(); fadeQuick(); fadeStandard(): FiniteAnimationSpec<T>; val pressScale: Float; companion { Standard; Static } }`
   - `enum class WindowLayout { NARROW, WIDE, TALL }`, `fun windowLayoutOf(widthDp: Float, heightDp: Float): WindowLayout`, `enum class DriverSide { START, END }`
   - `val LocalWindowLayout`, `LocalDriverSide`, `LocalInputLocked: ProvidableCompositionLocal<Boolean>`
-  - `@Composable fun AutoLogTheme(darkTheme: Boolean = isSystemInDarkTheme(), staticMotion: Boolean = false, content)`, `object AutoLogTheme { colors; type; motion }`, `@Composable fun WindowLayoutHost(content)`
+  - `@Composable fun HTaxLogTheme(darkTheme: Boolean = isSystemInDarkTheme(), staticMotion: Boolean = false, content)`, `object HTaxLogTheme { colors; type; motion }`, `@Composable fun WindowLayoutHost(content)`
   - `fun Modifier.pressFeedback(interaction: MutableInteractionSource): Modifier`, `fun View.confirmHaptic()`
 
 - [ ] **Step 1: 실패하는 테스트 2개**
 
 ```kotlin
-// .../test/kotlin/kr/autolog/vehicle/ui/design/MotionTokensTest.kt
-package kr.autolog.vehicle.ui.design
+// .../test/kotlin/kr/htaxlog/vehicle/ui/design/MotionTokensTest.kt
+package kr.htaxlog.vehicle.ui.design
 
 import androidx.compose.animation.core.SnapSpec
 import androidx.compose.animation.core.SpringSpec
@@ -944,8 +944,8 @@ class MotionTokensTest {
 ```
 
 ```kotlin
-// .../test/kotlin/kr/autolog/vehicle/ui/design/WindowLayoutTest.kt
-package kr.autolog.vehicle.ui.design
+// .../test/kotlin/kr/htaxlog/vehicle/ui/design/WindowLayoutTest.kt
+package kr.htaxlog.vehicle.ui.design
 
 import org.junit.Assert.assertEquals
 import org.junit.Test
@@ -985,7 +985,7 @@ Expected: FAIL — `Unresolved reference: MotionTokens`, `windowLayoutOf`
 
 ```kotlin
 // .../ui/design/Motion.kt
-package kr.autolog.vehicle.ui.design
+package kr.htaxlog.vehicle.ui.design
 
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.FiniteAnimationSpec
@@ -1024,7 +1024,7 @@ class MotionTokens private constructor(val isStatic: Boolean) {
 
 ```kotlin
 // .../ui/design/WindowLayout.kt
-package kr.autolog.vehicle.ui.design
+package kr.htaxlog.vehicle.ui.design
 
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxSize
@@ -1075,7 +1075,7 @@ Expected: PASS (6 tests)
 
 ```kotlin
 // .../ui/design/Theme.kt
-package kr.autolog.vehicle.ui.design
+package kr.htaxlog.vehicle.ui.design
 
 import android.provider.Settings
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -1091,20 +1091,20 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.platform.LocalContext
 
-val LocalAutoLogColors = staticCompositionLocalOf { DarkColors }
-val LocalAutoLogType = staticCompositionLocalOf { autoLogType() }
+val LocalHTaxLogColors = staticCompositionLocalOf { DarkColors }
+val LocalHTaxLogType = staticCompositionLocalOf { hTaxLogType() }
 val LocalMotion = staticCompositionLocalOf { MotionTokens.Standard }
 
 /** 스펙 6.9 4번: tier != FULL 또는 FULL 진입 직후 300 ms. 모든 상호작용 컴포넌트가 읽는다. */
 val LocalInputLocked = compositionLocalOf { false }
 
-object AutoLogTheme {
-    val colors: AutoLogColors
+object HTaxLogTheme {
+    val colors: HTaxLogColors
         @Composable @ReadOnlyComposable
-        get() = LocalAutoLogColors.current
-    val type: AutoLogType
+        get() = LocalHTaxLogColors.current
+    val type: HTaxLogType
         @Composable @ReadOnlyComposable
-        get() = LocalAutoLogType.current
+        get() = LocalHTaxLogType.current
     val motion: MotionTokens
         @Composable @ReadOnlyComposable
         get() = LocalMotion.current
@@ -1118,8 +1118,8 @@ private fun systemAnimationsOff(): Boolean {
     }
 }
 
-/** 디자인 언어 5.5 M3 매핑. 화면 코드는 MaterialTheme이 아니라 AutoLogTheme.colors를 쓴다. */
-private fun AutoLogColors.toMaterial() =
+/** 디자인 언어 5.5 M3 매핑. 화면 코드는 MaterialTheme이 아니라 HTaxLogTheme.colors를 쓴다. */
+private fun HTaxLogColors.toMaterial() =
     if (isDark) {
         darkColorScheme(
             primary = accentFill, onPrimary = onAccent, background = bg, surface = bg,
@@ -1137,17 +1137,17 @@ private fun AutoLogColors.toMaterial() =
     }
 
 @Composable
-fun AutoLogTheme(
+fun HTaxLogTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     staticMotion: Boolean = false,
     content: @Composable () -> Unit,
 ) {
     val colors = if (darkTheme) DarkColors else LightColors
-    val type = remember { autoLogType() }
+    val type = remember { hTaxLogType() }
     val motion = if (staticMotion || systemAnimationsOff()) MotionTokens.Static else MotionTokens.Standard
     CompositionLocalProvider(
-        LocalAutoLogColors provides colors,
-        LocalAutoLogType provides type,
+        LocalHTaxLogColors provides colors,
+        LocalHTaxLogType provides type,
         LocalMotion provides motion,
     ) {
         MaterialTheme(
@@ -1161,7 +1161,7 @@ fun AutoLogTheme(
 
 ```kotlin
 // .../ui/design/Haptics.kt
-package kr.autolog.vehicle.ui.design
+package kr.htaxlog.vehicle.ui.design
 
 import android.os.Build
 import android.view.HapticFeedbackConstants
@@ -1176,7 +1176,7 @@ fun View.confirmHaptic() {
 
 ```kotlin
 // .../ui/design/components/Press.kt
-package kr.autolog.vehicle.ui.design.components
+package kr.htaxlog.vehicle.ui.design.components
 
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -1186,13 +1186,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
 import androidx.compose.ui.graphics.graphicsLayer
-import kr.autolog.vehicle.ui.design.AutoLogTheme
+import kr.htaxlog.vehicle.ui.design.HTaxLogTheme
 
 /** 디자인 언어 8.2 press: 누름 0.97배 tween(90) / 뗌 spring.snappy. 정지형이면 크기 변화 없음. */
 fun Modifier.pressFeedback(interaction: MutableInteractionSource): Modifier =
     composed {
         val pressed by interaction.collectIsPressedAsState()
-        val motion = AutoLogTheme.motion
+        val motion = HTaxLogTheme.motion
         val scale by animateFloatAsState(
             targetValue = if (pressed) motion.pressScale else 1f,
             animationSpec = if (pressed) tween(90) else motion.snappy(),
@@ -1225,7 +1225,7 @@ fun Modifier.pressFeedback(interaction: MutableInteractionSource): Modifier =
 <!-- vehicle-app/src/main/res/values/themes.xml — 첫 프레임 배경을 토큰 bg와 맞춰 깜빡임을 없앤다 -->
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="Theme.AutoLog" parent="@android:style/Theme.Material.NoActionBar">
+    <style name="Theme.H-TaxLog" parent="@android:style/Theme.Material.NoActionBar">
         <item name="android:windowBackground">@color/window_bg</item>
         <item name="android:statusBarColor">@android:color/transparent</item>
         <item name="android:navigationBarColor">@android:color/transparent</item>
@@ -1233,7 +1233,7 @@ fun Modifier.pressFeedback(interaction: MutableInteractionSource): Modifier =
 </resources>
 ```
 
-Manifest의 `android:theme="@android:style/Theme.Material.NoActionBar"`를 `android:theme="@style/Theme.AutoLog"`로 바꾼다.
+Manifest의 `android:theme="@android:style/Theme.Material.NoActionBar"`를 `android:theme="@style/Theme.H-TaxLog"`로 바꾼다.
 
 - [ ] **Step 6: 빌드 확인**
 
@@ -1258,7 +1258,7 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 - Test: `.../test/.../common/FlowExtTest.kt`, `.../test/.../data/interim/FakeTripSessionTest.kt`
 
 **Interfaces:**
-- Consumes: `kr.autolog.vehicle.core.PurposeDetail`, `DriverSource`, `Suggestion`
+- Consumes: `kr.htaxlog.vehicle.core.PurposeDetail`, `DriverSource`, `Suggestion`
 - Produces:
   - `fun interface AppClock { fun nowMs(): Long; companion object { val System: AppClock } }`
   - `fun tickerFlow(clock: AppClock, periodMs: Long = 1_000): Flow<Long>`, `fun <T> Flow<T>.throttleLatest(periodMs: Long): Flow<T>`
@@ -1271,8 +1271,8 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 - [ ] **Step 1: 실패하는 테스트**
 
 ```kotlin
-// .../test/kotlin/kr/autolog/vehicle/common/FlowExtTest.kt
-package kr.autolog.vehicle.common
+// .../test/kotlin/kr/htaxlog/vehicle/common/FlowExtTest.kt
+package kr.htaxlog.vehicle.common
 
 import app.cash.turbine.test
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -1306,15 +1306,15 @@ class FlowExtTest {
 ```
 
 ```kotlin
-// .../test/kotlin/kr/autolog/vehicle/data/interim/FakeTripSessionTest.kt
-package kr.autolog.vehicle.data.interim
+// .../test/kotlin/kr/htaxlog/vehicle/data/interim/FakeTripSessionTest.kt
+package kr.htaxlog.vehicle.data.interim
 
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
-import kr.autolog.vehicle.common.AppClock
+import kr.htaxlog.vehicle.common.AppClock
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -1415,7 +1415,7 @@ Expected: FAIL — `Unresolved reference`
 
 ```kotlin
 // .../common/AppClock.kt
-package kr.autolog.vehicle.common
+package kr.htaxlog.vehicle.common
 
 /** 현재 시각(epoch millis, UTC). 테스트에서 바꿔 끼운다(Backend CONVENTIONS 7.4). */
 fun interface AppClock {
@@ -1429,7 +1429,7 @@ fun interface AppClock {
 
 ```kotlin
 // .../common/FlowExt.kt
-package kr.autolog.vehicle.common
+package kr.htaxlog.vehicle.common
 
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
@@ -1456,12 +1456,12 @@ fun <T> Flow<T>.throttleLatest(periodMs: Long): Flow<T> =
 
 ```kotlin
 // .../data/interim/InterimContracts.kt
-package kr.autolog.vehicle.data.interim
+package kr.htaxlog.vehicle.data.interim
 
 import kotlinx.coroutines.flow.StateFlow
-import kr.autolog.vehicle.core.DriverSource
-import kr.autolog.vehicle.core.PurposeDetail
-import kr.autolog.vehicle.core.Suggestion
+import kr.htaxlog.vehicle.core.DriverSource
+import kr.htaxlog.vehicle.core.PurposeDetail
+import kr.htaxlog.vehicle.core.Suggestion
 
 // 앱 A 계약 초안 (스펙 6.6, R-2·R-7). 앱 A의 TripSessionApi가 core에 머지되면 이 파일을 지우고
 // Repository 구현만 고친다. ui/ 패키지는 이 파일을 import하지 않는다.
@@ -1542,7 +1542,7 @@ interface TripSessionApi {
 
 ```kotlin
 // .../data/interim/FakeTripSession.kt
-package kr.autolog.vehicle.data.interim
+package kr.htaxlog.vehicle.data.interim
 
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -1551,9 +1551,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import kr.autolog.vehicle.common.AppClock
-import kr.autolog.vehicle.core.DriverSource
-import kr.autolog.vehicle.core.PurposeDetail
+import kr.htaxlog.vehicle.common.AppClock
+import kr.htaxlog.vehicle.core.DriverSource
+import kr.htaxlog.vehicle.core.PurposeDetail
 
 /** 기어 P 자동 종료 대기 (사용자 결정 2026-11-09, 스펙 D-18). 실제 값은 앱 A 소유. */
 const val GEAR_P_WAIT_MS = 5_000L
@@ -1694,8 +1694,8 @@ Expected: PASS (7 tests)
 - [ ] **Step 5: 커밋**
 
 ```bash
-git add vehicle-app/src/main/kotlin/kr/autolog/vehicle/common vehicle-app/src/main/kotlin/kr/autolog/vehicle/data/interim \
-  vehicle-app/src/test/kotlin/kr/autolog/vehicle/common vehicle-app/src/test/kotlin/kr/autolog/vehicle/data/interim
+git add vehicle-app/src/main/kotlin/kr/htaxlog/vehicle/common vehicle-app/src/main/kotlin/kr/htaxlog/vehicle/data/interim \
+  vehicle-app/src/test/kotlin/kr/htaxlog/vehicle/common vehicle-app/src/test/kotlin/kr/htaxlog/vehicle/data/interim
 git commit -m "feat(repo): 앱 A 세션 계약 초안과 기어 P 5초 자동 종료 가짜 (F-02, F-04)
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
@@ -1716,10 +1716,10 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 - [ ] **Step 1: 실패하는 테스트**
 
 ```kotlin
-// .../test/kotlin/kr/autolog/vehicle/data/usage/UsageTierTest.kt
-package kr.autolog.vehicle.data.usage
+// .../test/kotlin/kr/htaxlog/vehicle/data/usage/UsageTierTest.kt
+package kr.htaxlog.vehicle.data.usage
 
-import kr.autolog.vehicle.data.interim.VehicleMotion
+import kr.htaxlog.vehicle.data.interim.VehicleMotion
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
@@ -1757,13 +1757,13 @@ class UsageTierTest {
 ```
 
 ```kotlin
-// .../test/kotlin/kr/autolog/vehicle/data/usage/VehicleUsageRepositoryTest.kt
-package kr.autolog.vehicle.data.usage
+// .../test/kotlin/kr/htaxlog/vehicle/data/usage/VehicleUsageRepositoryTest.kt
+package kr.htaxlog.vehicle.data.usage
 
 import app.cash.turbine.test
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.runTest
-import kr.autolog.vehicle.data.interim.VehicleMotion
+import kr.htaxlog.vehicle.data.interim.VehicleMotion
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
@@ -1810,9 +1810,9 @@ Expected: FAIL — `Unresolved reference: usageTierOf`
 
 ```kotlin
 // .../data/usage/UsageTier.kt
-package kr.autolog.vehicle.data.usage
+package kr.htaxlog.vehicle.data.usage
 
-import kr.autolog.vehicle.data.interim.VehicleMotion
+import kr.htaxlog.vehicle.data.interim.VehicleMotion
 
 /** 스펙 1.1. 순서 = 제한이 강한 순(ordinal이 작을수록 제한적). */
 enum class UsageTier { BACKGROUND, PEEK, FULL }
@@ -1835,7 +1835,7 @@ fun usageTierOf(motion: VehicleMotion?, carUx: CarUxState?): UsageTier {
 
 ```kotlin
 // .../data/usage/CarUxSource.kt
-package kr.autolog.vehicle.data.usage
+package kr.htaxlog.vehicle.data.usage
 
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -1859,7 +1859,7 @@ class StaticCarUxSource(initial: CarUxState? = CarUxState(false, false)) : CarUx
 
 ```kotlin
 // .../data/usage/AndroidCarUxSource.kt
-package kr.autolog.vehicle.data.usage
+package kr.htaxlog.vehicle.data.usage
 
 import android.car.Car
 import android.car.drivingstate.CarUxRestrictions
@@ -1901,14 +1901,14 @@ class AndroidCarUxSource(private val context: Context) : CarUxSource {
         )
 
     private companion object {
-        const val TAG = "AutoLog/ui"
+        const val TAG = "HTaxLog/ui"
     }
 }
 ```
 
 ```kotlin
 // .../data/usage/VehicleUsageRepository.kt
-package kr.autolog.vehicle.data.usage
+package kr.htaxlog.vehicle.data.usage
 
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.SharingStarted
@@ -1916,7 +1916,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
-import kr.autolog.vehicle.data.interim.VehicleMotion
+import kr.htaxlog.vehicle.data.interim.VehicleMotion
 
 /** 사용 단계의 유일한 진실 (스펙 6.9 1번). */
 interface VehicleUsageRepository {
@@ -1947,7 +1947,7 @@ Expected: PASS (6 tests), vehicle 빌드 성공(`android.car` 컴파일 확인)
 - [ ] **Step 5: 커밋**
 
 ```bash
-git add vehicle-app/src/main/kotlin/kr/autolog/vehicle/data/usage vehicle-app/src/test/kotlin/kr/autolog/vehicle/data/usage
+git add vehicle-app/src/main/kotlin/kr/htaxlog/vehicle/data/usage vehicle-app/src/test/kotlin/kr/htaxlog/vehicle/data/usage
 git commit -m "feat(repo): 주행·정차·주차 사용 단계 판정과 CarUxRestrictions 연동 (F-13)
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
@@ -1968,10 +1968,10 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 - [ ] **Step 1: 실패하는 테스트**
 
 ```kotlin
-// .../test/kotlin/kr/autolog/vehicle/nav/NavigatorTest.kt
-package kr.autolog.vehicle.nav
+// .../test/kotlin/kr/htaxlog/vehicle/nav/NavigatorTest.kt
+package kr.htaxlog.vehicle.nav
 
-import kr.autolog.vehicle.data.usage.UsageTier
+import kr.htaxlog.vehicle.data.usage.UsageTier
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Test
@@ -2036,7 +2036,7 @@ Expected: FAIL — `Unresolved reference: Navigator`
 
 ```kotlin
 // .../nav/Route.kt
-package kr.autolog.vehicle.nav
+package kr.htaxlog.vehicle.nav
 
 /** 백스택의 모든 화면은 주차(FULL) 전용이다(스펙 6.10). Peek은 Route가 아니라 루트가 그리는 층. */
 sealed interface Route {
@@ -2048,12 +2048,12 @@ sealed interface Route {
 
 ```kotlin
 // .../nav/Navigator.kt
-package kr.autolog.vehicle.nav
+package kr.htaxlog.vehicle.nav
 
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kr.autolog.vehicle.data.usage.UsageTier
+import kr.htaxlog.vehicle.data.usage.UsageTier
 
 /** 스펙 D-06·6.10. 단계 규칙을 한 곳에서 처리한다. */
 class Navigator(start: Route = Route.ProfilePicker) {
@@ -2099,7 +2099,7 @@ Expected: PASS (5 tests)
 - [ ] **Step 5: 커밋**
 
 ```bash
-git add vehicle-app/src/main/kotlin/kr/autolog/vehicle/nav vehicle-app/src/test/kotlin/kr/autolog/vehicle/nav
+git add vehicle-app/src/main/kotlin/kr/htaxlog/vehicle/nav vehicle-app/src/test/kotlin/kr/htaxlog/vehicle/nav
 git commit -m "feat(nav): 단계 규칙을 가진 백스택 Navigator (F-13)
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
@@ -2110,8 +2110,8 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 ### Task 8: Repository 3종·표시 포맷·AppGraph·flavor 조립
 
 **Files:**
-- Create: `.../data/repository/SessionRepository.kt`, `.../data/repository/ProfileRepository.kt`, `.../data/repository/ContextRepository.kt`, `.../ui/design/Format.kt`, `.../di/AppGraph.kt`, `.../AutoLogApp.kt`, `vehicle-app/src/demo/kotlin/kr/autolog/vehicle/di/FlavorGraph.kt`, `vehicle-app/src/vehicle/kotlin/kr/autolog/vehicle/di/FlavorGraph.kt`
-- Modify: `vehicle-app/src/main/AndroidManifest.xml` (`android:name=".AutoLogApp"`)
+- Create: `.../data/repository/SessionRepository.kt`, `.../data/repository/ProfileRepository.kt`, `.../data/repository/ContextRepository.kt`, `.../ui/design/Format.kt`, `.../di/AppGraph.kt`, `.../HTaxLogApp.kt`, `vehicle-app/src/demo/kotlin/kr/htaxlog/vehicle/di/FlavorGraph.kt`, `vehicle-app/src/vehicle/kotlin/kr/htaxlog/vehicle/di/FlavorGraph.kt`
+- Modify: `vehicle-app/src/main/AndroidManifest.xml` (`android:name=".HTaxLogApp"`)
 - Test: `.../test/.../data/repository/ProfileRepositoryTest.kt`, `.../test/.../ui/design/FormatTest.kt`, `.../test/.../TestAppGraph.kt`(테스트 유틸)
 
 **Interfaces:**
@@ -2121,14 +2121,14 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
   - `enum class ProfileBadge { SCHEDULED, RECENT }`, `data class DriverProfile(userId, name, dept: String?, badge: ProfileBadge?)`, `data class UnassignedTripItem(tripId, label, candidates: List<DriverProfile>)`, `interface ProfileRepository { fun orderedProfiles(): Flow<List<DriverProfile>>; fun currentDriver(): Flow<DriverProfile?>; suspend fun unassignedTrip(): UnassignedTripItem? }` + `class DefaultProfileRepository(purpose, settings, currentDriverId: StateFlow<String?>, vehicleId: () -> String, clock: AppClock)`
   - `interface ContextRepository { val destinationLabel: Flow<String?> }` + `class DefaultContextRepository(api: ContextApi)`
   - `fun formatKm(km: Double?): String?`, `fun remainingSeconds(deadlineAt: Long, now: Long): Int`, `fun progressOf(since: Long, deadlineAt: Long, now: Long): Float`
-  - `interface AppGraph { clock; navigator; session; usage; profile; context; demoOverlay: (@Composable () -> Unit)? }`, `val LocalAppGraph`, `fun createAppGraph(app: Application): AppGraph`(flavor별), `class AutoLogApp : Application { lateinit var graph: AppGraph }`
+  - `interface AppGraph { clock; navigator; session; usage; profile; context; demoOverlay: (@Composable () -> Unit)? }`, `val LocalAppGraph`, `fun createAppGraph(app: Application): AppGraph`(flavor별), `class HTaxLogApp : Application { lateinit var graph: AppGraph }`
   - 테스트 유틸 `class TestAppGraph(scope: CoroutineScope, clock: AppClock = AppClock.System) : AppGraph { val trip: FakeTripSession; val carUx: StaticCarUxSource }`
 
 - [ ] **Step 1: 실패하는 테스트**
 
 ```kotlin
-// .../test/kotlin/kr/autolog/vehicle/ui/design/FormatTest.kt
-package kr.autolog.vehicle.ui.design
+// .../test/kotlin/kr/htaxlog/vehicle/ui/design/FormatTest.kt
+package kr.htaxlog.vehicle.ui.design
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -2160,16 +2160,16 @@ class FormatTest {
 ```
 
 ```kotlin
-// .../test/kotlin/kr/autolog/vehicle/data/repository/ProfileRepositoryTest.kt
-package kr.autolog.vehicle.data.repository
+// .../test/kotlin/kr/htaxlog/vehicle/data/repository/ProfileRepositoryTest.kt
+package kr.htaxlog.vehicle.data.repository
 
 import app.cash.turbine.test
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
-import kr.autolog.vehicle.common.AppClock
-import kr.autolog.vehicle.fake.FakePurposeEngine
-import kr.autolog.vehicle.fake.FakeSettingsApi
+import kr.htaxlog.vehicle.common.AppClock
+import kr.htaxlog.vehicle.fake.FakePurposeEngine
+import kr.htaxlog.vehicle.fake.FakeSettingsApi
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
@@ -2221,7 +2221,7 @@ Expected: FAIL — `Unresolved reference`
 
 ```kotlin
 // .../ui/design/Format.kt
-package kr.autolog.vehicle.ui.design
+package kr.htaxlog.vehicle.ui.design
 
 import java.util.Locale
 import kotlin.math.ceil
@@ -2239,17 +2239,17 @@ fun progressOf(since: Long, deadlineAt: Long, now: Long): Float {
 
 ```kotlin
 // .../data/repository/SessionRepository.kt
-package kr.autolog.vehicle.data.repository
+package kr.htaxlog.vehicle.data.repository
 
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
-import kr.autolog.vehicle.common.throttleLatest
-import kr.autolog.vehicle.core.DriverSource
-import kr.autolog.vehicle.data.interim.MissedTrip
-import kr.autolog.vehicle.data.interim.RecoveryChoice
-import kr.autolog.vehicle.data.interim.SessionState
-import kr.autolog.vehicle.data.interim.StartResult
-import kr.autolog.vehicle.data.interim.TripSessionApi
+import kr.htaxlog.vehicle.common.throttleLatest
+import kr.htaxlog.vehicle.core.DriverSource
+import kr.htaxlog.vehicle.data.interim.MissedTrip
+import kr.htaxlog.vehicle.data.interim.RecoveryChoice
+import kr.htaxlog.vehicle.data.interim.SessionState
+import kr.htaxlog.vehicle.data.interim.StartResult
+import kr.htaxlog.vehicle.data.interim.TripSessionApi
 
 /** 운행 세션 (스펙 6.5). 앱 A 실계약이 오면 구현만 바꾼다. */
 interface SessionRepository {
@@ -2303,7 +2303,7 @@ class DefaultSessionRepository(private val api: TripSessionApi) : SessionReposit
 
 ```kotlin
 // .../data/repository/ProfileRepository.kt
-package kr.autolog.vehicle.data.repository
+package kr.htaxlog.vehicle.data.repository
 
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
@@ -2311,10 +2311,10 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
-import kr.autolog.vehicle.common.AppClock
-import kr.autolog.vehicle.core.PurposeEngine
-import kr.autolog.vehicle.core.SettingsApi
-import kr.autolog.vehicle.core.UserBadge
+import kr.htaxlog.vehicle.common.AppClock
+import kr.htaxlog.vehicle.core.PurposeEngine
+import kr.htaxlog.vehicle.core.SettingsApi
+import kr.htaxlog.vehicle.core.UserBadge
 
 enum class ProfileBadge { SCHEDULED, RECENT }
 
@@ -2372,11 +2372,11 @@ class DefaultProfileRepository(
 
 ```kotlin
 // .../data/repository/ContextRepository.kt
-package kr.autolog.vehicle.data.repository
+package kr.htaxlog.vehicle.data.repository
 
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
-import kr.autolog.vehicle.core.ContextApi
+import kr.htaxlog.vehicle.core.ContextApi
 
 interface ContextRepository {
     /** 내비 목적지 이름. 없으면 null. */
@@ -2397,16 +2397,16 @@ Expected: PASS (6 tests)
 
 ```kotlin
 // .../di/AppGraph.kt
-package kr.autolog.vehicle.di
+package kr.htaxlog.vehicle.di
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.staticCompositionLocalOf
-import kr.autolog.vehicle.common.AppClock
-import kr.autolog.vehicle.data.repository.ContextRepository
-import kr.autolog.vehicle.data.repository.ProfileRepository
-import kr.autolog.vehicle.data.repository.SessionRepository
-import kr.autolog.vehicle.data.usage.VehicleUsageRepository
-import kr.autolog.vehicle.nav.Navigator
+import kr.htaxlog.vehicle.common.AppClock
+import kr.htaxlog.vehicle.data.repository.ContextRepository
+import kr.htaxlog.vehicle.data.repository.ProfileRepository
+import kr.htaxlog.vehicle.data.repository.SessionRepository
+import kr.htaxlog.vehicle.data.usage.VehicleUsageRepository
+import kr.htaxlog.vehicle.nav.Navigator
 
 /** 수동 DI (스펙 D-05·6.7). flavor마다 createAppGraph()가 조립한다. */
 interface AppGraph {
@@ -2425,14 +2425,14 @@ val LocalAppGraph = staticCompositionLocalOf<AppGraph> { error("AppGraph가 제�
 ```
 
 ```kotlin
-// .../AutoLogApp.kt
-package kr.autolog.vehicle
+// .../HTaxLogApp.kt
+package kr.htaxlog.vehicle
 
 import android.app.Application
-import kr.autolog.vehicle.di.AppGraph
-import kr.autolog.vehicle.di.createAppGraph
+import kr.htaxlog.vehicle.di.AppGraph
+import kr.htaxlog.vehicle.di.createAppGraph
 
-class AutoLogApp : Application() {
+class HTaxLogApp : Application() {
     lateinit var graph: AppGraph
         private set
 
@@ -2444,25 +2444,25 @@ class AutoLogApp : Application() {
 ```
 
 ```kotlin
-// vehicle-app/src/demo/kotlin/kr/autolog/vehicle/di/FlavorGraph.kt — Task 15에서 demoOverlay를 연결한다
-package kr.autolog.vehicle.di
+// vehicle-app/src/demo/kotlin/kr/htaxlog/vehicle/di/FlavorGraph.kt — Task 15에서 demoOverlay를 연결한다
+package kr.htaxlog.vehicle.di
 
 import android.app.Application
 import androidx.compose.runtime.Composable
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
-import kr.autolog.vehicle.common.AppClock
-import kr.autolog.vehicle.data.interim.FakeTripSession
-import kr.autolog.vehicle.data.repository.DefaultContextRepository
-import kr.autolog.vehicle.data.repository.DefaultProfileRepository
-import kr.autolog.vehicle.data.repository.DefaultSessionRepository
-import kr.autolog.vehicle.data.usage.DefaultVehicleUsageRepository
-import kr.autolog.vehicle.data.usage.StaticCarUxSource
-import kr.autolog.vehicle.fake.FakeContext
-import kr.autolog.vehicle.fake.FakePurposeEngine
-import kr.autolog.vehicle.fake.FakeSettingsApi
-import kr.autolog.vehicle.nav.Navigator
+import kr.htaxlog.vehicle.common.AppClock
+import kr.htaxlog.vehicle.data.interim.FakeTripSession
+import kr.htaxlog.vehicle.data.repository.DefaultContextRepository
+import kr.htaxlog.vehicle.data.repository.DefaultProfileRepository
+import kr.htaxlog.vehicle.data.repository.DefaultSessionRepository
+import kr.htaxlog.vehicle.data.usage.DefaultVehicleUsageRepository
+import kr.htaxlog.vehicle.data.usage.StaticCarUxSource
+import kr.htaxlog.vehicle.fake.FakeContext
+import kr.htaxlog.vehicle.fake.FakePurposeEngine
+import kr.htaxlog.vehicle.fake.FakeSettingsApi
+import kr.htaxlog.vehicle.nav.Navigator
 
 fun createAppGraph(app: Application): AppGraph = DemoAppGraph(CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate))
 
@@ -2480,29 +2480,29 @@ class DemoAppGraph(scope: CoroutineScope) : AppGraph {
 ```
 
 ```kotlin
-// vehicle-app/src/vehicle/kotlin/kr/autolog/vehicle/di/FlavorGraph.kt
-package kr.autolog.vehicle.di
+// vehicle-app/src/vehicle/kotlin/kr/htaxlog/vehicle/di/FlavorGraph.kt
+package kr.htaxlog.vehicle.di
 
 import android.app.Application
 import androidx.compose.runtime.Composable
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
-import kr.autolog.vehicle.common.AppClock
-import kr.autolog.vehicle.data.interim.FakeTripSession
-import kr.autolog.vehicle.data.repository.DefaultContextRepository
-import kr.autolog.vehicle.data.repository.DefaultProfileRepository
-import kr.autolog.vehicle.data.repository.DefaultSessionRepository
-import kr.autolog.vehicle.data.usage.AndroidCarUxSource
-import kr.autolog.vehicle.data.usage.DefaultVehicleUsageRepository
-import kr.autolog.vehicle.fake.FakeContext
-import kr.autolog.vehicle.fake.FakePurposeEngine
-import kr.autolog.vehicle.fake.FakeSettingsApi
-import kr.autolog.vehicle.nav.Navigator
+import kr.htaxlog.vehicle.common.AppClock
+import kr.htaxlog.vehicle.data.interim.FakeTripSession
+import kr.htaxlog.vehicle.data.repository.DefaultContextRepository
+import kr.htaxlog.vehicle.data.repository.DefaultProfileRepository
+import kr.htaxlog.vehicle.data.repository.DefaultSessionRepository
+import kr.htaxlog.vehicle.data.usage.AndroidCarUxSource
+import kr.htaxlog.vehicle.data.usage.DefaultVehicleUsageRepository
+import kr.htaxlog.vehicle.fake.FakeContext
+import kr.htaxlog.vehicle.fake.FakePurposeEngine
+import kr.htaxlog.vehicle.fake.FakeSettingsApi
+import kr.htaxlog.vehicle.nav.Navigator
 
 /**
  * 실차·Pleos 에뮬레이터용. 지금은 CarUxRestrictions만 실제이고 나머지는 Fake다.
- * 스펙 R-1(`AutoLog.create(context)`)·R-2(앱 A 계약)가 머지되면 여기서 실구현으로 바꾼다.
+ * 스펙 R-1(`HTaxLog.create(context)`)·R-2(앱 A 계약)가 머지되면 여기서 실구현으로 바꾼다.
  */
 fun createAppGraph(app: Application): AppGraph {
     val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
@@ -2522,24 +2522,24 @@ fun createAppGraph(app: Application): AppGraph {
 ```
 
 ```kotlin
-// .../test/kotlin/kr/autolog/vehicle/TestAppGraph.kt
-package kr.autolog.vehicle
+// .../test/kotlin/kr/htaxlog/vehicle/TestAppGraph.kt
+package kr.htaxlog.vehicle
 
 import androidx.compose.runtime.Composable
 import kotlinx.coroutines.CoroutineScope
-import kr.autolog.vehicle.common.AppClock
-import kr.autolog.vehicle.data.interim.FakeTripSession
-import kr.autolog.vehicle.data.repository.DefaultContextRepository
-import kr.autolog.vehicle.data.repository.DefaultProfileRepository
-import kr.autolog.vehicle.data.repository.DefaultSessionRepository
-import kr.autolog.vehicle.data.usage.DefaultVehicleUsageRepository
-import kr.autolog.vehicle.data.usage.StaticCarUxSource
-import kr.autolog.vehicle.di.AppGraph
-import kr.autolog.vehicle.fake.FakeContext
-import kr.autolog.vehicle.fake.FakePurposeEngine
-import kr.autolog.vehicle.fake.FakeSettingsApi
-import kr.autolog.vehicle.nav.Navigator
-import kr.autolog.vehicle.nav.Route
+import kr.htaxlog.vehicle.common.AppClock
+import kr.htaxlog.vehicle.data.interim.FakeTripSession
+import kr.htaxlog.vehicle.data.repository.DefaultContextRepository
+import kr.htaxlog.vehicle.data.repository.DefaultProfileRepository
+import kr.htaxlog.vehicle.data.repository.DefaultSessionRepository
+import kr.htaxlog.vehicle.data.usage.DefaultVehicleUsageRepository
+import kr.htaxlog.vehicle.data.usage.StaticCarUxSource
+import kr.htaxlog.vehicle.di.AppGraph
+import kr.htaxlog.vehicle.fake.FakeContext
+import kr.htaxlog.vehicle.fake.FakePurposeEngine
+import kr.htaxlog.vehicle.fake.FakeSettingsApi
+import kr.htaxlog.vehicle.nav.Navigator
+import kr.htaxlog.vehicle.nav.Route
 
 /** UI 테스트용 그래프. 데모 패널이 없다. */
 class TestAppGraph(scope: CoroutineScope, override val clock: AppClock = AppClock.System, start: Route = Route.ProfilePicker) : AppGraph {
@@ -2554,7 +2554,7 @@ class TestAppGraph(scope: CoroutineScope, override val clock: AppClock = AppCloc
 }
 ```
 
-Manifest `<application`에 `android:name=".AutoLogApp"` 속성을 추가한다.
+Manifest `<application`에 `android:name=".HTaxLogApp"` 속성을 추가한다.
 
 - [ ] **Step 6: 빌드·테스트**
 
@@ -2604,8 +2604,8 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 - [ ] **Step 2: 실패하는 테스트(잠금 동작 + 스크린샷)**
 
 ```kotlin
-// .../test/kotlin/kr/autolog/vehicle/screenshot/Screenshots.kt
-package kr.autolog.vehicle.screenshot
+// .../test/kotlin/kr/htaxlog/vehicle/screenshot/Screenshots.kt
+package kr.htaxlog.vehicle.screenshot
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -2613,8 +2613,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import com.github.takahirom.roborazzi.captureRoboImage
-import kr.autolog.vehicle.ui.design.AutoLogTheme
-import kr.autolog.vehicle.ui.design.WindowLayoutHost
+import kr.htaxlog.vehicle.ui.design.HTaxLogTheme
+import kr.htaxlog.vehicle.ui.design.WindowLayoutHost
 import org.robolectric.RuntimeEnvironment
 
 /** 스펙 10.2 잠정 크기 [V-01]. FormFactorConsole 측정 후 바꾼다. */
@@ -2631,8 +2631,8 @@ fun captureAll(name: String, sizes: List<ShotSize> = ShotSize.entries, content: 
             RuntimeEnvironment.setQualifiers("${size.qualifier}-${if (dark) "night" else "notnight"}-xhdpi")
             val theme = if (dark) "dark" else "light"
             captureRoboImage("src/test/screenshots/${name}_${size.name.lowercase()}_$theme.png") {
-                AutoLogTheme(darkTheme = dark) {
-                    Box(Modifier.fillMaxSize().background(AutoLogTheme.colors.bg)) {
+                HTaxLogTheme(darkTheme = dark) {
+                    Box(Modifier.fillMaxSize().background(HTaxLogTheme.colors.bg)) {
                         WindowLayoutHost { content() }
                     }
                 }
@@ -2643,8 +2643,8 @@ fun captureAll(name: String, sizes: List<ShotSize> = ShotSize.entries, content: 
 ```
 
 ```kotlin
-// .../test/kotlin/kr/autolog/vehicle/ui/design/components/ComponentsTest.kt
-package kr.autolog.vehicle.ui.design.components
+// .../test/kotlin/kr/htaxlog/vehicle/ui/design/components/ComponentsTest.kt
+package kr.htaxlog.vehicle.ui.design.components
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -2657,11 +2657,11 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import kr.autolog.vehicle.screenshot.ShotSize
-import kr.autolog.vehicle.screenshot.captureAll
-import kr.autolog.vehicle.ui.design.AutoLogTheme
-import kr.autolog.vehicle.ui.design.LocalInputLocked
-import kr.autolog.vehicle.ui.design.Space
+import kr.htaxlog.vehicle.screenshot.ShotSize
+import kr.htaxlog.vehicle.screenshot.captureAll
+import kr.htaxlog.vehicle.ui.design.HTaxLogTheme
+import kr.htaxlog.vehicle.ui.design.LocalInputLocked
+import kr.htaxlog.vehicle.ui.design.Space
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
@@ -2679,7 +2679,7 @@ class ComponentsTest {
     fun `잠금이면 버튼이 비활성이고 눌러도 실행되지 않는다`() {
         var clicks = 0
         compose.setContent {
-            AutoLogTheme {
+            HTaxLogTheme {
                 CompositionLocalProvider(LocalInputLocked provides true) {
                     PrimaryButton("운행 시작", onClick = { clicks++ })
                 }
@@ -2694,7 +2694,7 @@ class ComponentsTest {
     @Test
     fun `잠금이 아니면 1탭으로 실행된다`() {
         var clicks = 0
-        compose.setContent { AutoLogTheme { PrimaryButton("운행 시작", onClick = { clicks++ }) } }
+        compose.setContent { HTaxLogTheme { PrimaryButton("운행 시작", onClick = { clicks++ }) } }
 
         compose.onNodeWithText("운행 시작").assertIsEnabled().performClick()
 
@@ -2732,11 +2732,11 @@ Expected: FAIL — `Unresolved reference: PrimaryButton`
 
 ```kotlin
 // .../ui/design/Texts.kt
-package kr.autolog.vehicle.ui.design
+package kr.htaxlog.vehicle.ui.design
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.res.stringResource
-import kr.autolog.vehicle.R
+import kr.htaxlog.vehicle.R
 
 /** "5초" / "2분 41초" */
 @Composable
@@ -2746,7 +2746,7 @@ fun durationText(sec: Int): String =
 
 ```kotlin
 // .../ui/design/components/Buttons.kt
-package kr.autolog.vehicle.ui.design.components
+package kr.htaxlog.vehicle.ui.design.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -2769,12 +2769,12 @@ import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
-import kr.autolog.vehicle.ui.design.AutoLogTheme
-import kr.autolog.vehicle.ui.design.LocalInputLocked
-import kr.autolog.vehicle.ui.design.Radius
-import kr.autolog.vehicle.ui.design.Size
-import kr.autolog.vehicle.ui.design.Space
-import kr.autolog.vehicle.ui.design.confirmHaptic
+import kr.htaxlog.vehicle.ui.design.HTaxLogTheme
+import kr.htaxlog.vehicle.ui.design.LocalInputLocked
+import kr.htaxlog.vehicle.ui.design.Radius
+import kr.htaxlog.vehicle.ui.design.Size
+import kr.htaxlog.vehicle.ui.design.Space
+import kr.htaxlog.vehicle.ui.design.confirmHaptic
 
 /** 모든 버튼의 공통 몸체. 잠금(LocalInputLocked)이면 스스로 비활성(디자인 언어 11장). */
 @Composable
@@ -2789,7 +2789,7 @@ private fun ButtonBody(
     enabled: Boolean,
     loading: Boolean = false,
 ) {
-    val colors = AutoLogTheme.colors
+    val colors = HTaxLogTheme.colors
     val active = enabled && !LocalInputLocked.current && !loading
     val interaction = remember { MutableInteractionSource() }
     val view = LocalView.current
@@ -2812,7 +2812,7 @@ private fun ButtonBody(
         } else {
             Text(
                 text = text,
-                style = AutoLogTheme.type.label,
+                style = HTaxLogTheme.type.label,
                 color = if (active) content else colors.textTertiary,
                 textAlign = TextAlign.Center,
             )
@@ -2829,7 +2829,7 @@ fun PrimaryButton(
     loading: Boolean = false,
     enabled: Boolean = true,
 ) {
-    val c = AutoLogTheme.colors
+    val c = HTaxLogTheme.colors
     ButtonBody(text, onClick, modifier, height, c.accentFill, c.onAccent, c.surface3, enabled, loading)
 }
 
@@ -2841,26 +2841,26 @@ fun SecondaryButton(
     height: Dp = Size.buttonMd,
     enabled: Boolean = true,
 ) {
-    val c = AutoLogTheme.colors
+    val c = HTaxLogTheme.colors
     ButtonBody(text, onClick, modifier, height, c.surface2, c.textPrimary, c.surface2, enabled)
 }
 
 @Composable
 fun TertiaryButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true) {
-    val c = AutoLogTheme.colors
+    val c = HTaxLogTheme.colors
     ButtonBody(text, onClick, modifier, Size.touchMin, Color.Transparent, c.accent, Color.Transparent, enabled)
 }
 
 @Composable
 fun DangerButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true) {
-    val c = AutoLogTheme.colors
+    val c = HTaxLogTheme.colors
     ButtonBody(text, onClick, modifier, Size.buttonMd, c.dangerFill, c.onAccent, c.surface3, enabled)
 }
 ```
 
 ```kotlin
 // .../ui/design/components/StatusChip.kt
-package kr.autolog.vehicle.ui.design.components
+package kr.htaxlog.vehicle.ui.design.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -2881,11 +2881,11 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.semantics.Role
-import kr.autolog.vehicle.ui.design.AutoLogTheme
-import kr.autolog.vehicle.ui.design.LocalInputLocked
-import kr.autolog.vehicle.ui.design.Size
-import kr.autolog.vehicle.ui.design.Space
-import kr.autolog.vehicle.ui.design.confirmHaptic
+import kr.htaxlog.vehicle.ui.design.HTaxLogTheme
+import kr.htaxlog.vehicle.ui.design.LocalInputLocked
+import kr.htaxlog.vehicle.ui.design.Size
+import kr.htaxlog.vehicle.ui.design.Space
+import kr.htaxlog.vehicle.ui.design.confirmHaptic
 
 enum class ChipTone { NEUTRAL, ACCENT, SUCCESS, WARNING, DANGER }
 
@@ -2899,7 +2899,7 @@ fun StatusChip(
     leading: (@Composable () -> Unit)? = null,
     onClick: (() -> Unit)? = null,
 ) {
-    val c = AutoLogTheme.colors
+    val c = HTaxLogTheme.colors
     val fg =
         when (tone) {
             ChipTone.NEUTRAL -> c.textPrimary
@@ -2927,7 +2927,7 @@ fun StatusChip(
         ) {
             leading?.invoke()
             if (icon != null) Icon(icon, contentDescription = null, tint = fg, modifier = Modifier.size(Size.icon))
-            Text(text, style = AutoLogTheme.type.label, color = fg)
+            Text(text, style = HTaxLogTheme.type.label, color = fg)
         }
     }
 }
@@ -2935,7 +2935,7 @@ fun StatusChip(
 
 ```kotlin
 // .../ui/design/components/HeroMetric.kt
-package kr.autolog.vehicle.ui.design.components
+package kr.htaxlog.vehicle.ui.design.components
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
@@ -2948,8 +2948,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import kr.autolog.vehicle.ui.design.AutoLogTheme
-import kr.autolog.vehicle.ui.design.Space
+import kr.htaxlog.vehicle.ui.design.HTaxLogTheme
+import kr.htaxlog.vehicle.ui.design.Space
 
 /** 숫자 + 단위 + 라벨. [value]가 null이면 숫자 대신 [unavailableText](추정값을 그리지 않는다). */
 @Composable
@@ -2961,9 +2961,9 @@ fun HeroMetric(
     modifier: Modifier = Modifier,
     large: Boolean = true,
 ) {
-    val c = AutoLogTheme.colors
-    val t = AutoLogTheme.type
-    val motion = AutoLogTheme.motion
+    val c = HTaxLogTheme.colors
+    val t = HTaxLogTheme.type
+    val motion = HTaxLogTheme.motion
     Column(modifier) {
         if (label != null) Text(label, style = t.body, color = c.textSecondary)
         if (value == null) {
@@ -2991,7 +2991,7 @@ fun HeroMetric(
 
 ```kotlin
 // .../ui/design/components/Banner.kt
-package kr.autolog.vehicle.ui.design.components
+package kr.htaxlog.vehicle.ui.design.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -3008,24 +3008,24 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import kr.autolog.vehicle.ui.design.AutoLogTheme
-import kr.autolog.vehicle.ui.design.Radius
-import kr.autolog.vehicle.ui.design.Size
-import kr.autolog.vehicle.ui.design.Space
+import kr.htaxlog.vehicle.ui.design.HTaxLogTheme
+import kr.htaxlog.vehicle.ui.design.Radius
+import kr.htaxlog.vehicle.ui.design.Size
+import kr.htaxlog.vehicle.ui.design.Space
 
 data class BannerAction(val text: String, val onClick: () -> Unit)
 
 /** 화면 상단 전폭 알림. 버튼 최대 2개(첫 번째가 주 동작). */
 @Composable
 fun Banner(text: String, actions: List<BannerAction>, modifier: Modifier = Modifier) {
-    val c = AutoLogTheme.colors
+    val c = HTaxLogTheme.colors
     Row(
         modifier.fillMaxWidth().clip(RoundedCornerShape(Radius.md)).background(c.surface2).padding(Space.s5),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(Space.s4),
     ) {
         Icon(Icons.Rounded.Info, contentDescription = null, tint = c.accent, modifier = Modifier.size(Size.icon))
-        Text(text, style = AutoLogTheme.type.body, color = c.textPrimary, modifier = Modifier.weight(1f))
+        Text(text, style = HTaxLogTheme.type.body, color = c.textPrimary, modifier = Modifier.weight(1f))
         actions.take(2).forEachIndexed { i, a ->
             if (i == 0) PrimaryButton(a.text, a.onClick, height = Size.buttonMd) else SecondaryButton(a.text, a.onClick)
         }
@@ -3035,7 +3035,7 @@ fun Banner(text: String, actions: List<BannerAction>, modifier: Modifier = Modif
 
 ```kotlin
 // .../ui/design/components/Overlay.kt
-package kr.autolog.vehicle.ui.design.components
+package kr.htaxlog.vehicle.ui.design.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -3052,15 +3052,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.input.pointer.pointerInput
-import kr.autolog.vehicle.ui.design.AutoLogTheme
-import kr.autolog.vehicle.ui.design.Radius
-import kr.autolog.vehicle.ui.design.Size
-import kr.autolog.vehicle.ui.design.Space
+import kr.htaxlog.vehicle.ui.design.HTaxLogTheme
+import kr.htaxlog.vehicle.ui.design.Radius
+import kr.htaxlog.vehicle.ui.design.Size
+import kr.htaxlog.vehicle.ui.design.Space
 
 /** 아래에서 올라오는 시트 + scrim(디자인 언어 11장 Sheet). 단계가 FULL에서 내려가면 루트가 화면째 지운다. */
 @Composable
 fun ScrimSheet(modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
-    val c = AutoLogTheme.colors
+    val c = HTaxLogTheme.colors
     // scrim은 뒤 화면으로 터치가 새지 않게 삼킨다(클릭 의미론은 없음 — Peek 검사에 걸리지 않는다)
     Box(
         modifier.fillMaxSize().background(c.scrim).pointerInput(Unit) { detectTapGestures { } },
@@ -3116,10 +3116,10 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 - [ ] **Step 2: 실패하는 테스트**
 
 ```kotlin
-// .../test/kotlin/kr/autolog/vehicle/ui/design/components/AvatarTest.kt
-package kr.autolog.vehicle.ui.design.components
+// .../test/kotlin/kr/htaxlog/vehicle/ui/design/components/AvatarTest.kt
+package kr.htaxlog.vehicle.ui.design.components
 
-import kr.autolog.vehicle.ui.design.AvatarGradients
+import kr.htaxlog.vehicle.ui.design.AvatarGradients
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -3156,7 +3156,7 @@ Expected: FAIL — `Unresolved reference: avatarGradientIndex`
 
 ```kotlin
 // .../ui/design/components/Avatar.kt
-package kr.autolog.vehicle.ui.design.components
+package kr.htaxlog.vehicle.ui.design.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -3172,8 +3172,8 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.sp
-import kr.autolog.vehicle.ui.design.AutoLogTheme
-import kr.autolog.vehicle.ui.design.AvatarGradients
+import kr.htaxlog.vehicle.ui.design.HTaxLogTheme
+import kr.htaxlog.vehicle.ui.design.AvatarGradients
 
 /** 디자인 언어 5.4: userId 해시로 8색 중 하나. */
 fun avatarGradientIndex(userId: String): Int = Math.floorMod(userId.hashCode(), AvatarGradients.size)
@@ -3203,7 +3203,7 @@ fun Avatar(userId: String, name: String, size: Dp, modifier: Modifier = Modifier
     ) {
         Text(
             initialsOf(name),
-            style = AutoLogTheme.type.display.copy(fontSize = (size.value * 0.4f).sp, lineHeight = (size.value * 0.45f).sp),
+            style = HTaxLogTheme.type.display.copy(fontSize = (size.value * 0.4f).sp, lineHeight = (size.value * 0.45f).sp),
             color = Color.White,
         )
     }
@@ -3212,7 +3212,7 @@ fun Avatar(userId: String, name: String, size: Dp, modifier: Modifier = Modifier
 
 ```kotlin
 // .../ui/design/SharedAvatar.kt
-package kr.autolog.vehicle.ui.design
+package kr.htaxlog.vehicle.ui.design
 
 import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.ExperimentalSharedTransitionApi
@@ -3231,7 +3231,7 @@ val LocalNavAnimatedScope = compositionLocalOf<AnimatedVisibilityScope?> { null 
 fun Modifier.sharedAvatar(userId: String): Modifier {
     val transition = LocalSharedTransitionScope.current ?: return this
     val visibility = LocalNavAnimatedScope.current ?: return this
-    val motion = AutoLogTheme.motion
+    val motion = HTaxLogTheme.motion
     if (motion.isStatic) return this
     return with(transition) {
         this@sharedAvatar.sharedElement(
@@ -3245,7 +3245,7 @@ fun Modifier.sharedAvatar(userId: String): Modifier {
 
 ```kotlin
 // .../ui/design/components/ProfileTile.kt
-package kr.autolog.vehicle.ui.design.components
+package kr.htaxlog.vehicle.ui.design.components
 
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -3266,14 +3266,14 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
-import kr.autolog.vehicle.R
-import kr.autolog.vehicle.ui.design.AutoLogTheme
-import kr.autolog.vehicle.ui.design.LocalInputLocked
-import kr.autolog.vehicle.ui.design.Radius
-import kr.autolog.vehicle.ui.design.Size
-import kr.autolog.vehicle.ui.design.Space
-import kr.autolog.vehicle.ui.design.confirmHaptic
-import kr.autolog.vehicle.ui.design.sharedAvatar
+import kr.htaxlog.vehicle.R
+import kr.htaxlog.vehicle.ui.design.HTaxLogTheme
+import kr.htaxlog.vehicle.ui.design.LocalInputLocked
+import kr.htaxlog.vehicle.ui.design.Radius
+import kr.htaxlog.vehicle.ui.design.Size
+import kr.htaxlog.vehicle.ui.design.Space
+import kr.htaxlog.vehicle.ui.design.confirmHaptic
+import kr.htaxlog.vehicle.ui.design.sharedAvatar
 
 /** 디자인 언어 11장 ProfileTile. 1탭 = 선택 + 진입(조작 최소화 2.6). */
 @Composable
@@ -3287,8 +3287,8 @@ fun ProfileTile(
     modifier: Modifier = Modifier,
     tileSize: Dp = Size.profileTileNarrow,
 ) {
-    val c = AutoLogTheme.colors
-    val t = AutoLogTheme.type
+    val c = HTaxLogTheme.colors
+    val t = HTaxLogTheme.type
     val interaction = remember { MutableInteractionSource() }
     val view = LocalView.current
     Column(
@@ -3342,21 +3342,21 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 ### Task 11: 루트 — 사용 단계별 층 전환·입력 잠금·백그라운드
 
 **Files:**
-- Create: `.../ui/root/AutoLogRoot.kt`, `.../ui/root/FullApp.kt`
+- Create: `.../ui/root/HTaxLogRoot.kt`, `.../ui/root/FullApp.kt`
 - Modify: `.../MainActivity.kt`
-- Test: `.../test/.../ui/root/AutoLogRootTest.kt`
+- Test: `.../test/.../ui/root/HTaxLogRootTest.kt`
 
 **Interfaces:**
-- Consumes: `AppGraph`, `LocalAppGraph`, `UsageTier`, `Navigator`, `Route`, `AutoLogTheme`, `WindowLayoutHost`, `LocalInputLocked`, `LocalSharedTransitionScope`, `LocalNavAnimatedScope`; 화면 진입점 `ProfilePickerRoute()`(Task 13), `HomeRoute()`(Task 14), `PeekRoute()`(Task 12)
-- Produces: `@Composable fun AutoLogRoot(graph: AppGraph, onRequestBackground: () -> Unit)`, `const val FULL_ENTRY_GUARD_MS = 300L`
+- Consumes: `AppGraph`, `LocalAppGraph`, `UsageTier`, `Navigator`, `Route`, `HTaxLogTheme`, `WindowLayoutHost`, `LocalInputLocked`, `LocalSharedTransitionScope`, `LocalNavAnimatedScope`; 화면 진입점 `ProfilePickerRoute()`(Task 13), `HomeRoute()`(Task 14), `PeekRoute()`(Task 12)
+- Produces: `@Composable fun HTaxLogRoot(graph: AppGraph, onRequestBackground: () -> Unit)`, `const val FULL_ENTRY_GUARD_MS = 300L`
 
 > 이 작업은 Task 12~14의 `PeekRoute`·`ProfilePickerRoute`·`HomeRoute`를 부른다. **Task 11 Step 3에서 세 함수를 임시 본문으로 먼저 만들고**(각 파일에 `@Composable fun XxxRoute() { }` 한 줄), Task 12~14에서 실제 내용으로 바꾼다. 임시 본문 파일 경로는 Task 12~14의 Files와 같다.
 
 - [ ] **Step 1: 실패하는 테스트**
 
 ```kotlin
-// .../test/kotlin/kr/autolog/vehicle/ui/root/AutoLogRootTest.kt
-package kr.autolog.vehicle.ui.root
+// .../test/kotlin/kr/htaxlog/vehicle/ui/root/HTaxLogRootTest.kt
+package kr.htaxlog.vehicle.ui.root
 
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -3364,9 +3364,9 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
-import kr.autolog.vehicle.TestAppGraph
-import kr.autolog.vehicle.data.interim.VehicleMotion
-import kr.autolog.vehicle.nav.Route
+import kr.htaxlog.vehicle.TestAppGraph
+import kr.htaxlog.vehicle.data.interim.VehicleMotion
+import kr.htaxlog.vehicle.nav.Route
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -3376,7 +3376,7 @@ import org.robolectric.annotation.Config
 
 @RunWith(AndroidJUnit4::class)
 @Config(sdk = [34])
-class AutoLogRootTest {
+class HTaxLogRootTest {
     @get:Rule val compose = createComposeRule()
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
@@ -3385,7 +3385,7 @@ class AutoLogRootTest {
         val graph = TestAppGraph(scope, start = Route.Home)
         graph.trip.setMotion(VehicleMotion.STOPPED)
 
-        compose.setContent { AutoLogRoot(graph, onRequestBackground = {}) }
+        compose.setContent { HTaxLogRoot(graph, onRequestBackground = {}) }
         compose.waitForIdle()
 
         assertEquals(0, compose.onAllNodes(hasClickAction()).fetchSemanticsNodes().size)
@@ -3395,7 +3395,7 @@ class AutoLogRootTest {
     fun `주행이 시작되면 앱이 스스로 뒤로 물러난다`() {
         val graph = TestAppGraph(scope, start = Route.Home)
         var backgrounded = false
-        compose.setContent { AutoLogRoot(graph, onRequestBackground = { backgrounded = true }) }
+        compose.setContent { HTaxLogRoot(graph, onRequestBackground = { backgrounded = true }) }
 
         graph.trip.setMotion(VehicleMotion.MOVING)
         compose.waitForIdle()
@@ -3407,7 +3407,7 @@ class AutoLogRootTest {
     fun `주차에서 내려가면 열린 화면이 닫히고 Home만 남는다`() {
         val graph = TestAppGraph(scope, start = Route.Home)
         graph.navigator.push(Route.ProfilePicker)
-        compose.setContent { AutoLogRoot(graph, onRequestBackground = {}) }
+        compose.setContent { HTaxLogRoot(graph, onRequestBackground = {}) }
 
         graph.trip.setMotion(VehicleMotion.STOPPED)
         compose.waitForIdle()
@@ -3419,14 +3419,14 @@ class AutoLogRootTest {
 
 - [ ] **Step 2: 실패 확인**
 
-Run: `G :vehicle-app:testDemoDebugUnitTest --tests '*AutoLogRootTest*'`
-Expected: FAIL — `Unresolved reference: AutoLogRoot`
+Run: `G :vehicle-app:testDemoDebugUnitTest --tests '*HTaxLogRootTest*'`
+Expected: FAIL — `Unresolved reference: HTaxLogRoot`
 
 - [ ] **Step 3: 화면 진입점 임시 본문**
 
 ```kotlin
 // .../ui/peek/PeekScreen.kt (Task 12에서 교체)
-package kr.autolog.vehicle.ui.peek
+package kr.htaxlog.vehicle.ui.peek
 
 import androidx.compose.runtime.Composable
 
@@ -3436,7 +3436,7 @@ fun PeekRoute() = Unit
 
 ```kotlin
 // .../ui/profile/ProfilePickerScreen.kt (Task 13에서 교체)
-package kr.autolog.vehicle.ui.profile
+package kr.htaxlog.vehicle.ui.profile
 
 import androidx.compose.runtime.Composable
 
@@ -3446,7 +3446,7 @@ fun ProfilePickerRoute() = Unit
 
 ```kotlin
 // .../ui/home/HomeScreen.kt (Task 14에서 교체)
-package kr.autolog.vehicle.ui.home
+package kr.htaxlog.vehicle.ui.home
 
 import androidx.compose.runtime.Composable
 
@@ -3458,7 +3458,7 @@ fun HomeRoute() = Unit
 
 ```kotlin
 // .../ui/root/FullApp.kt
-package kr.autolog.vehicle.ui.root
+package kr.htaxlog.vehicle.ui.root
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
@@ -3473,20 +3473,20 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import kr.autolog.vehicle.di.AppGraph
-import kr.autolog.vehicle.nav.Route
-import kr.autolog.vehicle.ui.design.AutoLogTheme
-import kr.autolog.vehicle.ui.design.LocalNavAnimatedScope
-import kr.autolog.vehicle.ui.design.LocalSharedTransitionScope
-import kr.autolog.vehicle.ui.home.HomeRoute
-import kr.autolog.vehicle.ui.profile.ProfilePickerRoute
+import kr.htaxlog.vehicle.di.AppGraph
+import kr.htaxlog.vehicle.nav.Route
+import kr.htaxlog.vehicle.ui.design.HTaxLogTheme
+import kr.htaxlog.vehicle.ui.design.LocalNavAnimatedScope
+import kr.htaxlog.vehicle.ui.design.LocalSharedTransitionScope
+import kr.htaxlog.vehicle.ui.home.HomeRoute
+import kr.htaxlog.vehicle.ui.profile.ProfilePickerRoute
 
 /** 주차(FULL) 층: 백스택 맨 위 화면. 전환은 motion.screen, 프로필→Home은 motion.hero. */
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 fun FullApp(graph: AppGraph) {
     val stack by graph.navigator.backStack.collectAsStateWithLifecycle()
-    val motion = AutoLogTheme.motion
+    val motion = HTaxLogTheme.motion
     BackHandler(enabled = stack.size > 1) { graph.navigator.pop() }
     SharedTransitionLayout {
         AnimatedContent(
@@ -3515,8 +3515,8 @@ fun FullApp(graph: AppGraph) {
 ```
 
 ```kotlin
-// .../ui/root/AutoLogRoot.kt
-package kr.autolog.vehicle.ui.root
+// .../ui/root/HTaxLogRoot.kt
+package kr.htaxlog.vehicle.ui.root
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -3534,13 +3534,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.delay
-import kr.autolog.vehicle.data.usage.UsageTier
-import kr.autolog.vehicle.di.AppGraph
-import kr.autolog.vehicle.di.LocalAppGraph
-import kr.autolog.vehicle.ui.design.AutoLogTheme
-import kr.autolog.vehicle.ui.design.LocalInputLocked
-import kr.autolog.vehicle.ui.design.WindowLayoutHost
-import kr.autolog.vehicle.ui.peek.PeekRoute
+import kr.htaxlog.vehicle.data.usage.UsageTier
+import kr.htaxlog.vehicle.di.AppGraph
+import kr.htaxlog.vehicle.di.LocalAppGraph
+import kr.htaxlog.vehicle.ui.design.HTaxLogTheme
+import kr.htaxlog.vehicle.ui.design.LocalInputLocked
+import kr.htaxlog.vehicle.ui.design.WindowLayoutHost
+import kr.htaxlog.vehicle.ui.peek.PeekRoute
 
 /** FULL 진입 직후 오조작 방지(디자인 언어 12장). */
 const val FULL_ENTRY_GUARD_MS = 300L
@@ -3550,7 +3550,7 @@ const val FULL_ENTRY_GUARD_MS = 300L
  * 입력 잠금 = tier != FULL 또는 FULL 진입 직후 300 ms.
  */
 @Composable
-fun AutoLogRoot(graph: AppGraph, onRequestBackground: () -> Unit) {
+fun HTaxLogRoot(graph: AppGraph, onRequestBackground: () -> Unit) {
     val tier by graph.usage.tier.collectAsStateWithLifecycle()
     var entryGuard by remember { mutableStateOf(false) }
     LaunchedEffect(tier) {
@@ -3566,9 +3566,9 @@ fun AutoLogRoot(graph: AppGraph, onRequestBackground: () -> Unit) {
         }
     }
     CompositionLocalProvider(LocalAppGraph provides graph) {
-        AutoLogTheme(staticMotion = tier != UsageTier.FULL) {
+        HTaxLogTheme(staticMotion = tier != UsageTier.FULL) {
             CompositionLocalProvider(LocalInputLocked provides (tier != UsageTier.FULL || entryGuard)) {
-                Box(Modifier.fillMaxSize().background(AutoLogTheme.colors.bg).windowInsetsPadding(WindowInsets.safeDrawing)) {
+                Box(Modifier.fillMaxSize().background(HTaxLogTheme.colors.bg).windowInsetsPadding(WindowInsets.safeDrawing)) {
                     WindowLayoutHost {
                         when (tier) {
                             UsageTier.FULL -> FullApp(graph)
@@ -3586,27 +3586,27 @@ fun AutoLogRoot(graph: AppGraph, onRequestBackground: () -> Unit) {
 
 ```kotlin
 // .../MainActivity.kt (교체)
-package kr.autolog.vehicle
+package kr.htaxlog.vehicle
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import kr.autolog.vehicle.ui.root.AutoLogRoot
+import kr.htaxlog.vehicle.ui.root.HTaxLogRoot
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
-        val graph = (application as AutoLogApp).graph
-        setContent { AutoLogRoot(graph = graph, onRequestBackground = { moveTaskToBack(true) }) }
+        val graph = (application as HTaxLogApp).graph
+        setContent { HTaxLogRoot(graph = graph, onRequestBackground = { moveTaskToBack(true) }) }
     }
 }
 ```
 
 - [ ] **Step 5: 통과 확인**
 
-Run: `G :vehicle-app:testDemoDebugUnitTest --tests '*AutoLogRootTest*'`
+Run: `G :vehicle-app:testDemoDebugUnitTest --tests '*HTaxLogRootTest*'`
 Expected: PASS (3 tests)
 
 - [ ] **Step 6: 커밋**
@@ -3648,12 +3648,12 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 - [ ] **Step 2: 실패하는 테스트**
 
 ```kotlin
-// .../test/kotlin/kr/autolog/vehicle/ui/peek/PeekReducerTest.kt
-package kr.autolog.vehicle.ui.peek
+// .../test/kotlin/kr/htaxlog/vehicle/ui/peek/PeekReducerTest.kt
+package kr.htaxlog.vehicle.ui.peek
 
-import kr.autolog.vehicle.data.interim.LiveTrip
-import kr.autolog.vehicle.data.interim.SessionState
-import kr.autolog.vehicle.data.interim.StopReason
+import kr.htaxlog.vehicle.data.interim.LiveTrip
+import kr.htaxlog.vehicle.data.interim.SessionState
+import kr.htaxlog.vehicle.data.interim.StopReason
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
@@ -3698,11 +3698,11 @@ class PeekReducerTest {
 ```
 
 ```kotlin
-// .../test/kotlin/kr/autolog/vehicle/ui/peek/PeekScreenshotTest.kt
-package kr.autolog.vehicle.ui.peek
+// .../test/kotlin/kr/htaxlog/vehicle/ui/peek/PeekScreenshotTest.kt
+package kr.htaxlog.vehicle.ui.peek
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import kr.autolog.vehicle.screenshot.captureAll
+import kr.htaxlog.vehicle.screenshot.captureAll
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.annotation.Config
@@ -3732,12 +3732,12 @@ Expected: FAIL — `Unresolved reference: reducePeek`
 
 ```kotlin
 // .../ui/peek/PeekUiState.kt
-package kr.autolog.vehicle.ui.peek
+package kr.htaxlog.vehicle.ui.peek
 
-import kr.autolog.vehicle.data.interim.SessionState
-import kr.autolog.vehicle.data.interim.StopReason
-import kr.autolog.vehicle.ui.design.formatKm
-import kr.autolog.vehicle.ui.design.remainingSeconds
+import kr.htaxlog.vehicle.data.interim.SessionState
+import kr.htaxlog.vehicle.data.interim.StopReason
+import kr.htaxlog.vehicle.ui.design.formatKm
+import kr.htaxlog.vehicle.ui.design.remainingSeconds
 
 sealed interface PeekUiState {
     data object Loading : PeekUiState
@@ -3785,7 +3785,7 @@ internal fun reducePeek(
 
 ```kotlin
 // .../ui/peek/PeekViewModel.kt
-package kr.autolog.vehicle.ui.peek
+package kr.htaxlog.vehicle.ui.peek
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -3794,11 +3794,11 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
-import kr.autolog.vehicle.common.AppClock
-import kr.autolog.vehicle.common.tickerFlow
-import kr.autolog.vehicle.data.repository.ContextRepository
-import kr.autolog.vehicle.data.repository.ProfileRepository
-import kr.autolog.vehicle.data.repository.SessionRepository
+import kr.htaxlog.vehicle.common.AppClock
+import kr.htaxlog.vehicle.common.tickerFlow
+import kr.htaxlog.vehicle.data.repository.ContextRepository
+import kr.htaxlog.vehicle.data.repository.ProfileRepository
+import kr.htaxlog.vehicle.data.repository.SessionRepository
 
 /** 읽기 전용 — Action이 없다. */
 class PeekViewModel(
@@ -3818,7 +3818,7 @@ class PeekViewModel(
 
 ```kotlin
 // .../ui/peek/PeekScreen.kt (교체)
-package kr.autolog.vehicle.ui.peek
+package kr.htaxlog.vehicle.ui.peek
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -3836,15 +3836,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import kr.autolog.vehicle.R
-import kr.autolog.vehicle.di.LocalAppGraph
-import kr.autolog.vehicle.ui.design.AutoLogTheme
-import kr.autolog.vehicle.ui.design.Size
-import kr.autolog.vehicle.ui.design.Space
-import kr.autolog.vehicle.ui.design.components.ChipTone
-import kr.autolog.vehicle.ui.design.components.HeroMetric
-import kr.autolog.vehicle.ui.design.components.StatusChip
-import kr.autolog.vehicle.ui.design.durationText
+import kr.htaxlog.vehicle.R
+import kr.htaxlog.vehicle.di.LocalAppGraph
+import kr.htaxlog.vehicle.ui.design.HTaxLogTheme
+import kr.htaxlog.vehicle.ui.design.Size
+import kr.htaxlog.vehicle.ui.design.Space
+import kr.htaxlog.vehicle.ui.design.components.ChipTone
+import kr.htaxlog.vehicle.ui.design.components.HeroMetric
+import kr.htaxlog.vehicle.ui.design.components.StatusChip
+import kr.htaxlog.vehicle.ui.design.durationText
 
 @Composable
 fun PeekRoute() {
@@ -3857,8 +3857,8 @@ fun PeekRoute() {
 /** 스펙 7.0. 클릭 가능한 요소 0개, 모션 없음. 넘치면 ⑤ → ④ 순으로 생략(세로 공간이 좁은 창). */
 @Composable
 fun PeekScreen(state: PeekUiState, modifier: Modifier = Modifier) {
-    val c = AutoLogTheme.colors
-    val t = AutoLogTheme.type
+    val c = HTaxLogTheme.colors
+    val t = HTaxLogTheme.type
     Box(modifier.fillMaxSize().padding(Space.s6), contentAlignment = Alignment.Center) {
         Column(Modifier.widthIn(max = Size.peekMaxWidth), verticalArrangement = Arrangement.spacedBy(Space.s5)) {
             when (state) {
@@ -3895,7 +3895,7 @@ fun PeekScreen(state: PeekUiState, modifier: Modifier = Modifier) {
 
 - [ ] **Step 5: 통과 확인 + 스크린샷**
 
-Run: `G :vehicle-app:testDemoDebugUnitTest --tests '*Peek*' --tests '*AutoLogRootTest*' && G :vehicle-app:testDemoDebugUnitTest --tests '*PeekScreenshotTest*' -Proborazzi.test.record=true`
+Run: `G :vehicle-app:testDemoDebugUnitTest --tests '*Peek*' --tests '*HTaxLogRootTest*' && G :vehicle-app:testDemoDebugUnitTest --tests '*PeekScreenshotTest*' -Proborazzi.test.record=true`
 Expected: PASS, `peek_*_{wide,narrow,tall}_{dark,light}.png` 18장. NARROW에서 ①~⑤가 잘리지 않는지 확인한다.
 
 - [ ] **Step 6: 커밋**
@@ -3934,8 +3934,8 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 - [ ] **Step 2: 실패하는 테스트**
 
 ```kotlin
-// .../test/kotlin/kr/autolog/vehicle/ui/profile/ProfilePickerViewModelTest.kt
-package kr.autolog.vehicle.ui.profile
+// .../test/kotlin/kr/htaxlog/vehicle/ui/profile/ProfilePickerViewModelTest.kt
+package kr.htaxlog.vehicle.ui.profile
 
 import app.cash.turbine.test
 import kotlinx.coroutines.Dispatchers
@@ -3944,8 +3944,8 @@ import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
-import kr.autolog.vehicle.TestAppGraph
-import kr.autolog.vehicle.nav.Route
+import kr.htaxlog.vehicle.TestAppGraph
+import kr.htaxlog.vehicle.nav.Route
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -4011,18 +4011,18 @@ class ProfilePickerViewModelTest {
 ```
 
 ```kotlin
-// .../test/kotlin/kr/autolog/vehicle/ui/profile/ProfilePickerScreenTest.kt
-package kr.autolog.vehicle.ui.profile
+// .../test/kotlin/kr/htaxlog/vehicle/ui/profile/ProfilePickerScreenTest.kt
+package kr.htaxlog.vehicle.ui.profile
 
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import kr.autolog.vehicle.data.repository.DriverProfile
-import kr.autolog.vehicle.data.repository.ProfileBadge
-import kr.autolog.vehicle.data.repository.UnassignedTripItem
-import kr.autolog.vehicle.screenshot.captureAll
-import kr.autolog.vehicle.ui.design.AutoLogTheme
+import kr.htaxlog.vehicle.data.repository.DriverProfile
+import kr.htaxlog.vehicle.data.repository.ProfileBadge
+import kr.htaxlog.vehicle.data.repository.UnassignedTripItem
+import kr.htaxlog.vehicle.screenshot.captureAll
+import kr.htaxlog.vehicle.ui.design.HTaxLogTheme
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
@@ -4052,7 +4052,7 @@ class ProfilePickerScreenTest {
     @Test
     fun `조작 예산 — 운전자 선택은 1탭`() {
         val actions = mutableListOf<ProfilePickerAction>()
-        compose.setContent { AutoLogTheme { ProfilePickerScreen(state.copy(unassigned = null), onAction = { actions += it }) } }
+        compose.setContent { HTaxLogTheme { ProfilePickerScreen(state.copy(unassigned = null), onAction = { actions += it }) } }
 
         compose.onNodeWithText("이현장").performClick()
 
@@ -4091,10 +4091,10 @@ Expected: FAIL — `Unresolved reference: ProfilePickerViewModel`
 
 ```kotlin
 // .../ui/profile/ProfilePickerUiState.kt
-package kr.autolog.vehicle.ui.profile
+package kr.htaxlog.vehicle.ui.profile
 
-import kr.autolog.vehicle.data.repository.DriverProfile
-import kr.autolog.vehicle.data.repository.UnassignedTripItem
+import kr.htaxlog.vehicle.data.repository.DriverProfile
+import kr.htaxlog.vehicle.data.repository.UnassignedTripItem
 
 /** 스펙 7.1: 타일 최대 5개, 넘치면 6번째 자리에 [다른 사람]. */
 const val PICKER_VISIBLE_MAX = 5
@@ -4124,7 +4124,7 @@ sealed interface ProfilePickerAction {
 
 ```kotlin
 // .../ui/profile/ProfilePickerViewModel.kt
-package kr.autolog.vehicle.ui.profile
+package kr.htaxlog.vehicle.ui.profile
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -4134,11 +4134,11 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import kr.autolog.vehicle.data.repository.ProfileRepository
-import kr.autolog.vehicle.data.repository.SessionRepository
-import kr.autolog.vehicle.data.repository.UnassignedTripItem
-import kr.autolog.vehicle.nav.Navigator
-import kr.autolog.vehicle.nav.Route
+import kr.htaxlog.vehicle.data.repository.ProfileRepository
+import kr.htaxlog.vehicle.data.repository.SessionRepository
+import kr.htaxlog.vehicle.data.repository.UnassignedTripItem
+import kr.htaxlog.vehicle.nav.Navigator
+import kr.htaxlog.vehicle.nav.Route
 
 class ProfilePickerViewModel(
     private val session: SessionRepository,
@@ -4182,7 +4182,7 @@ class ProfilePickerViewModel(
 
 ```kotlin
 // .../ui/profile/ProfilePickerScreen.kt (교체)
-package kr.autolog.vehicle.ui.profile
+package kr.htaxlog.vehicle.ui.profile
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -4219,20 +4219,20 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextAlign
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import kr.autolog.vehicle.R
-import kr.autolog.vehicle.data.repository.DriverProfile
-import kr.autolog.vehicle.data.repository.ProfileBadge
-import kr.autolog.vehicle.di.LocalAppGraph
-import kr.autolog.vehicle.ui.design.AutoLogTheme
-import kr.autolog.vehicle.ui.design.LocalInputLocked
-import kr.autolog.vehicle.ui.design.LocalWindowLayout
-import kr.autolog.vehicle.ui.design.Radius
-import kr.autolog.vehicle.ui.design.Size
-import kr.autolog.vehicle.ui.design.Space
-import kr.autolog.vehicle.ui.design.WindowLayout
-import kr.autolog.vehicle.ui.design.components.ProfileTile
-import kr.autolog.vehicle.ui.design.components.ScrimSheet
-import kr.autolog.vehicle.ui.design.components.TertiaryButton
+import kr.htaxlog.vehicle.R
+import kr.htaxlog.vehicle.data.repository.DriverProfile
+import kr.htaxlog.vehicle.data.repository.ProfileBadge
+import kr.htaxlog.vehicle.di.LocalAppGraph
+import kr.htaxlog.vehicle.ui.design.HTaxLogTheme
+import kr.htaxlog.vehicle.ui.design.LocalInputLocked
+import kr.htaxlog.vehicle.ui.design.LocalWindowLayout
+import kr.htaxlog.vehicle.ui.design.Radius
+import kr.htaxlog.vehicle.ui.design.Size
+import kr.htaxlog.vehicle.ui.design.Space
+import kr.htaxlog.vehicle.ui.design.WindowLayout
+import kr.htaxlog.vehicle.ui.design.components.ProfileTile
+import kr.htaxlog.vehicle.ui.design.components.ScrimSheet
+import kr.htaxlog.vehicle.ui.design.components.TertiaryButton
 
 @Composable
 fun ProfilePickerRoute() {
@@ -4246,8 +4246,8 @@ fun ProfilePickerRoute() {
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun ProfilePickerScreen(state: ProfilePickerUiState, onAction: (ProfilePickerAction) -> Unit, modifier: Modifier = Modifier) {
-    val c = AutoLogTheme.colors
-    val t = AutoLogTheme.type
+    val c = HTaxLogTheme.colors
+    val t = HTaxLogTheme.type
     val layout = LocalWindowLayout.current
     val tile = if (layout == WindowLayout.WIDE) Size.profileTileWide else Size.profileTileNarrow
     Box(modifier.fillMaxSize()) {
@@ -4298,7 +4298,7 @@ private fun DriverProfile.Tile(size: androidx.compose.ui.unit.Dp, onClick: () ->
 
 @Composable
 private fun MoreTile(size: androidx.compose.ui.unit.Dp, onClick: () -> Unit) {
-    val c = AutoLogTheme.colors
+    val c = HTaxLogTheme.colors
     Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(Space.s3)) {
         Box(
             Modifier
@@ -4308,20 +4308,20 @@ private fun MoreTile(size: androidx.compose.ui.unit.Dp, onClick: () -> Unit) {
                 .clickable(enabled = !LocalInputLocked.current, role = Role.Button, onClick = onClick),
             contentAlignment = Alignment.Center,
         ) { Icon(Icons.Rounded.Add, contentDescription = stringResource(R.string.picker_more), tint = c.textSecondary, modifier = Modifier.size(Size.iconLg)) }
-        Text(stringResource(R.string.picker_more), style = AutoLogTheme.type.title, color = c.textSecondary)
+        Text(stringResource(R.string.picker_more), style = HTaxLogTheme.type.title, color = c.textSecondary)
     }
 }
 
 /** 스펙 7.1 ④ / F-20: 후보 1탭으로 지정. */
 @Composable
 private fun UnassignedCard(label: String, candidates: List<DriverProfile>, onPick: (String) -> Unit) {
-    val c = AutoLogTheme.colors
+    val c = HTaxLogTheme.colors
     Column(
         Modifier.widthIn(max = Size.sheetMaxWidth).fillMaxWidth().clip(RoundedCornerShape(Radius.md)).background(c.surface1).padding(Space.s5),
         verticalArrangement = Arrangement.spacedBy(Space.s4),
     ) {
-        Text(stringResource(R.string.picker_unassigned_title), style = AutoLogTheme.type.title, color = c.textPrimary)
-        Text(label, style = AutoLogTheme.type.body, color = c.textSecondary)
+        Text(stringResource(R.string.picker_unassigned_title), style = HTaxLogTheme.type.title, color = c.textPrimary)
+        Text(label, style = HTaxLogTheme.type.body, color = c.textSecondary)
         Row(horizontalArrangement = Arrangement.spacedBy(Space.s5)) {
             candidates.forEach { p -> ProfileTile(p.userId + "-prev", p.name, null, scheduled = p.badge == ProfileBadge.SCHEDULED, recent = false, onClick = { onPick(p.userId) }, tileSize = Size.buttonXl) }
         }
@@ -4386,14 +4386,14 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 - [ ] **Step 2: 실패하는 테스트**
 
 ```kotlin
-// .../test/kotlin/kr/autolog/vehicle/ui/home/HomeReducerTest.kt
-package kr.autolog.vehicle.ui.home
+// .../test/kotlin/kr/htaxlog/vehicle/ui/home/HomeReducerTest.kt
+package kr.htaxlog.vehicle.ui.home
 
-import kr.autolog.vehicle.data.interim.LiveTrip
-import kr.autolog.vehicle.data.interim.MissedTrip
-import kr.autolog.vehicle.data.interim.SessionState
-import kr.autolog.vehicle.data.interim.StopReason
-import kr.autolog.vehicle.data.repository.DriverProfile
+import kr.htaxlog.vehicle.data.interim.LiveTrip
+import kr.htaxlog.vehicle.data.interim.MissedTrip
+import kr.htaxlog.vehicle.data.interim.SessionState
+import kr.htaxlog.vehicle.data.interim.StopReason
+import kr.htaxlog.vehicle.data.repository.DriverProfile
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
@@ -4451,8 +4451,8 @@ class HomeReducerTest {
 ```
 
 ```kotlin
-// .../test/kotlin/kr/autolog/vehicle/ui/home/HomeViewModelTest.kt
-package kr.autolog.vehicle.ui.home
+// .../test/kotlin/kr/htaxlog/vehicle/ui/home/HomeViewModelTest.kt
+package kr.htaxlog.vehicle.ui.home
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -4460,11 +4460,11 @@ import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
-import kr.autolog.vehicle.TestAppGraph
-import kr.autolog.vehicle.common.AppClock
-import kr.autolog.vehicle.data.interim.SessionState
-import kr.autolog.vehicle.data.interim.VehicleMotion
-import kr.autolog.vehicle.nav.Route
+import kr.htaxlog.vehicle.TestAppGraph
+import kr.htaxlog.vehicle.common.AppClock
+import kr.htaxlog.vehicle.data.interim.SessionState
+import kr.htaxlog.vehicle.data.interim.VehicleMotion
+import kr.htaxlog.vehicle.nav.Route
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -4520,17 +4520,17 @@ class HomeViewModelTest {
 ```
 
 ```kotlin
-// .../test/kotlin/kr/autolog/vehicle/ui/home/HomeScreenTest.kt
-package kr.autolog.vehicle.ui.home
+// .../test/kotlin/kr/htaxlog/vehicle/ui/home/HomeScreenTest.kt
+package kr.htaxlog.vehicle.ui.home
 
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import kr.autolog.vehicle.data.interim.StopReason
-import kr.autolog.vehicle.data.repository.DriverProfile
-import kr.autolog.vehicle.screenshot.captureAll
-import kr.autolog.vehicle.ui.design.AutoLogTheme
+import kr.htaxlog.vehicle.data.interim.StopReason
+import kr.htaxlog.vehicle.data.repository.DriverProfile
+import kr.htaxlog.vehicle.screenshot.captureAll
+import kr.htaxlog.vehicle.ui.design.HTaxLogTheme
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
@@ -4554,7 +4554,7 @@ class HomeScreenTest {
     @Test
     fun `자동 종료 안내에서 계속 기록은 1탭`() {
         val actions = mutableListOf<HomeAction>()
-        compose.setContent { AutoLogTheme { HomeScreen(autoEnding, onAction = { actions += it }) } }
+        compose.setContent { HTaxLogTheme { HomeScreen(autoEnding, onAction = { actions += it }) } }
 
         compose.onNodeWithText("계속 기록").performClick()
 
@@ -4564,12 +4564,12 @@ class HomeScreenTest {
     @Test
     fun `삭제는 한 번 더 확인한다`() {
         val actions = mutableListOf<HomeAction>()
-        compose.setContent { AutoLogTheme { HomeScreen(recovery, onAction = { actions += it }) } }
+        compose.setContent { HTaxLogTheme { HomeScreen(recovery, onAction = { actions += it }) } }
 
         compose.onNodeWithText("삭제").performClick()
         compose.onNodeWithText("지우기").performClick()
 
-        assertEquals(listOf<HomeAction>(HomeAction.Recover(kr.autolog.vehicle.data.interim.RecoveryChoice.DELETE)), actions)
+        assertEquals(listOf<HomeAction>(HomeAction.Recover(kr.htaxlog.vehicle.data.interim.RecoveryChoice.DELETE)), actions)
     }
 }
 
@@ -4610,16 +4610,16 @@ Expected: FAIL — `Unresolved reference: reduceHome`
 
 ```kotlin
 // .../ui/home/HomeUiState.kt
-package kr.autolog.vehicle.ui.home
+package kr.htaxlog.vehicle.ui.home
 
-import kr.autolog.vehicle.data.interim.MissedTrip
-import kr.autolog.vehicle.data.interim.RecoveryChoice
-import kr.autolog.vehicle.data.interim.SessionState
-import kr.autolog.vehicle.data.interim.StopReason
-import kr.autolog.vehicle.data.repository.DriverProfile
-import kr.autolog.vehicle.ui.design.formatKm
-import kr.autolog.vehicle.ui.design.progressOf
-import kr.autolog.vehicle.ui.design.remainingSeconds
+import kr.htaxlog.vehicle.data.interim.MissedTrip
+import kr.htaxlog.vehicle.data.interim.RecoveryChoice
+import kr.htaxlog.vehicle.data.interim.SessionState
+import kr.htaxlog.vehicle.data.interim.StopReason
+import kr.htaxlog.vehicle.data.repository.DriverProfile
+import kr.htaxlog.vehicle.ui.design.formatKm
+import kr.htaxlog.vehicle.ui.design.progressOf
+import kr.htaxlog.vehicle.ui.design.remainingSeconds
 
 /** 스펙 7.2 상태 4가지. */
 enum class HomePhase { READY, RECORDING_PARKED, AUTO_ENDING, NEEDS_RECOVERY }
@@ -4692,7 +4692,7 @@ internal fun reduceHome(
 
 ```kotlin
 // .../ui/home/HomeViewModel.kt
-package kr.autolog.vehicle.ui.home
+package kr.htaxlog.vehicle.ui.home
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -4702,13 +4702,13 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import kr.autolog.vehicle.common.AppClock
-import kr.autolog.vehicle.common.tickerFlow
-import kr.autolog.vehicle.data.repository.ContextRepository
-import kr.autolog.vehicle.data.repository.ProfileRepository
-import kr.autolog.vehicle.data.repository.SessionRepository
-import kr.autolog.vehicle.nav.Navigator
-import kr.autolog.vehicle.nav.Route
+import kr.htaxlog.vehicle.common.AppClock
+import kr.htaxlog.vehicle.common.tickerFlow
+import kr.htaxlog.vehicle.data.repository.ContextRepository
+import kr.htaxlog.vehicle.data.repository.ProfileRepository
+import kr.htaxlog.vehicle.data.repository.SessionRepository
+import kr.htaxlog.vehicle.nav.Navigator
+import kr.htaxlog.vehicle.nav.Route
 
 class HomeViewModel(
     private val session: SessionRepository,
@@ -4747,7 +4747,7 @@ class HomeViewModel(
 
 ```kotlin
 // .../ui/home/AutoEndPrompt.kt
-package kr.autolog.vehicle.ui.home
+package kr.htaxlog.vehicle.ui.home
 
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloatAsState
@@ -4768,18 +4768,18 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
-import kr.autolog.vehicle.R
-import kr.autolog.vehicle.ui.design.AutoLogTheme
-import kr.autolog.vehicle.ui.design.DriverSide
-import kr.autolog.vehicle.ui.design.LocalDriverSide
-import kr.autolog.vehicle.ui.design.LocalWindowLayout
-import kr.autolog.vehicle.ui.design.Size
-import kr.autolog.vehicle.ui.design.Space
-import kr.autolog.vehicle.ui.design.WindowLayout
-import kr.autolog.vehicle.ui.design.components.PrimaryButton
-import kr.autolog.vehicle.ui.design.components.ScrimSheet
-import kr.autolog.vehicle.ui.design.components.SecondaryButton
-import kr.autolog.vehicle.ui.design.durationText
+import kr.htaxlog.vehicle.R
+import kr.htaxlog.vehicle.ui.design.HTaxLogTheme
+import kr.htaxlog.vehicle.ui.design.DriverSide
+import kr.htaxlog.vehicle.ui.design.LocalDriverSide
+import kr.htaxlog.vehicle.ui.design.LocalWindowLayout
+import kr.htaxlog.vehicle.ui.design.Size
+import kr.htaxlog.vehicle.ui.design.Space
+import kr.htaxlog.vehicle.ui.design.WindowLayout
+import kr.htaxlog.vehicle.ui.design.components.PrimaryButton
+import kr.htaxlog.vehicle.ui.design.components.ScrimSheet
+import kr.htaxlog.vehicle.ui.design.components.SecondaryButton
+import kr.htaxlog.vehicle.ui.design.durationText
 
 /**
  * 스펙 7.2.1 / 디자인 언어 2.6·11장. 아무것도 안 누르면 끝나는 것이 기본값이므로
@@ -4787,9 +4787,9 @@ import kr.autolog.vehicle.ui.design.durationText
  */
 @Composable
 fun AutoEndPrompt(state: AutoEndUi, tripKm: String?, destination: String?, onKeep: () -> Unit, onEnd: () -> Unit) {
-    val c = AutoLogTheme.colors
-    val t = AutoLogTheme.type
-    val motion = AutoLogTheme.motion
+    val c = HTaxLogTheme.colors
+    val t = HTaxLogTheme.type
+    val motion = HTaxLogTheme.motion
     val progress by animateFloatAsState(
         targetValue = state.progress,
         animationSpec = if (motion.isStatic) snap() else tween(durationMillis = 1_000, easing = LinearEasing),
@@ -4834,7 +4834,7 @@ fun AutoEndPrompt(state: AutoEndUi, tripKm: String?, destination: String?, onKee
 
 ```kotlin
 // .../ui/home/RecoveryDialog.kt
-package kr.autolog.vehicle.ui.home
+package kr.htaxlog.vehicle.ui.home
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -4847,21 +4847,21 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
-import kr.autolog.vehicle.R
-import kr.autolog.vehicle.data.interim.RecoveryChoice
-import kr.autolog.vehicle.ui.design.AutoLogTheme
-import kr.autolog.vehicle.ui.design.Space
-import kr.autolog.vehicle.ui.design.components.DangerButton
-import kr.autolog.vehicle.ui.design.components.PrimaryButton
-import kr.autolog.vehicle.ui.design.components.ScrimSheet
-import kr.autolog.vehicle.ui.design.components.SecondaryButton
-import kr.autolog.vehicle.ui.design.components.TertiaryButton
+import kr.htaxlog.vehicle.R
+import kr.htaxlog.vehicle.data.interim.RecoveryChoice
+import kr.htaxlog.vehicle.ui.design.HTaxLogTheme
+import kr.htaxlog.vehicle.ui.design.Space
+import kr.htaxlog.vehicle.ui.design.components.DangerButton
+import kr.htaxlog.vehicle.ui.design.components.PrimaryButton
+import kr.htaxlog.vehicle.ui.design.components.ScrimSheet
+import kr.htaxlog.vehicle.ui.design.components.SecondaryButton
+import kr.htaxlog.vehicle.ui.design.components.TertiaryButton
 
 /** Backend F-10 복구. 되돌릴 수 없는 [삭제]만 한 번 더 묻는다(디자인 언어 2.6). */
 @Composable
 fun RecoveryDialog(extraKm: String?, onChoice: (RecoveryChoice) -> Unit) {
-    val c = AutoLogTheme.colors
-    val t = AutoLogTheme.type
+    val c = HTaxLogTheme.colors
+    val t = HTaxLogTheme.type
     var confirmingDelete by rememberSaveable { mutableStateOf(false) }
     ScrimSheet {
         Column(verticalArrangement = Arrangement.spacedBy(Space.s4)) {
@@ -4885,7 +4885,7 @@ fun RecoveryDialog(extraKm: String?, onChoice: (RecoveryChoice) -> Unit) {
 
 ```kotlin
 // .../ui/home/HomeScreen.kt
-package kr.autolog.vehicle.ui.home
+package kr.htaxlog.vehicle.ui.home
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -4909,23 +4909,23 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import kr.autolog.vehicle.R
-import kr.autolog.vehicle.di.LocalAppGraph
-import kr.autolog.vehicle.ui.design.AutoLogTheme
-import kr.autolog.vehicle.ui.design.DriverSide
-import kr.autolog.vehicle.ui.design.LocalDriverSide
-import kr.autolog.vehicle.ui.design.LocalWindowLayout
-import kr.autolog.vehicle.ui.design.Size
-import kr.autolog.vehicle.ui.design.Space
-import kr.autolog.vehicle.ui.design.WindowLayout
-import kr.autolog.vehicle.ui.design.components.Avatar
-import kr.autolog.vehicle.ui.design.components.Banner
-import kr.autolog.vehicle.ui.design.components.BannerAction
-import kr.autolog.vehicle.ui.design.components.ChipTone
-import kr.autolog.vehicle.ui.design.components.HeroMetric
-import kr.autolog.vehicle.ui.design.components.PrimaryButton
-import kr.autolog.vehicle.ui.design.components.StatusChip
-import kr.autolog.vehicle.ui.design.sharedAvatar
+import kr.htaxlog.vehicle.R
+import kr.htaxlog.vehicle.di.LocalAppGraph
+import kr.htaxlog.vehicle.ui.design.HTaxLogTheme
+import kr.htaxlog.vehicle.ui.design.DriverSide
+import kr.htaxlog.vehicle.ui.design.LocalDriverSide
+import kr.htaxlog.vehicle.ui.design.LocalWindowLayout
+import kr.htaxlog.vehicle.ui.design.Size
+import kr.htaxlog.vehicle.ui.design.Space
+import kr.htaxlog.vehicle.ui.design.WindowLayout
+import kr.htaxlog.vehicle.ui.design.components.Avatar
+import kr.htaxlog.vehicle.ui.design.components.Banner
+import kr.htaxlog.vehicle.ui.design.components.BannerAction
+import kr.htaxlog.vehicle.ui.design.components.ChipTone
+import kr.htaxlog.vehicle.ui.design.components.HeroMetric
+import kr.htaxlog.vehicle.ui.design.components.PrimaryButton
+import kr.htaxlog.vehicle.ui.design.components.StatusChip
+import kr.htaxlog.vehicle.ui.design.sharedAvatar
 
 @Composable
 fun HomeRoute() {
@@ -5008,8 +5008,8 @@ private fun HomeChips(state: HomeUiState, onAction: (HomeAction) -> Unit) {
 
 @Composable
 private fun ColumnScope.HomeHero(state: HomeUiState, onAction: (HomeAction) -> Unit) {
-    val c = AutoLogTheme.colors
-    val t = AutoLogTheme.type
+    val c = HTaxLogTheme.colors
+    val t = HTaxLogTheme.type
     if (state.phase == HomePhase.READY) {
         state.missedTripKm?.let {
             Banner(
@@ -5060,9 +5060,9 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 ### Task 15: 데모 패널 (demo flavor 전용)
 
 **Files:**
-- Create: `vehicle-app/src/demo/kotlin/kr/autolog/vehicle/demo/DemoScenario.kt`, `vehicle-app/src/demo/kotlin/kr/autolog/vehicle/demo/DemoPanel.kt`, `vehicle-app/src/demo/res/values/strings.xml`
-- Modify: `vehicle-app/src/demo/kotlin/kr/autolog/vehicle/di/FlavorGraph.kt`(`demoOverlay` 연결)
-- Test: `vehicle-app/src/testDemo/kotlin/kr/autolog/vehicle/demo/DemoScenarioTest.kt`
+- Create: `vehicle-app/src/demo/kotlin/kr/htaxlog/vehicle/demo/DemoScenario.kt`, `vehicle-app/src/demo/kotlin/kr/htaxlog/vehicle/demo/DemoPanel.kt`, `vehicle-app/src/demo/res/values/strings.xml`
+- Modify: `vehicle-app/src/demo/kotlin/kr/htaxlog/vehicle/di/FlavorGraph.kt`(`demoOverlay` 연결)
+- Test: `vehicle-app/src/testDemo/kotlin/kr/htaxlog/vehicle/demo/DemoScenarioTest.kt`
 
 **Interfaces:**
 - Consumes: `FakeTripSession`, `VehicleMotion`, `MissedTrip`, `SecondaryButton`, `ScrimSheet`, `LocalInputLocked`
@@ -5071,17 +5071,17 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 - [ ] **Step 1: 실패하는 테스트**
 
 ```kotlin
-// vehicle-app/src/testDemo/kotlin/kr/autolog/vehicle/demo/DemoScenarioTest.kt
-package kr.autolog.vehicle.demo
+// vehicle-app/src/testDemo/kotlin/kr/htaxlog/vehicle/demo/DemoScenarioTest.kt
+package kr.htaxlog.vehicle.demo
 
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
-import kr.autolog.vehicle.common.AppClock
-import kr.autolog.vehicle.data.interim.FakeTripSession
-import kr.autolog.vehicle.data.interim.SessionState
-import kr.autolog.vehicle.data.interim.VehicleMotion
+import kr.htaxlog.vehicle.common.AppClock
+import kr.htaxlog.vehicle.data.interim.FakeTripSession
+import kr.htaxlog.vehicle.data.interim.SessionState
+import kr.htaxlog.vehicle.data.interim.VehicleMotion
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -5135,17 +5135,17 @@ Expected: FAIL — `Unresolved reference: DemoScenario`
 ```
 
 ```kotlin
-// vehicle-app/src/demo/kotlin/kr/autolog/vehicle/demo/DemoScenario.kt
-package kr.autolog.vehicle.demo
+// vehicle-app/src/demo/kotlin/kr/htaxlog/vehicle/demo/DemoScenario.kt
+package kr.htaxlog.vehicle.demo
 
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kr.autolog.vehicle.common.AppClock
-import kr.autolog.vehicle.data.interim.FakeTripSession
-import kr.autolog.vehicle.data.interim.MissedTrip
-import kr.autolog.vehicle.data.interim.VehicleMotion
+import kr.htaxlog.vehicle.common.AppClock
+import kr.htaxlog.vehicle.data.interim.FakeTripSession
+import kr.htaxlog.vehicle.data.interim.MissedTrip
+import kr.htaxlog.vehicle.data.interim.VehicleMotion
 
 /**
  * 스펙 6.7 데모 패널의 동작. VHAL 없이 시연 영상을 찍는다.
@@ -5188,8 +5188,8 @@ class DemoScenario(private val trip: FakeTripSession, private val scope: Corouti
 ```
 
 ```kotlin
-// vehicle-app/src/demo/kotlin/kr/autolog/vehicle/demo/DemoPanel.kt
-package kr.autolog.vehicle.demo
+// vehicle-app/src/demo/kotlin/kr/htaxlog/vehicle/demo/DemoPanel.kt
+package kr.htaxlog.vehicle.demo
 
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -5209,13 +5209,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.res.stringResource
-import kr.autolog.vehicle.R
-import kr.autolog.vehicle.ui.design.AutoLogTheme
-import kr.autolog.vehicle.ui.design.LocalInputLocked
-import kr.autolog.vehicle.ui.design.Size
-import kr.autolog.vehicle.ui.design.Space
-import kr.autolog.vehicle.ui.design.components.ScrimSheet
-import kr.autolog.vehicle.ui.design.components.SecondaryButton
+import kr.htaxlog.vehicle.R
+import kr.htaxlog.vehicle.ui.design.HTaxLogTheme
+import kr.htaxlog.vehicle.ui.design.LocalInputLocked
+import kr.htaxlog.vehicle.ui.design.Size
+import kr.htaxlog.vehicle.ui.design.Space
+import kr.htaxlog.vehicle.ui.design.components.ScrimSheet
+import kr.htaxlog.vehicle.ui.design.components.SecondaryButton
 
 /** 오른쪽 위 96 dp 영역 길게 누르기 → 패널. 데모 전용이라 잠금을 무시한다(정차 중에도 주차로 되돌릴 수 있게). */
 @Composable
@@ -5227,7 +5227,7 @@ fun DemoPanelOverlay(scenario: DemoScenario) {
     if (open) {
         CompositionLocalProvider(LocalInputLocked provides false) {
             ScrimSheet {
-                Text(stringResource(R.string.demo_title), style = AutoLogTheme.type.headline, color = AutoLogTheme.colors.textPrimary)
+                Text(stringResource(R.string.demo_title), style = HTaxLogTheme.type.headline, color = HTaxLogTheme.colors.textPrimary)
                 Column(verticalArrangement = Arrangement.spacedBy(Space.s3)) {
                     val item = @Composable { label: Int, action: () -> Unit ->
                         SecondaryButton(stringResource(label), { action(); open = false }, Modifier.fillMaxWidth())
@@ -5249,8 +5249,8 @@ fun DemoPanelOverlay(scenario: DemoScenario) {
 `demo/.../di/FlavorGraph.kt`의 `DemoAppGraph`에서 마지막 줄을 아래로 바꾼다:
 
 ```kotlin
-    private val scenario = kr.autolog.vehicle.demo.DemoScenario(trip, scope, clock)
-    override val demoOverlay: (@Composable () -> Unit)? = { kr.autolog.vehicle.demo.DemoPanelOverlay(scenario) }
+    private val scenario = kr.htaxlog.vehicle.demo.DemoScenario(trip, scope, clock)
+    override val demoOverlay: (@Composable () -> Unit)? = { kr.htaxlog.vehicle.demo.DemoPanelOverlay(scenario) }
 ```
 (`DemoAppGraph(scope: CoroutineScope)`의 `scope`를 `private val scope: CoroutineScope`로 바꿔 프로퍼티로 쓸 수 있게 한다.)
 
@@ -5327,7 +5327,7 @@ Expected: 모두 `BUILD SUCCESSFUL`, 스크린샷 50장(components 2 + peek 18 +
 4. 윈도 바로 portrait ↔ landscape, 다른 앱과 1:1 분할 → 잘림·겹침 없음, 상태 유지
 5. 차량 설정에서 주간·야간 전환 → 깜빡임 없음(V-08)
 6. FormFactorConsole 프리셋별 dp·DPI·px 기록(V-01) → `docs/verification.md`
-7. vehicle flavor 설치 후 VHAL로 기어 D·속도 주입 → CarUxRestrictions 값 로그(`adb logcat -s AutoLog/ui`)(V-04, V-11)
+7. vehicle flavor 설치 후 VHAL로 기어 D·속도 주입 → CarUxRestrictions 값 로그(`adb logcat -s HTaxLog/ui`)(V-04, V-11)
 
 ## 결정이 필요한 것
 - 토큰 값 조정(색·크기)이 있으면 `docs/design-language.md`를 먼저 고치고 `ContrastTest`를 통과시킨다.

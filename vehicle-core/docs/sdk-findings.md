@@ -74,7 +74,7 @@ Gradle 캐시의 `ai.pleos.playground:Vehicle:2.3.2`(+ `vehicle-data:1.1.11`, `v
 | capability | `checkXxxCapabilities(onSuccess: (CapabilityConfig) -> Unit, onFailed)`. `CapabilityConfig.accessType`: `NONE / READ / WRITE / READ_WRITE` | 읽기 가능 = `READ` 또는 `READ_WRITE` |
 | 매니페스트(SDK가 병합) | `ai.pleos.playground.service.vehicle.VEHICLE_BINDING` 권한, `queries`에 `ai.pleos.playground.vehicle.VEHICLE_START`, 서비스 최소 버전 2.3.13 | 앱이 따로 선언할 필요 없음 |
 
-### AutoLog가 쓰는 API
+### H-TaxLog가 쓰는 API
 
 | 용도 | API | 값 타입 | 권한(`@RequiresPermission`) |
 |---|---|---|---|
@@ -115,14 +115,14 @@ Gradle 캐시의 `ai.pleos.playground:Vehicle:2.3.2`(+ `vehicle-data:1.1.11`, `v
   - 계기판: `PUT /vehicle/odometer?traveled_distance_km=18443.9` (감소하면 `traveled_distance_must_not_decrease`)
   - 기어: `PUT /vehicle/gear?gear=Park|Reverse|Neutral|Drive`
   - 상태: `GET /vehicle/state`, 기능 목록·VHAL 매핑: `GET /vehicle/catalog` (계기판 = `PERF_ODOMETER` 0x11600204, 기어 = `VENDOR_GEAR_SELECTION` 0x21400400)
-- 자동 탐침: `./gradlew :vehicle-core:connectedDebugAndroidTest` → `adb logcat -s AutoLog/probe AutoLog/vehicle`. 테스트(`VirtualConsole`)가 에뮬레이터 안 `127.0.0.1:8088`로 직접 하트비트·값 변경을 보낸다.
+- 자동 탐침: `./gradlew :vehicle-core:connectedDebugAndroidTest` → `adb logcat -s HTaxLog/probe HTaxLog/vehicle`. 테스트(`VirtualConsole`)가 에뮬레이터 안 `127.0.0.1:8088`로 직접 하트비트·값 변경을 보낸다.
 
 ## 에뮬레이터에서 확인한 앱 실행 조건 (앱 A, 2026-11-09)
 
 | 항목 | 결과 | 영향 |
 |---|---|---|
 | 앱 사용자 | Pleos(AAOS)는 앱이 **사용자 10**으로 돈다. `adb shell pm grant`는 `--user 10`이 필요 | 테스트·수동 권한 부여 |
-| `pleos.car.permission.FUSED_LOCATION` | **런타임 권한**. 없으면 콜백 등록이 `SecurityException` — 잡지 않으면 앱이 죽는다 | 프론트가 `AutoLog.create` 전에 요청. 조립 범위에 예외 처리기(#27) |
+| `pleos.car.permission.FUSED_LOCATION` | **런타임 권한**. 없으면 콜백 등록이 `SecurityException` — 잡지 않으면 앱이 죽는다 | 프론트가 `HTaxLog.create` 전에 요청. 조립 범위에 예외 처리기(#27) |
 | `pleos.car.permission.NAVI_ROUTE` | 선언 안 하면 NaviHelper initialize 실패 | vehicle-core 매니페스트에 선언(#27) |
 | `POST_NOTIFICATIONS` | targetSdk 35에서 런타임 권한. 없으면 운행 알림이 안 보인다 | 프론트가 요청 |
 | 포그라운드 서비스 알림 | Android 12+는 최대 10초 늦게 보인다("Deferring FGS notification") | `FOREGROUND_SERVICE_IMMEDIATE`(#21) |

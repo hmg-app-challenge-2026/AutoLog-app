@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Pleos Connect 에뮬레이터에서 AutoLog를 손으로 시험하는 도우미.
+# Pleos Connect 에뮬레이터에서 HTaxLog를 손으로 시험하는 도우미.
 # 가상 콘솔(에뮬레이터 안 8088)은 "브라우저 세션"이 살아 있을 때만 값을 받으므로, 명령마다 세션 신호를 함께 보낸다.
 #
 #   scripts/emu.sh setup            포트 연결 + 권한(위치·알림·차속) 부여 + 앱 실행
@@ -11,16 +11,16 @@
 #   scripts/emu.sh drive 40 5 30    위와 같은데 30초 동안 달린다(기본 15초)
 #   scripts/emu.sh follow           콘솔에서 직접 운전하는 동안 차속만큼 계기판을 계속 올린다 (Ctrl+C로 끝)
 #   scripts/emu.sh state            콘솔의 현재 기어·차속·계기판
-#   scripts/emu.sh log              AutoLog 로그 보기 (Ctrl+C로 끝)
+#   scripts/emu.sh log              HTaxLog 로그 보기 (Ctrl+C로 끝)
 set -euo pipefail
 
 ADB="${ANDROID_HOME:-$HOME/Library/Android/sdk}/platform-tools/adb"
-PKG="kr.autolog.vehicle"
+PKG="kr.htaxlog.vehicle"
 CONSOLE="http://localhost:8088"
 
 heartbeat() {
   "$ADB" forward tcp:8088 tcp:8088 >/dev/null
-  curl -s -m 2 -X POST "$CONSOLE/browser/session?client=autolog-emu-sh" >/dev/null
+  curl -s -m 2 -X POST "$CONSOLE/browser/session?client=htaxlog-emu-sh" >/dev/null
 }
 
 odo_now() {
@@ -92,6 +92,6 @@ print("gear  :", (d["gear"].get("actual") or {}).get("value"))
 print("speed :", d["controls"].get("speed_kph"), "km/h")
 print("odo   :", d["odometer"].get("traveled_distance_km"), "km")'
     ;;
-  log) "$ADB" logcat -s AutoLog/core AutoLog/session AutoLog/vehicle ;;
+  log) "$ADB" logcat -s HTaxLog/core HTaxLog/session HTaxLog/vehicle ;;
   *) sed -n '2,15p' "$0"; exit 1 ;;
 esac

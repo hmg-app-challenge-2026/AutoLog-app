@@ -1,8 +1,8 @@
-# AutoLog 개발 컨벤션
+# H-TaxLog 개발 컨벤션
 
 > 로직 2명(앱 A·B)과 프론트 1명이 한 저장소에서 같이 개발하기 위한 규칙이다.
 > 근거 문서는 기술명세 8장(분업)과 기능명세 3장(담당 열)이다. 이 문서와 명세가 다르면 **명세를 따르고 이 문서를 고친다.**
-> 화면(`vehicle-app/`·`web/`)의 설계 기준은 [프론트 설계 스펙](docs/superpowers/specs/2026-11-09-autolog-frontend-design.md)과 [디자인 언어](docs/design-language.md)이고, 화면에만 해당하는 규칙은 [11장](#11-화면vehicle-app--web-규칙)에 있다.
+> 화면(`vehicle-app/`·`web/`)의 설계 기준은 [프론트 설계 스펙](docs/superpowers/specs/2026-11-09-htaxlog-frontend-design.md)과 [디자인 언어](docs/design-language.md)이고, 화면에만 해당하는 규칙은 [11장](#11-화면vehicle-app--web-규칙)에 있다.
 >
 > **2026-11-11 AutoLog-Frontend와 AutoLog-Backend를 이 리포(AutoLog-app) 하나로 합쳤다.** 두 리포의 커밋 기록과 브랜치는 그대로 들어 있다. 예전 프론트 리포의 CONVENTIONS는 11장으로 옮겼다(내용은 그대로, submodule 관련 문장만 고침).
 >
@@ -30,7 +30,7 @@
 | `vehicle-core/.../fake/` | **A·B 공동** | `Contracts.kt`의 Fake 구현 (각자 자기 인터페이스 것을 만든다) |
 | `vehicle-core/.../vehicle/` | A | VehicleGateway |
 | `vehicle-core/.../session/` | A | TripSessionManager, TripRecordingService·알림, Recovery, DrivingJudge |
-| `vehicle-core/.../data/` | A | Room 엔티티·DAO·AutoLogDb, InboxSyncWorker, RelayApi |
+| `vehicle-core/.../data/` | A | Room 엔티티·DAO·HTaxLogDb, InboxSyncWorker, RelayApi |
 | `vehicle-core/.../report/` | A | ReportBuilder(XLSX), ReviewCalculator |
 | `vehicle-core/.../navi/` · `location/` · `speech/` | B | NaviGateway, LocationGateway, STT·TTS, 음성 파서 |
 | `vehicle-core/.../domain/` | B | PurposeRules, DriverResolver, UserOrdering, PlaceSuggester, ReceiptMatcher |
@@ -42,7 +42,7 @@
 | `docs/design-language.md` · `docs/superpowers/` · `docs/integration/` | 프론트 | 화면 설계 스펙·디자인 언어·백엔드 연결 기록 |
 | `ops/` · 루트 Gradle 설정 · 이 문서 | 공동 | 바꿀 때 상대방 리뷰 |
 
-> 명세 7장 트리에는 로직이 `app/` 아래로 그려져 있지만, 실제 저장소는 로직을 `vehicle-core/`로 분리했다. 패키지 이름(`kr.autolog.vehicle.*`)은 명세와 같다.
+> 명세 7장 트리에는 로직이 `app/` 아래로 그려져 있지만, 실제 저장소는 로직을 `vehicle-core/`로 분리했다. 패키지 이름(`kr.htaxlog.vehicle.*`)은 명세와 같다.
 > 화면 앱은 `vehicle-app/`(Gradle `:vehicle-app`)이다. 예전 백엔드 리포의 `app/`(화면 뼈대)은 리포를 합치면서 지웠다(프론트 스펙 R-6).
 
 ### 1.3 의존 방향
@@ -199,7 +199,7 @@ F-05, F-10 … (명세 3장)
 
 ---
 
-## 7. 설계 규칙 — AutoLog에서 꼭 지킬 것
+## 7. 설계 규칙 — H-TaxLog에서 꼭 지킬 것
 
 명세의 원칙을 코드 규칙으로 옮긴 것이다. 리뷰할 때 이 목록을 기준으로 본다.
 
@@ -237,7 +237,7 @@ F-05, F-10 … (명세 3장)
 
 ### 7.6 로그
 
-- 태그는 `AutoLog/<패키지>` 형식이다. 예: `AutoLog/vehicle`, `AutoLog/session`.
+- 태그는 `H-TaxLog/<패키지>` 형식이다. 예: `HTaxLog/vehicle`, `HTaxLog/session`.
 - SDK 검증 단계에서는 원본 값과 시각을 그대로 찍는다. logcat이 A·B의 완료 기준이다(명세 8.2).
 - **로그에 남기면 안 되는 것:** 카드번호(뒷 4자리 외), SMTP 비밀번호, 기기 토큰, Gemini 키, 정밀 좌표(소수 3자리까지만).
 
@@ -301,7 +301,7 @@ F-05, F-10 … (명세 3장)
 ## 11. 화면(`vehicle-app` · `web`) 규칙
 
 > 예전 AutoLog-Frontend 리포의 CONVENTIONS다(2026-11-11 리포를 합치며 이 장으로 옮김). 화면 코드를 쓰거나 고치는 모든 사람(과 AI 도구)이 따른다.
-> 설계는 [설계 스펙](docs/superpowers/specs/2026-11-09-autolog-frontend-design.md), 디자인은 [디자인 언어](docs/design-language.md)가 기준이다. 이 장과 스펙이 다르면 **스펙을 따르고 이 장을 고친다.**
+> 설계는 [설계 스펙](docs/superpowers/specs/2026-11-09-htaxlog-frontend-design.md), 디자인은 [디자인 언어](docs/design-language.md)가 기준이다. 이 장과 스펙이 다르면 **스펙을 따르고 이 장을 고친다.**
 > 1~10장(공통 규칙)은 그대로 따르고, 화면에서 다른 점만 여기 적는다.
 
 ### 11.1 소유와 경계
@@ -315,7 +315,7 @@ F-05, F-10 … (명세 3장)
 | `vehicle-app/.../overlay/` · `src/vehicle/.../overlay/` | 프론트 | 운행 기록 알약(스펙 6.12). 경계·표시 규칙은 main, Android 창 구현(`RecordingPill`)은 vehicle flavor에만. 설정 화면은 `data/repository/OverlayPermissionRepository`로만 권한을 본다 |
 
 - `ai.pleos.*` import 금지(스펙 6.1).
-- `ui/` 패키지는 `data/repository`의 인터페이스만 쓴다. `kr.autolog.vehicle.core`의 서비스 인터페이스를 import하지 않는다(값 enum은 가능).
+- `ui/` 패키지는 `data/repository`의 인터페이스만 쓴다. `kr.htaxlog.vehicle.core`의 서비스 인터페이스를 import하지 않는다(값 enum은 가능).
 - Backend 내부 패키지(`session`, `data`, `domain`, `navi` …) import 금지. `core`·`fake`·`shared`만.
 
 ### 11.2 브랜치·커밋·PR
@@ -334,11 +334,11 @@ F-05, F-10 … (명세 3장)
 - Composable 이름은 PascalCase 명사, 파라미터 순서: 필수 데이터 → `onXxx` 콜백 → `modifier: Modifier = Modifier` (마지막).
 - **누를 수 있는 요소는 모두 `Modifier.tappable`**(`ui/design/components/Press.kt`)로 만든다. 입력 잠금(스펙 6.9)·누름 피드백·햅틱이 한곳에 있다 — `clickable`을 직접 쓰지 않는다. 정차·주행 중엔 화면이 그대로 남고 잠금만 걸린다(D-31) — 그때도 눌려야 하는 동작(지금은 [기록 종료] 하나)만 `whileDriving = true`.
 - 화면 바깥 여백은 `screenMargin()`(창 크기별 하나). 화면마다 `Space.s7`/`tallMargin`을 따로 고르지 않는다.
-- 창 크기에 따라 달라지는 글자는 `AutoLogTheme.windowType.<역할>`(`ui/design/WindowType.kt`). 화면·컴포넌트에서 `if (LocalWindowLayout.current == NARROW) type.a else type.b`로 글자를 고르지 않는다 — 새 역할이 필요하면 그 표에 한 줄 더한다.
+- 창 크기에 따라 달라지는 글자는 `HTaxLogTheme.windowType.<역할>`(`ui/design/WindowType.kt`). 화면·컴포넌트에서 `if (LocalWindowLayout.current == NARROW) type.a else type.b`로 글자를 고르지 않는다 — 새 역할이 필요하면 그 표에 한 줄 더한다.
 - 입력 칸이 여러 개인 화면은 칸 정의(이름·단위·입력 방법·계약 키)를 enum 하나에 모은다(예: `ui/receipt/FuelField.kt`). 칸마다 `when`을 여러 곳에 두지 않는다.
 - ViewModel·Reducer는 화면 문구를 모른다. 사람에게 보일 이름·오류는 sealed 타입(예: `FuelTripLabel`, `FuelEntryError`)으로 내보내고 화면이 `strings.xml`로 바꾼다.
 - 화면 하나의 상태 계산은 `XxxReducer.kt`의 순수 함수(`reduceXxx`)로 두고 Repository 값 타입만 입력으로 받는다. `data/fake`·`data/upload` 타입은 `ui/`에 들어오지 않는다(스펙 6.6).
-- 색·글자·간격·모양·모션은 **반드시 `AutoLogTheme` 토큰**. 리터럴 `Color(0xFF…)`, `16.dp`, `24.sp`를 화면 코드에 쓰지 않는다(토큰 정의 파일 제외).
+- 색·글자·간격·모양·모션은 **반드시 `HTaxLogTheme` 토큰**. 리터럴 `Color(0xFF…)`, `16.dp`, `24.sp`를 화면 코드에 쓰지 않는다(토큰 정의 파일 제외).
 - 모션은 `ui/design/motion/`의 도우미로만(디자인 언어 8.2): 팝업은 `ModalHost`로 감싸고(닫힘 모션), 같은 자리 교체 `FadeThrough`, 달 이동 `DirectionalContent`, 생겼다 사라지는 것 `ExpandVisibility`·`ExpandSwap`, 선택 `animateSelectColor`. 화면 코드에 `AnimatedContent`·`animate*AsState`·`spring(...)`·`tween(...)`을 직접 쓰지 않는다. 화면 전환 모양은 `FullApp`이 스택 변화로 정한다 — 화면은 Navigator만 부른다.
 - **버튼 바로 위 설명글은 가운데** — 화면은 `ButtonNote`, 팝업 안은 `ModalText`(2026-11-10 사용자 지시). `Text`를 버튼 위에 왼쪽 정렬로 두지 않는다.
 - 문자열은 `strings.xml`. 화면 코드에 한국어 리터럴을 쓰지 않는다(Preview·테스트 제외).

@@ -17,7 +17,7 @@
 
 - `DeviceApi.connection` → `ConnectionState.Registered(vehicleLabel, serverUrl, lastSyncAt)` — 번호판 **라벨**만 있다.
 - 실제 id는 `DeviceRepository.vehicleId`(`data` 패키지)에만 있다. 화면은 `core`·`fake`만 import한다(CONVENTIONS 1.3).
-- 백엔드 조립(`AutoLog.create`)은 이미 `device.vehicleId`를 `TripSessionManager`·`RoomReportSource`에 넘긴다. **화면 쪽 길만 없다.**
+- 백엔드 조립(`HTaxLog.create`)은 이미 `device.vehicleId`를 `TripSessionManager`·`RoomReportSource`에 넘긴다. **화면 쪽 길만 없다.**
 
 지금 프론트(`RealAppGraph.vehicleId()`)는 등록 전 운행과 같은 `"unregistered"`를 넘긴다. 그래서 실제 앱에서는:
 

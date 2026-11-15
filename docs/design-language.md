@@ -1,12 +1,12 @@
-# AutoLog 디자인 언어
+# H-TaxLog 디자인 언어
 
 | 항목 | 내용 |
 |---|---|
-| 문서 목적 | AutoLog 화면이 **왜 이렇게 생겼고, 어떻게 움직이며, 무엇을 하지 않는지**를 정한다. 디자이너가 없어도 이 문서만으로 같은 화면이 나와야 한다 |
+| 문서 목적 | H-TaxLog 화면이 **왜 이렇게 생겼고, 어떻게 움직이며, 무엇을 하지 않는지**를 정한다. 디자이너가 없어도 이 문서만으로 같은 화면이 나와야 한다 |
 | 적용 범위 | Pleos 차량 앱(1순위), 운영 웹, 폰 카메라 페이지 |
 | 상태 | 확정 v1.0 (2026-11-09). 11.10–11 디자인 게이트에서 스크린샷 리뷰 후 값만 조정할 수 있다 |
-| 함께 읽을 문서 | [설계 스펙](superpowers/specs/2026-11-09-autolog-frontend-design.md) — 사용 3단계·조작 예산·화면 구조·데이터 |
-| 코드 위치 | `vehicle-app/src/main/kotlin/kr/autolog/vehicle/ui/design/` — 이 문서의 토큰 이름이 코드 이름이다 |
+| 함께 읽을 문서 | [설계 스펙](superpowers/specs/2026-11-09-htaxlog-frontend-design.md) — 사용 3단계·조작 예산·화면 구조·데이터 |
+| 코드 위치 | `vehicle-app/src/main/kotlin/kr/htaxlog/vehicle/ui/design/` — 이 문서의 토큰 이름이 코드 이름이다 |
 
 > 규범 용어: **반드시** · **하지 않는다** · **권장** — 설계 스펙과 같다.
 
@@ -16,7 +16,7 @@
 
 > **차가 조용히 기록하고, 사람은 한 번만 확인한다.**
 
-AutoLog의 UI는 존재감을 줄이는 쪽으로 설계한다. **주행 중에는 복귀 후보가 있으면 물러나고**(백그라운드에서 기록), **정차 중에는 옆에서 잠깐 보여 주기만** 하고, **주차하면** 필요한 것 하나를 크고 분명하게 묻는다. 그리고 묻더라도 **사람이 누르지 않아도 되는 쪽이 기본값**이다. 화려함보다 **신뢰**가, 기능의 수보다 **조작 없이 끝나는 경험**이 중요하다.
+H-TaxLog의 UI는 존재감을 줄이는 쪽으로 설계한다. **주행 중에는 복귀 후보가 있으면 물러나고**(백그라운드에서 기록), **정차 중에는 옆에서 잠깐 보여 주기만** 하고, **주차하면** 필요한 것 하나를 크고 분명하게 묻는다. 그리고 묻더라도 **사람이 누르지 않아도 되는 쪽이 기본값**이다. 화려함보다 **신뢰**가, 기능의 수보다 **조작 없이 끝나는 경험**이 중요하다.
 
 ---
 
@@ -26,7 +26,7 @@ AutoLog의 UI는 존재감을 줄이는 쪽으로 설계한다. **주행 중에�
 
 ### 2.1 테슬라 — "차가 주인공, UI는 침묵한다"
 
-| 가져오는 원리 | AutoLog에서의 모습 |
+| 가져오는 원리 | H-TaxLog에서의 모습 |
 |---|---|
 | 차량 상태가 화면의 중심이다 | Home의 주인공은 **계기판 거리 숫자** 하나다. 메뉴·장식이 숫자보다 앞에 나오지 않는다 |
 | 크롬(테두리·구분선·장식)이 거의 없다 | 구분은 선이 아니라 **면의 명도 차이**와 **여백**으로 한다 |
@@ -36,7 +36,7 @@ AutoLog의 UI는 존재감을 줄이는 쪽으로 설계한다. **주행 중에�
 
 ### 2.2 넷플릭스 — "사람이 먼저, 1탭으로 들어간다"
 
-| 가져오는 원리 | AutoLog에서의 모습 |
+| 가져오는 원리 | H-TaxLog에서의 모습 |
 |---|---|
 | 앱을 열면 "누구세요?"부터 묻는다 | 앱 진입 = **"누가 운전하나요?"** 화면. 공용차에서 폰·비콘 없이 운전자를 안다 |
 | 프로필은 크고 친근한 타일 | 큰 정사각 아바타(이니셜 + 사람마다 다른 그라데이션). 이름은 타일 아래 |
@@ -45,7 +45,7 @@ AutoLog의 UI는 존재감을 줄이는 쪽으로 설계한다. **주행 중에�
 
 ### 2.3 애플 — "물리적으로 자연스럽고, 예측 가능하다"
 
-| 가져오는 원리 | AutoLog에서의 모습 |
+| 가져오는 원리 | H-TaxLog에서의 모습 |
 |---|---|
 | 움직임은 물리를 따른다 | 모든 위치·크기 변화는 **스프링**. 시간이 아니라 질량과 탄성으로 움직인다 |
 | 튀지 않는다 | 감쇠비 0.85 이상. 오버슈트(튕김)를 거의 쓰지 않는다 |
@@ -63,7 +63,7 @@ AutoLog의 UI는 존재감을 줄이는 쪽으로 설계한다. **주행 중에�
 
 | 단계 | 사람의 상황 | 디자인의 역할 | 디자인 규칙 |
 |---|---|---|---|
-| **주행** (`BACKGROUND`) | 도로를 본다 | 다른 앱이 있으면 AutoLog가 물러나고 알약으로 기록 상태를 보인다. 돌아갈 앱이 없으면 기록 중 Home을 읽기 전용으로 유지한다 | 기록 중 Home은 기존 배치를 유지하고 입력을 잠근다 |
+| **주행** (`BACKGROUND`) | 도로를 본다 | 다른 앱이 있으면 H-TaxLog가 물러나고 알약으로 기록 상태를 보인다. 돌아갈 앱이 없으면 기록 중 Home을 읽기 전용으로 유지한다 | 기록 중 Home은 기존 배치를 유지하고 입력을 잠근다 |
 | **정차** (`PEEK`) | 신호 대기 중 1~2초 힐끗 본다 | "기록이 잘 되고 있다"는 **안심**을 준다 | **주차 때와 같은 Home**을 읽기 전용으로(D-31) — 같은 배치·같은 글자. 타일은 같은 자리에 흐리게, 첫 칸([기록 종료]·[기록 시작])만 눌린다. 팝업·스크롤 반응·운전자 배지 없음 |
 | **주차** (`FULL`) | 손이 자유롭고 시간이 있다 | 남은 결정을 **최소 조작으로 끝내게** 한다 | 전체 앱. 이 문서의 모든 컴포넌트·모션 사용 |
 
@@ -190,7 +190,7 @@ AutoLog의 UI는 존재감을 줄이는 쪽으로 설계한다. **주행 중에�
 
 ### 5.5 Material 3 매핑
 
-M3 컴포넌트를 쓸 때 색이 어긋나지 않도록 `AutoLogTheme`이 `ColorScheme`을 아래처럼 채운다. 화면 코드는 M3 `MaterialTheme.colorScheme`이 아니라 **`AutoLogTheme.colors.*`**(위 토큰)를 쓴다.
+M3 컴포넌트를 쓸 때 색이 어긋나지 않도록 `HTaxLogTheme`이 `ColorScheme`을 아래처럼 채운다. 화면 코드는 M3 `MaterialTheme.colorScheme`이 아니라 **`HTaxLogTheme.colors.*`**(위 토큰)를 쓴다.
 
 | M3 | 토큰 |
 |---|---|
@@ -216,10 +216,10 @@ M3 컴포넌트를 쓸 때 색이 어긋나지 않도록 `AutoLogTheme`이 `Colo
 - **Asta Sans**(42dot, SIL OFL 1.1, 가변 굵기 300–800, 한글·라틴). Pleos 시스템 UI 서체와 같다.
 - 파일: `vehicle-app/src/main/res/font/asta_sans.ttf`(google/fonts의 `AstaSans[wght].ttf`) + `OFL.txt`. 설정 > 정보 > 오픈소스 라이선스에 표기한다.
 - Compose: 굵기별 `Font(R.font.asta_sans, weight = FontWeight(w), variationSettings = FontVariation.Settings(FontVariation.weight(w)))`로 `FontFamily`를 만든다(가변 서체, API 26+).
-- **차량 앱 어디에도 다른 서체가 나오지 않는다.** 화면 글자는 모두 `AutoLogTheme.type.*`(Asta Sans) style을 쓰고, Material 3 글자 슬롯 15개(`autoLogMaterialTypography`)와 XML 앱 테마(`android:fontFamily`, View 기반 시스템 대화상자·토스트)도 Asta Sans다. 코드에서 `fontFamily`·`FontFamily`·`Typeface`를 직접 지정하지 않는다(`Type.kt` 제외). `FontCoverageTest`가 이를 지킨다. 앱이 보여 주는 모든 글자가 Asta Sans 글리프 안에 있음을 2026-11-09 확인(대체 서체로 떨어지는 글자 없음)
+- **차량 앱 어디에도 다른 서체가 나오지 않는다.** 화면 글자는 모두 `HTaxLogTheme.type.*`(Asta Sans) style을 쓰고, Material 3 글자 슬롯 15개(`hTaxLogMaterialTypography`)와 XML 앱 테마(`android:fontFamily`, View 기반 시스템 대화상자·토스트)도 Asta Sans다. 코드에서 `fontFamily`·`FontFamily`·`Typeface`를 직접 지정하지 않는다(`Type.kt` 제외). `FontCoverageTest`가 이를 지킨다. 앱이 보여 주는 모든 글자가 Asta Sans 글리프 안에 있음을 2026-11-09 확인(대체 서체로 떨어지는 글자 없음)
 - 운영 웹: `@fontsource-variable/asta-sans`(self-host). 카메라 페이지: 시스템 서체(설계 스펙 D-15).
 
-### 6.2 글자 크기 (`AutoLogTheme.type.*`)
+### 6.2 글자 크기 (`HTaxLogTheme.type.*`)
 
 | 토큰 | 크기 | 굵기 | 행간 | 자간 | 용도 |
 |---|---|---|---|---|---|
@@ -240,7 +240,7 @@ M3 컴포넌트를 쓸 때 색이 어긋나지 않도록 `AutoLogTheme`이 `Colo
 - 숫자(거리·금액·시각)는 **고정폭 숫자** `fontFeatureSettings = "tnum"`. 숫자가 바뀔 때 폭이 흔들리지 않아야 한다. Asta Sans가 tnum을 지원하지 않으면(V-05) 숫자 영역의 너비를 최대 자릿수 기준으로 고정한다.
 - 단위는 숫자보다 작고 옅게: `23.4` (`hero`, `textPrimary`) + `km` (`headline`, `textTertiary`), 기준선 정렬.
 - 한 줄 최대 80자(영문 기준, 한글은 약 40자), 한 덩어리 최대 3줄. 넘치면 문장을 줄인다(말줄임표로 자르는 것은 최후의 수단).
-- **창 크기에 따라 달라지는 글자는 역할로**(`AutoLogTheme.windowType`, `ui/design/WindowType.kt`). 화면·컴포넌트가 `LocalWindowLayout`으로 글자를 직접 고르지 않는다 — 창 크기마다 무엇이 달라지는지가 이 표 한 곳에 있다. Pleos 1:1 분할 한 칸(NARROW, 1280×1268 dp)은 넓은 화면과 **같은 글자**다(1.33) — 실제 크기에서 줄일 이유가 없었다. 예외는 Home 기록 중 운행 경로(`homeRoute`) 하나 — 넓은 화면 64 sp, 분할 화면 52 sp(1.40·1.43).
+- **창 크기에 따라 달라지는 글자는 역할로**(`HTaxLogTheme.windowType`, `ui/design/WindowType.kt`). 화면·컴포넌트가 `LocalWindowLayout`으로 글자를 직접 고르지 않는다 — 창 크기마다 무엇이 달라지는지가 이 표 한 곳에 있다. Pleos 1:1 분할 한 칸(NARROW, 1280×1268 dp)은 넓은 화면과 **같은 글자**다(1.33) — 실제 크기에서 줄일 이유가 없었다. 예외는 Home 기록 중 운행 경로(`homeRoute`) 하나 — 넓은 화면 64 sp, 분할 화면 52 sp(1.40·1.43).
 
   | 역할 | WIDE · NARROW | TALL |
   |---|---|---|
@@ -346,7 +346,7 @@ M3 컴포넌트를 쓸 때 색이 어긋나지 않도록 `AutoLogTheme`이 `Colo
 - **무한 반복 애니메이션은 쓰지 않는다.** 예외: 주차 중 1초 이상 걸리는 로딩의 진행 표시, 경로 화살표 흐름(8.4).
 - 하지 않는 것: 목록 줄줄이 떠오르기, 화면 들어올 때 내용 연출, 배경 패럴랙스, 반짝임.
 
-### 8.2 토큰 (`AutoLogTheme.motion.*`)
+### 8.2 토큰 (`HTaxLogTheme.motion.*`)
 
 스프링 세 가지가 모든 움직임의 바탕이다. 화면 코드는 아래 이름만 쓰고 `spring(...)`·`tween(...)`을 직접 쓰지 않는다.
 
@@ -385,7 +385,7 @@ M3 컴포넌트를 쓸 때 색이 어긋나지 않도록 `AutoLogTheme`이 `Colo
 
 ### 8.4 단계별 모션 정책 (반드시)
 
-`tier != FULL`(잠금)인 동안 `AutoLogTheme.motion`은 **정지형 세트**로 바뀐다. 컴포넌트는 토큰만 쓰므로 자동으로 따라간다.
+`tier != FULL`(잠금)인 동안 `HTaxLogTheme.motion`은 **정지형 세트**로 바뀐다. 컴포넌트는 토큰만 쓰므로 자동으로 따라간다.
 
 반복 상태 표시(경로 화살표 흐름)는 화면 모션과 따로 `motion.ambient`가 정한다 — 정차에서도 켜지고, 시스템 "애니메이션 줄이기"·스크린샷에서만 꺼진다(`MotionTokens.Still`). 꺼지면 같은 자리에 방향이 읽히는 정지 그림을 그린다. 정차 중 허용은 Pleos 확인 대기(스펙 V-17).
 
@@ -483,7 +483,7 @@ M3 컴포넌트를 쓸 때 색이 어긋나지 않도록 `AutoLogTheme`이 `Colo
 | `ConfirmDialog` | 제목(`headline`) + 설명 1~2줄 + 버튼 2개(위험 동작이면 `DangerButton`). 되돌리기 어려운 동작에만 |
 | `InputField` | **채움형**: 라벨(`caption`, `textSecondary`) 위, 칸은 `surface3` 바탕·`radius.md`·높이 76 dp·테두리 없음, 초점이면 3 dp `accent` 링. 값 `body`, 자리표시(`textTertiary`)는 "예: 홍길동"처럼 예시로. 잠금이면 `surface2` + `textTertiary` + "지금은 입력할 수 없어요". 텍스트 입력은 최후의 수단 |
 | `NumericKeypad` | 3×4 키, 키 높이 96 dp(`iconButton`)·폭 120 dp, `radius.lg`, 바탕 `surface3`(어두운 팝업 `surface2` 위에서도 보이게, 1.47). 입력값은 위에 `heroSmall`로 표시 |
-| 운행 기록 알약 (Compose 밖) | 다른 앱(내비) 위 `TYPE_APPLICATION_OVERLAY` 창(스펙 6.12, vehicle flavor `overlay/RecordingPill`). **AutoLog 화면이 안 보일 때만**. `● 12.3 km · 15분` — 라이트 토큰 고정(`surface1` 면 · `outline` 머리카락 테두리 · `success` 점 `statusDot` 12 dp · `textPrimary` 글자), Asta Sans `caption` 크기 wght 700, 안쪽 여백 `space.5`×`space.4`, 모서리 `radius.xl`, 그림자 `space.2`, 투명도 0.8, 터치 없음. 앱 영역 가운데, 위에서 `space.9`. 지도 위에서 늘 같은 대비로 읽히게 다크에서도 라이트 모양 |
+| 운행 기록 알약 (Compose 밖) | 다른 앱(내비) 위 `TYPE_APPLICATION_OVERLAY` 창(스펙 6.12, vehicle flavor `overlay/RecordingPill`). **H-TaxLog 화면이 안 보일 때만**. `● 12.3 km · 15분` — 라이트 토큰 고정(`surface1` 면 · `outline` 머리카락 테두리 · `success` 점 `statusDot` 12 dp · `textPrimary` 글자), Asta Sans `caption` 크기 wght 700, 안쪽 여백 `space.5`×`space.4`, 모서리 `radius.xl`, 그림자 `space.2`, 투명도 0.8, 터치 없음. 앱 영역 가운데, 위에서 `space.9`. 지도 위에서 늘 같은 대비로 읽히게 다크에서도 라이트 모양 |
 | `CodeField` | 정해진 길이의 코드(차량 연결 코드 6자리) — **칸 N개**(76 dp 정사각, `radius.sm`, `surface3`, 글자 `title`, 칸 사이 `space.2`, 가운데 정렬)로 보여 주고 **시스템 키보드로** 받는다. 칸을 누르면 키보드, 다음 글자가 들어갈 칸에 `accent` 3 dp 초점 링. 글자는 끝에 붙고 끝에서 지운다(커서 끝 고정). 대문자 키보드·자동 수정 끔을 요청하지만 대문자화·허용 글자는 값 규칙(`ConnectCode.normalize`)이 맡는다. 잠금이면 `surface2`·`textTertiary` + "지금은 입력할 수 없어요" |
 | `ButtonNote` | **버튼 바로 위 설명글**(단계 안내·실패 이유·"먼저 차량을 연결해 주세요") — 칸 폭 전체에 **가운데 정렬**, 기본 `body`·`textSecondary`(실패는 `danger`). 화면마다 `Text`를 왼쪽 정렬로 두지 않는다(2026-11-10 사용자 지시, 전 화면 통일). 팝업 안은 같은 규칙의 `ModalText` |
 | `ConfidenceRow` | 고칠 수 있는 칸 한 줄(76 dp, 금액처럼 주인공이면 96 dp·값 `headline`): 왼쪽 이름(`body`, `textSecondary`) · 오른쪽 값(`title`). **정상은 조용히** — 믿을 만한 값엔 표시 없음(2026-11-12, 예전 칸마다 "확인됨"은 여섯 번 반복돼 정작 볼 칸을 묻었다). 노랑·빨강만 아이콘 + "확인 필요"/"다시 확인" 글자 + `warning`/`danger` 테두리. 빈 칸은 흐린 `body` "눌러서 입력" |
@@ -590,7 +590,7 @@ M3 컴포넌트를 쓸 때 색이 어긋나지 않도록 `AutoLogTheme`이 `Colo
 | 1.22 | 2026-11-09 | **글자 하한 22 → 20 sp**(사용자 결정, Pleos 확인: 보조 텍스트 3 mm ≈ 19 sp, 22 sp는 우리 결정이었음). `fine`(20 sp 500)·`sectionFine`(20 sp 700) 추가. `dense` 버튼 글자 `fine` + 좌우 여백 12 dp → 좁은 창 운행 결과 버튼이 원래 이름 [계속 기록하기] · [수정하기] · [메인 화면으로 · 3초]로 한 줄에 들어간다(짧은 이름 문자열 삭제). `SectionHeader(dense)`·`Section(dense)` = `sectionFine` — 좁은 창 운행 결과 소제목 셋(운행 거리 · 시간 / 운행 경로 / 운행 목적) |
 | 1.23 | 2026-11-09 | 좁은 창 운행 결과 "운행 경로" 칸: 같은 폭 두 칸 + 사이 간격 여백 하나(32 dp, 기존 4:6) — 왼쪽 칸은 아래 운행 목적·버튼과 같은 왼쪽 선, 오른쪽 칸은 가운데 선 바로 옆(+16 dp). 가운데 선에서 여백만큼 띄우는 안(사이 64 dp)은 가운데가 너무 비어 버렸다. 좁아진 칸에 맞춰 `RouteFlow(dense)` 글자 `fine` 20 sp · 표시 칸과 글자 사이 8 dp("서울 강남구 역삼동"이 한 줄, 운행 목적 세 행이 첫 화면에) |
 | 1.24 | 2026-11-09 | **실제 에뮬레이터(Pleos Connect v2.1.0, 2560×1440 px · 160 dpi)에서 글자 크기·위치 재조정**(PR #4 `fix/font-size`): `title` 36→44 · `body`·`label` 28→34 · `caption` 22→28 · `section` 22→38 · `fine` 20→22(글자 하한) · `sectionFine` 20→30 · `heroSmall` 96→112 · `heroCompact` 72→80 · `display` 56→64 · `headline` 44→52, 운행 결과 값 `resultDistance` 64 · `resultTime` 56 추가. 하단 타일 네모 창 크기별 112/96/88 dp, 좁은 창 타일 이름은 두 줄 짧은 이름. 운행 결과 좁은 창은 거리·시간과 경로를 전폭으로 쌓고 분류 문구를 버튼 위 가운데로. 2026-11-10 사용자가 에뮬레이터에서 확인 — 이후 글자·간격의 기준 화면 |
-| 1.25 | 2026-11-10 | 코드 품질 정리(동작·모양 같음 — 스크린샷 130장 중 124장 바이트 동일, 나머지는 QR): 창 크기별 글자 분기 7곳을 `AutoLogTheme.windowType` 역할 표 한 곳으로, 운행 결과 섹션 공통 규칙(넓은 창 소제목 아래 +16 dp)을 `ResultSection` 하나로, 리터럴 `800.dp` → `Size.spaciousHeight`. `RouteFlow`의 쓰지 않는 `dense` 모드 삭제. 주유 QR이 자체 비트맵 대신 공용 `QrImage`(오류 정정 M · 둥근 모서리) |
+| 1.25 | 2026-11-10 | 코드 품질 정리(동작·모양 같음 — 스크린샷 130장 중 124장 바이트 동일, 나머지는 QR): 창 크기별 글자 분기 7곳을 `HTaxLogTheme.windowType` 역할 표 한 곳으로, 운행 결과 섹션 공통 규칙(넓은 창 소제목 아래 +16 dp)을 `ResultSection` 하나로, 리터럴 `800.dp` → `Size.spaciousHeight`. `RouteFlow`의 쓰지 않는 `dense` 모드 삭제. 주유 QR이 자체 비트맵 대신 공용 `QrImage`(오류 정정 M · 둥근 모서리) |
 | 1.26 | 2026-11-10 | 운행 기록 조회(스펙 7.8) **List** 배치 추가. `RoundIconButton`(CloseButton이 같은 것을 씀)·`TripListRow`의 `extra` 칸·`ScreenHeader`(보조 화면 머리 줄 공용)·글자 역할 `periodTitle`. 운행 결과 카드 사후 확인 모드(D-29): 카운트다운 막대 없음, 제목 "11월 7일 19:34 운행", 오른쪽 버튼 [닫기] |
 | 1.27 | 2026-11-10 | 운행기록부 내보내기(스펙 7.7) **Form + Action** 배치. `PeriodSwitcher`(운행 기록 조회와 공용)·`CheckRow`(`ChoiceRow`와 같은 틀)·글자 역할 `headerTitle`. `ScreenHeader`: 긴 제목이 X·배지와 겹치던 문제 — 넓은 창은 양옆 대칭 여백, 세로 창도 배지 아래 줄로 |
 | 1.28 | 2026-11-10 | **운전자 배지는 Home에만**, 보조 화면 머리 줄은 **왼쪽 뒤로(<)**, 팝업만 오른쪽 위 X(D-30, 사용자 결정). `BackButton` 추가. 배지가 빠져 `ScreenHeader`가 좁은·세로 창에서도 맨 위 한 줄(배지 아래로 내리던 76 dp를 내용에 돌려줌) |
@@ -616,7 +616,7 @@ M3 컴포넌트를 쓸 때 색이 어긋나지 않도록 `AutoLogTheme`이 `Colo
 | 1.48 | 2026-11-10 | `CodeKeypad` 삭제 — 차량 연결 코드는 서버 주소와 같은 `InputField` 키보드 입력으로(사용자 지시 "키보드로 바꿔줘", 한 팝업에 입력 방식 하나 · 차 한 대에 한 번 하는 조작). `InputField(code = true)`: 대문자 키보드·자동 수정 끔. 숫자판 `surface3`은 유지 |
 | 1.49 | 2026-11-10 | `CodeField` 추가 — 연결 코드를 다시 **6칸 상자**로 보여 주고 입력만 키보드로(사용자 지시 "칸은 이전 디자인으로"). 1.48의 `InputField(code = true)`는 지움 |
 | 1.50 | 2026-11-10 | `ButtonNote` 추가 — 버튼 바로 위 설명글은 모두 가운데(사용자 지시 "전수조사해서 다 가운데"). 바꾼 곳: 운행기록부 내보내기 단계 안내, 운행 결과 "찾을 수 없어요", 설정 사내 서버 전송 실패, 설정 "먼저 차량을 연결해 주세요", 설정 팝업 실패 한 줄(`ModalText`). 이미 가운데였던 곳: 영수증 QR 문제 안내, 운행 결과 분류 문구, 저장 완료, 운전자 추가·놓친 운행·복구 팝업 |
-| 1.51 | 2026-11-11 | 에뮬레이터 QA 반영: 운행 기록 조회 **List** 배치(달 이동·합계 가운데, [운행기록부 내보내기] 맨 아래 가운데 400 dp — 토큰 `listActionMaxWidth`), 운행 기록 알약 행(토큰으로 정리, 앱 글꼴, AutoLog가 안 보일 때만) |
+| 1.51 | 2026-11-11 | 에뮬레이터 QA 반영: 운행 기록 조회 **List** 배치(달 이동·합계 가운데, [운행기록부 내보내기] 맨 아래 가운데 400 dp — 토큰 `listActionMaxWidth`), 운행 기록 알약 행(토큰으로 정리, 앱 글꼴, H-TaxLog가 안 보일 때만) |
 | 1.52 | 2026-11-11 | **단계 이어짐**(D-31, 사용자 지시 "주행 시작하면 UI가 확 바뀌어 괴리감"): 정차·주행도 주차와 같은 Home을 읽기 전용으로 — Peek 패널·단계 페이드(`tierFadeIn/Out`)·`FitOrDrop`·`peekMaxWidth` 삭제. `DockTile` 잠금 모양(흐림, `whileDriving` 예외), 정차 중 상태 줄 남은 시간 |
 | 1.53 | 2026-11-11 | 경로 화살표 흐름은 주행 중에만(D-32, 사용자 지시) — 주차·정차 중 기록 중이면 정지 그림. `LocalVehicleMoving` |
 | 1.54 | 2026-11-12 | 운행 직후 결과 카드는 정차·주행 중에도 버튼 없이(스펙 D-35, 막대 없음) — 8장 단계별 모션 표에 화면 전환·막대·체크 행 갱신 |
