@@ -26,6 +26,7 @@ import kr.htaxlog.vehicle.ui.design.LocalInputLocked
 import kr.htaxlog.vehicle.ui.design.LocalKeyboardLocked
 import kr.htaxlog.vehicle.ui.design.LocalVehicleMoving
 import kr.htaxlog.vehicle.ui.design.WindowLayoutHost
+import kr.htaxlog.vehicle.ui.profile.ScheduledDriverAutoPick
 
 /** FULL 진입 직후 오조작 방지(디자인 언어 12장). */
 const val FULL_ENTRY_GUARD_MS = 300L
@@ -43,6 +44,8 @@ fun HTaxLogRoot(graph: AppGraph, onRequestBackground: () -> Unit, deferBackgroun
     val noKeyboard by graph.usage.noKeyboard.collectAsStateWithLifecycle()
     var entryGuard by remember { mutableStateOf(false) }
     var bootOpening by remember { mutableStateOf(deferBackgroundUntilMotionKnown) }
+    // 앱이 켜질 때 한 번, 배차된 운전자가 한 명이면 그 사람으로 시작한다(F-15)
+    LaunchedEffect(Unit) { ScheduledDriverAutoPick(graph.session, graph.profile, graph.navigator).run() }
     LaunchedEffect(tier, motion, deferBackgroundUntilMotionKnown) {
         graph.navigator.onTierChanged(tier)
         when (tier) {

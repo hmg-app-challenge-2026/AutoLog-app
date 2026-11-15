@@ -32,7 +32,14 @@ class DefaultPurposeEngine(
     private val log: (String) -> Unit = {},
     /** 출발→도착 목적 규칙. 실제 앱은 [PurposeBook.rules]. */
     private val routeRules: () -> List<PurposeRouteRule> = { emptyList() },
+    /**
+     * 이 차가 서버에 등록된 차량 id(없으면 null). 화면은 계약에 차량 id가 없어 "unregistered"를 넘기는데(G-02),
+     * 차 안 배차·운행은 어차피 이 차 것뿐이라 등록돼 있으면 그 id로 찾는다 — 그래야 배차 운전자가 앞에 오고 자동 선택된다(2026-11-15).
+     */
+    private val currentVehicleId: () -> String? = { null },
 ) : PurposeEngine {
+    private fun vehicle(requested: String): String = currentVehicleId() ?: requested
+
     override suspend fun suggest(trip: TripFacts): Suggestion = try {
         val places = store.places().map { it.toPlace() }
         val origin = at(trip.startLat, trip.startLng, places)
@@ -66,7 +73,7 @@ class DefaultPurposeEngine(
     override fun orderedUsers(vehicleId: String, now: Long): Flow<List<UserCard>> = store.users().map { users ->
         val w = UserOrdering.SCHEDULE_WINDOW_MS
         val scheduled =
-            runCatching { store.schedules(vehicleId, now - w, now + w) }
+            runCatching { store.schedules(vehicle(vehicleId), now - w, now + w) }
                 .getOrDefault(emptyList())
                 .sortedBy { abs(it.startsAt - now) }
                 .map { it.userId }
@@ -123,7 +130,7 @@ class DefaultPurposeEngine(
     override suspend fun unassignedTrips(vehicleId: String, now: Long): List<UnassignedTrip> = try {
         val since = now - UNASSIGNED_LOOKBACK_MS
         // 직전 운행 규칙을 쓰려면 기간 시작보다 하루 더 앞까지 읽는다.
-        val trips = store.trips(since - PREVIOUS_LOOKBACK_MS, now).filter { it.vehicleId == vehicleId }
+        val trips = store.trips(since - PREVIOUS_LOOKBACK_MS, now).filter { it.vehicleId == vehicle(vehicleId) }
         val users = store.users().first()
         trips
             .filter { it.userId == null && it.endTime != null && it.startTime >= since }

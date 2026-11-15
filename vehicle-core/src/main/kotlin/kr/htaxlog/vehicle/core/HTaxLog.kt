@@ -119,7 +119,10 @@ object HTaxLog {
         val ctx = GatewayContext(navi, location, scope)
         val purposeBook = PurposeBook(PrefsPurposeBookStore(app))
         inbox.onPurposes = { purposeBook.applyServer(it) }
-        val purpose = DefaultPurposeEngine(store, log = log, routeRules = { purposeBook.rules() })
+        val purpose =
+            DefaultPurposeEngine(store, log = log, routeRules = {
+                purposeBook.rules()
+            }, currentVehicleId = { device.vehicleId })
 
         // 앱 A 세션·조회·운행기록부
         // 출발·도착 주소: 중계 서버(카카오) → 실패하면 내비 현재 위치 주소 (F-06, F-07)
