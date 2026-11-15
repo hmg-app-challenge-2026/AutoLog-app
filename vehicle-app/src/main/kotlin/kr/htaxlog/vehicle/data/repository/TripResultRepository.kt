@@ -11,6 +11,7 @@ import kr.htaxlog.vehicle.core.PurposeCategory
 import kr.htaxlog.vehicle.core.PurposeDetail
 import kr.htaxlog.vehicle.core.PurposeEngine
 import kr.htaxlog.vehicle.core.SessionState
+import kr.htaxlog.vehicle.core.Suggestion
 import kr.htaxlog.vehicle.core.TripFacts
 import kr.htaxlog.vehicle.core.TripRow
 import kr.htaxlog.vehicle.core.TripSessionApi
@@ -74,14 +75,23 @@ class DefaultTripResultRepository(
     private val vehicleId: () -> String,
 ) : TripResultRepository {
     override fun result(tripId: String): Flow<TripResult?> = session.state.map { s ->
-        if (s is SessionState.StopCandidate && s.trip.tripId == tripId) s.toResult() else store.trip(tripId)?.toResult()
+        if (s is SessionState.StopCandidate && s.trip.tripId == tripId) {
+            s.toResult()
+        } else {
+            store.trip(tripId)?.toResult(sessionSuggestion(s, tripId))
+        }
     }.distinctUntilChanged()
 
     override suspend fun classify(tripId: String, category: PurposeCategory) {
         val row = store.trip(tripId)?.takeIf { it.endTime != null } ?: return
-        val suggested = purpose.suggest(row.facts()).detail
+        // 세션이 운행을 끝낼 때 출발·도착 좌표로 낸 추천을 먼저 쓴다(목적 규칙은 좌표가 있어야 맞는다)
+        val suggested = sessionSuggestion(session.state.value, tripId)?.detail ?: purpose.suggest(row.facts()).detail
         session.confirmPurpose(tripId, detailFor(category, row.purpose, suggested, row.startTime), null, InputMode.TAP)
     }
+
+    /** 방금 끝난 이 운행에 세션이 낸 추천(목적 확인 대기 중일 때만). */
+    private fun sessionSuggestion(s: SessionState, tripId: String): Suggestion? =
+        (s as? SessionState.PendingReview)?.takeIf { it.trip.tripId == tripId }?.suggestion
 
     override suspend fun editDistance(tripId: String, km: Double): Boolean = session.editDistance(tripId, km)
 
@@ -108,8 +118,13 @@ class DefaultTripResultRepository(
         endsAt = deadlineAt,
     )
 
-    private suspend fun TripRow.toResult(): TripResult {
+    private suspend fun TripRow.toResult(suggestion: Suggestion? = null): TripResult {
         val saved = purpose?.category?.takeIf { it != PurposeCategory.UNDETERMINED }
+        // 확신 있는 추천(목적 규칙·출퇴근 등)이 있으면 그 분류로 시작한다(2026-11-15). 없으면 기본값(일반 업무)
+        val suggested = suggestion?.takeIf { it.isConfident }?.detail?.category?.takeIf {
+            it !=
+                PurposeCategory.UNDETERMINED
+        }
         return TripResult(
             tripId = tripId,
             startTime = startTime,
@@ -117,7 +132,7 @@ class DefaultTripResultRepository(
             distanceKm = distanceKm,
             origin = originLabel,
             destination = destinationLabel,
-            category = saved ?: defaults.defaultFor(facts()),
+            category = saved ?: suggested ?: defaults.defaultFor(facts()),
             classified = saved != null,
             originAddress = originAddress,
             destinationAddress = destinationAddress,
