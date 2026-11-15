@@ -251,4 +251,5 @@ export const api = {
     request<Schedule[]>('GET', `/schedules?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`),
   createSchedule: (s: ScheduleInput) => request<Schedule>('POST', '/schedules', s),
   deleteSchedule: (id: string) => request<void>('DELETE', `/schedules/${id}`),
+  importSchedules: (csv: File) => request<{ imported: number }>('POST', '/schedules/import', csv, 'text/csv'),
 }
