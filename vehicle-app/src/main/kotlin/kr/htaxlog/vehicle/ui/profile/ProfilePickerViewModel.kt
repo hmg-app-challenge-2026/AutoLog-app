@@ -6,12 +6,10 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kr.htaxlog.vehicle.data.repository.AddDriverResult
-import kr.htaxlog.vehicle.data.repository.ProfileBadge
 import kr.htaxlog.vehicle.data.repository.ProfileRepository
 import kr.htaxlog.vehicle.data.repository.SessionRepository
 import kr.htaxlog.vehicle.nav.Navigator
@@ -33,11 +31,7 @@ class ProfilePickerViewModel(
 
     init {
         if (autoPickScheduled) {
-            viewModelScope.launch {
-                if (profile.currentDriver().first() != null) return@launch
-                val scheduled = profile.orderedProfiles().first().filter { it.badge == ProfileBadge.SCHEDULED }
-                scheduled.singleOrNull()?.let { start(it.userId) }
-            }
+            viewModelScope.launch { ScheduledDriverAutoPick(session, profile, navigator).run() }
         }
     }
 

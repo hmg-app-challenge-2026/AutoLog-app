@@ -170,4 +170,15 @@ class DefaultPurposeEngineTest {
 
         assertTrue(r is SettingsResult.Invalid)
     }
+
+    @Test
+    fun `화면이 차량 id를 몰라도 등록된 이 차의 배차 운전자가 앞에 온다`() = runTest {
+        store.scheduleList += "car-1" to ScheduleInfo("s-1", "u-kim", kst(14), kst(15), null, null)
+        val engine = DefaultPurposeEngine(store, currentVehicleId = { "car-1" })
+
+        val cards = engine.orderedUsers("unregistered", kst(14, 10)).first()
+
+        assertEquals("u-kim", cards.first().userId)
+        assertEquals(UserBadge.SCHEDULED, cards.first().badge)
+    }
 }
