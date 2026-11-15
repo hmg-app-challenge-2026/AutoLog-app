@@ -105,15 +105,18 @@ class DefaultTripResultRepository(
         destination = trip.destinationLabel,
         originAddress = trip.originAddress,
         destinationAddress = trip.destinationAddress,
-        category = defaults.defaultFor(
-            TripFacts(
-                tripId = trip.tripId,
-                vehicleId = vehicleId(),
-                startTime = trip.startTime,
-                destinationLabel = trip.destinationLabel,
-                driverUserId = trip.driverUserId,
+        // 세션이 종료 대기에 들어가며 낸 확신 있는 추천이 있으면 처음부터 그 분류로(2026-11-15)
+        category = suggestion?.takeIf { it.isConfident }?.detail?.category
+            ?.takeIf { it != PurposeCategory.UNDETERMINED }
+            ?: defaults.defaultFor(
+                TripFacts(
+                    tripId = trip.tripId,
+                    vehicleId = vehicleId(),
+                    startTime = trip.startTime,
+                    destinationLabel = trip.destinationLabel,
+                    driverUserId = trip.driverUserId,
+                ),
             ),
-        ),
         classified = false,
         endsAt = deadlineAt,
     )

@@ -528,6 +528,11 @@ sealed interface SessionState {
         val reason: StopReason,
         val since: Long,
         val deadlineAt: Long,
+        /**
+         * 종료 대기에 들어가며 미리 낸 목적 추천(앱 B, 멈춘 자리 기준). 프론트: 결과 카드가 5초 카운트다운 처음부터
+         * 이 분류로 보이게(2026-11-15). 아직 모르면 null — 운행이 끝나면 [PendingReview.suggestion]이 온다.
+         */
+        val suggestion: Suggestion? = null,
     ) : SessionState
 
     /** 운행이 끝났고 목적 확인을 기다린다. [distanceKm] null = 거리 미확정. [suggestion]은 앱 B 추천. */

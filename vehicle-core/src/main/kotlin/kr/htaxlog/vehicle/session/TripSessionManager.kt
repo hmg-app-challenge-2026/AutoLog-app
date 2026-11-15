@@ -11,6 +11,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kr.htaxlog.shared.KoreanAddress
+import kr.htaxlog.shared.PlaceKind
 import kr.htaxlog.vehicle.core.AddressSource
 import kr.htaxlog.vehicle.core.ContextApi
 import kr.htaxlog.vehicle.core.DestinationInfo
@@ -395,15 +396,15 @@ class TripSessionManager(
                     }
                     val trip = dao.trip(s.trip.tripId)
                     val liveKm = trip?.let { liveKm(it, lastKm) } ?: s.liveKm
-                    if (parkedAwayFromDestination()) {
-                        _state.value = s.copy(liveKm = liveKm) // 목적지 전 잠깐 세운 것 — 기록을 이어 간다
+                    if (keepRecordingOnPark()) {
+                        _state.value = s.copy(liveKm = liveKm) // 주유소·목적지 전에 잠깐 세운 것 — 기록을 이어 간다
                     } else {
                         enterStopLocked(s.trip, liveKm, StopReason.GEAR_P, null)
                     }
                 }
                 is SessionState.StopCandidate -> when {
                     g == Gear.PARK && s.reason !in setOf(StopReason.GEAR_P, StopReason.USER_REQUEST) ->
-                        if (parkedAwayFromDestination()) {
+                        if (keepRecordingOnPark()) {
                             resumeLocked(s)
                         } else {
                             enterStopLocked(s.trip, s.liveKm, StopReason.GEAR_P, s.since)
@@ -421,6 +422,21 @@ class TripSessionManager(
      * (2026-11-15 사용자 결정, 300m: 편의점·주유소처럼 목적지 가는 길에 잠깐 세운 것). 목적지가 없거나, 좌표를 모르거나,
      * 목적지 근처면 false — 지금처럼 P 종료 대기로 간다. 시동 OFF·내비 도착·[기록 종료]는 그대로 끝낸다.
      */
+    /** P를 넣어도 운행을 끝내지 않을 때: 등록된 주유소 안이거나(주유는 운행 중 정차), 내비 목적지에서 먼 곳. */
+    private suspend fun keepRecordingOnPark(): Boolean = parkedAtGasStation() || parkedAwayFromDestination()
+
+    /**
+     * 등록된 주유소(장소 종류 GAS_STATION) 안에서 P를 넣었는가(2026-11-15 사용자 결정 — 주유하러 들른 것은 같은 운행이다).
+     * 내비 목적지가 없어도 적용된다. 좌표를 모르거나 주유소가 아니면 false.
+     */
+    private suspend fun parkedAtGasStation(): Boolean {
+        val fix = context.freshFix() ?: return false
+        val place = runCatching { purpose.placeAt(fix.lat, fix.lng) }.getOrNull() ?: return false
+        val atStation = place.kind == PlaceKind.GAS_STATION
+        if (atStation) log("gear P: 주유소(${place.label}) → 기록 유지")
+        return atStation
+    }
+
     private suspend fun parkedAwayFromDestination(): Boolean {
         val d = context.destination.value?.takeIf { it.isSet() } ?: return false
         val fix = context.freshFix() ?: return false
@@ -728,6 +744,15 @@ class TripSessionManager(
         val lat = end?.lat ?: t.destinationLat ?: return
         val lng = end?.lng ?: t.destinationLng ?: return
         val place = purpose.placeAt(lat, lng)
+        // 주소(서버)를 기다리기 전에 목적 추천부터 — 결과 카드가 카운트다운 처음부터 맞는 분류로 보이게
+        val suggestion = runCatching {
+            purpose.suggest(t.copy(destinationLat = lat, destinationLng = lng).toFacts())
+        }.getOrNull()
+        mutex.withLock {
+            val s = _state.value as? SessionState.StopCandidate ?: return
+            if (s.trip.tripId != tripId) return
+            _state.value = s.copy(suggestion = suggestion)
+        }
         val geo = geocode?.reverse(lat, lng, isCurrentPosition = true)
         mutex.withLock {
             val s = _state.value as? SessionState.StopCandidate ?: return
