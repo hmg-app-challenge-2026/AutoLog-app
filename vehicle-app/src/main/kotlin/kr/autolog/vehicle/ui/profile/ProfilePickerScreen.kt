@@ -42,7 +42,11 @@ import kr.autolog.vehicle.ui.design.twoColumns
 @Composable
 fun ProfilePickerRoute() {
     val graph = LocalAppGraph.current
-    val vm = viewModel { ProfilePickerViewModel(graph.session, graph.profile, graph.navigator) }
+    val vm = viewModel {
+        // 앱이 막 켜졌을 때(선택 화면이 맨 아래 첫 화면)만 배차 운전자로 자동 시작한다
+        val atAppStart = graph.navigator.backStack.value.size == 1
+        ProfilePickerViewModel(graph.session, graph.profile, graph.navigator, autoPickScheduled = atAppStart)
+    }
     val state by vm.uiState.collectAsStateWithLifecycle()
     ProfilePickerScreen(state, vm::onAction)
 }
