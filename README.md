@@ -1,68 +1,57 @@
-# H-TaxLog — 차가 스스로 쓰는 운행·지출 장부
+# H-TaxLog
 
-> 운전만 하세요. 기록은 차가 합니다.
+> **차가 스스로 쓰는 운행·지출 장부.** 차량의 계기판 주행거리와 내비게이션 정보를 통해 운행 기록을 자동화하고, 업무 일정 연동, 영수증 스캔을 통한 간편한 주유 기록 입력 등 편의 기능으로 운전자의 기록 부담과 관리자의 정산 업무를 줄이는 기업용 차량 운행 관리 앱입니다.
 
-2026 현대자동차그룹 차량용 앱 개발 공모전 (Pleos App Market). 기획·기능·기술 명세는 [`docs/`](docs/)에 있다: [기획서](docs/H-TaxLog_기획서.md) · [기능명세](docs/H-TaxLog_기능명세.md) · [기술명세](docs/H-TaxLog_기술명세.md) · [DB 스키마](docs/H-TaxLog_DB스키마.md).
+2026 현대자동차그룹 차량용 앱 개발 공모전 출품작입니다.
 
-> 2026-11-11 [AutoLog-Frontend](https://github.com/hmg-app-challenge-2026/AutoLog-Frontend)(화면)와 [AutoLog-Backend](https://github.com/hmg-app-challenge-2026/AutoLog-Backend)(차량 로직·서버)를 이 리포 하나로 합쳤다. 두 리포의 커밋 기록·브랜치 이름은 그대로 들어 있다(커밋 해시도 같다).
+## APK 위치
 
-## 먼저 읽을 문서
+- [AutoLog_H-TaxLog_release.apk](apk/AutoLog_H-TaxLog_release.apk)
+- [APK 설치 및 서버 설정 상세 안내](apk/README.md)
 
-1. [CONVENTIONS.md](CONVENTIONS.md) — 분업·브랜치·커밋·코드 스타일(1~10장 공통, 11장 화면)
-2. 화면을 만든다면: [프론트 설계 스펙](docs/superpowers/specs/2026-11-09-htaxlog-frontend-design.md) — 무엇을 왜, 어떻게 만드는지(결정·구조·화면·일정) · [디자인 언어](docs/design-language.md) — 철학·원칙·토큰·모션·컴포넌트
+## 실행 방법
 
-## 같이 개발하기
+1. 아래 테스트 환경에 맞춰 **Pleos Connect v2.1.0 에뮬레이터를 Cold Boot**로 시작합니다. 일반 휴대전화나 기본 Android Automotive 에뮬레이터에는 앱이 사용하는 Pleos 차량 서비스가 없습니다.
+2. 저장소 루트에서 제출 APK를 설치하고 앱을 실행합니다. `adb`가 PATH에 있어야 합니다.
 
-분업·브랜치·커밋·코드 스타일은 **[CONVENTIONS.md](CONVENTIONS.md)** 를 따른다. PR 전에:
+   ```bash
+   adb install apk/AutoLog_H-TaxLog_release.apk
+   scripts/emu.sh setup
+   ```
 
-```bash
-./gradlew ktlintFormat
-./gradlew ktlintCheck :shared:test :vehicle-core:test :relay:test
-./gradlew :vehicle-app:testDemoDebugUnitTest :vehicle-app:recordRoborazziDemoDebug :vehicle-app:assembleDemoDebug
-```
+3. 첫 실행에서 차량 데이터·위치·알림 권한을 허용합니다. 내비 등 다른 앱 위에 기록 중 알약을 표시하려면 Android의 **다른 앱 위에 표시** 특수 권한도 허용합니다.
+4. 운행을 시험하려면 `scripts/emu.sh demo-commute`를 실행하거나 Pleos Virtual Console에서 기어·속도·계기판 거리를 조작합니다.
 
-## 구조
+같은 패키지의 디버그 서명 앱이 이미 설치돼 있으면 서명 키가 달라 APK 업데이트가 거부됩니다. 기존 앱을 제거한 뒤 설치할 수 있지만, 제거하면 그 앱의 로컬 기록도 삭제됩니다.
 
-| 경로 | 무엇 | 실행 위치 | 차량 APK에 포함 |
-|---|---|---|---|
-| `shared/` | inbox payload DTO (Kotlin JVM) | — | ✅ (vehicle-core 가 의존) |
-| `vehicle-core/` | 차량 로직 — SDK·운행 기록·Room·inbox·엑셀·메일 (화면 없음) | Pleos 에뮬레이터 · 헤드유닛 | ✅ (vehicle-app 이 의존) |
-| `vehicle-app/` | 차량 화면 (Kotlin · Jetpack Compose · Material 3). `vehicle-core` 의 공개 계약(`core/Contracts.kt`)·`HTaxLog.create`만 사용 | Pleos 에뮬레이터 · 헤드유닛 | ✅ |
-| `relay/` | 중계 서버 (Spring Boot + PostgreSQL + MinIO) | 서버 VM | ❌ |
-| `web/admin` | 운영 웹 (React + TS + Vite) | nginx 정적 | ❌ |
-| `web/camera` | 폰 영수증 카메라 페이지 (HTML 1장) | nginx 정적 | ❌ |
-| `ops/` | docker-compose, nginx, .env.example | 서버 VM | ❌ |
-| `scripts/` | Pleos 에뮬레이터 손 시험 도우미(`emu.sh`) | 개발 PC | ❌ |
+## 테스트 환경 및 화면 규격
 
-의존 방향: `vehicle-app` → `vehicle-core` → `shared`. 화면과 로직의 경계는 `vehicle-core/.../core/Contracts.kt`·`HTaxLog.kt`.
+| 항목 | 개발·검증 환경 |
+|---|---|
+| 실행 기기 | Apple Silicon Mac의 **Pleos Connect v2.1.0** 에뮬레이터 |
+| 시스템 이미지 | Android API 34, Pleos Connect v2.1.0 APIs |
+| 에뮬레이터 설정 | Cold Boot, RAM 4 GB, 기본 언어 한국어 |
+| 기본 디스플레이 | **2560 × 1440 px**, 160 dpi (밀도 1.0) |
+| 앱 표시 영역 | 시스템 상·하단 영역을 제외해 약 **2560 × 1268 dp**. 창 분할 시 크기는 달라집니다. |
+| 서버·빌드 도구 | Docker, JDK 21, Android SDK 35, Node.js 20 이상 |
 
-원칙: **운행 기록의 원본은 차량 Room.** 서버는 영수증 OCR·기준 정보만 차로 넣어주는 우체통이며, 서버를 꺼도 운행·엑셀·메일은 동작한다.
+에뮬레이터 설치 절차는 [개발 환경 안내](docs/dev-setup.md)를 참고하세요.
 
-## 빌드
+## 로컬 서버 및 필요한 설정
 
-요구: JDK 17+, Android SDK 35, Node 20+, Docker. 실행 검증은 Apple Silicon 맥의 Pleos Connect Emulator(API 34)에서 한다(프론트 스펙 5.5).
-
-```bash
-./gradlew :shared:test               # 공용 DTO
-./gradlew :vehicle-core:test         # 차량 로직 단위 테스트 (화면·에뮬레이터 없이)
-./gradlew :vehicle-app:installDemoDebug     # 차량 앱 — 전부 Fake. 왼쪽 위 구석을 길게 누르면 데모 패널
-./gradlew :vehicle-app:installVehicleDebug  # 차량 앱 — Pleos 에뮬레이터용(vehicle-core 실구현 HTaxLog.create)
-./gradlew :relay:bootJar             # 서버 jar → relay/build/libs/relay.jar
-```
+APK의 중계 서버 주소는 `http://10.0.2.2:8080`으로 설정되어 있습니다. Android 에뮬레이터에서 `10.0.2.2`는 **에뮬레이터를 실행하는 컴퓨터의 localhost**이므로, 서버도 같은 컴퓨터에서 실행합니다.
 
 ```bash
-cd web/admin && npm install && npm run dev     # 운영 웹 개발 서버
+./gradlew :relay:bootJar
+cd web/admin && npm install && npm run build && cd ../..
+test -e ops/.env || cp ops/.env.example ops/.env
+# ops/.env에 필요한 값을 입력합니다.
+cd ops && docker compose up -d --build
+curl http://localhost:8080/actuator/health
 ```
 
-```bash
-cd ops && cp .env.example .env && docker compose up -d   # 서버 일체 (relay jar·web 빌드 후)
-```
+서버 없이도 차량 운행 기록은 앱에 로컬로 저장됩니다. 차량 등록·배차 및 사용자 동기화·영수증 OCR·주소 변환에는 서버가 필요합니다. OCR용 `GEMINI_API_KEY`와 주소 변환용 `KAKAO_REST_KEY`는 각자 `ops/.env`에 설정하며 APK나 저장소에 넣지 않습니다. 휴대전화로 영수증 QR을 열려면 `PUBLIC_BASE_URL`을 휴대전화에서 접근 가능한 컴퓨터 주소로 설정해야 합니다. 운행기록부 메일 발송에는 회사 메일 계정과 서버의 `MAIL_SECRET_KEY` 설정이 필요합니다. 자세한 내용은 [APK 실행 안내](apk/README.md)에 있습니다.
 
-APK에 무엇이 들어갔는지 확인: Android Studio **Build → Analyze APK** 또는
-`./gradlew :vehicle-app:dependencies --configuration vehicleReleaseRuntimeClasspath`.
+## 프로젝트 문서
 
-개발 환경은 [docs/dev-setup.md](docs/dev-setup.md).
-
-## Pleos SDK
-
-Maven: `https://nexus-playground.pleos.ai/repository/maven-releases/`. 검증 결과는 [`vehicle-core/docs/sdk-findings.md`](vehicle-core/docs/sdk-findings.md). 에뮬레이터 손 시험: [`scripts/emu.sh`](scripts/emu.sh).
+[기획서](docs/H-TaxLog_기획서.md) · [기능명세](docs/H-TaxLog_기능명세.md) · [기술명세](docs/H-TaxLog_기술명세.md) · [개발 규칙](CONVENTIONS.md)
